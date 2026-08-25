@@ -361,7 +361,7 @@ export const translations = {
     'messages.ownerDescription': 'Rispondi alle domande, condividi dettagli e trova la persona giusta.',
     'messages.studentDescription': 'Tutto quello che ti serve per chiedere, pianificare e sentirti bene sul tuo prossimo passo.',
     'messages.inbox': 'Posta in arrivo',
-    'messages.pickConversation': 'Scegli una conversazione',
+    'messages.pickConversation': 'Seleziona un contatto',
     'messages.pickConversationText': 'I tuoi messaggi si apriranno qui.',
     'messages.emptyOwnerInbox': 'Quando gli studenti ti scrivono per una stanza, lo vedrai qui.',
     'messages.emptyStudentInbox': 'Quando chiedi informazioni su una stanza, le conversazioni appariranno qui.',
