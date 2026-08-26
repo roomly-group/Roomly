@@ -20,7 +20,7 @@ export default function NotFound() {
             {t('notFound.text')}
           </p>
 
-          <Link href="/" className="mt-4 inline-block text-sm font-bold text-[#0F6E56] hover:text-[#085041]">
+          <Link href="/home" className="mt-4 inline-block text-sm font-bold text-[#0F6E56] hover:text-[#085041]">
             {t('notFound.backHome')}
           </Link>
         </CardContent>

@@ -15,7 +15,7 @@ import roomlyMark from '@assets/3-removebg-preview_1787501992159.png';
 
 export function Logo() {
   return (
-    <Link href="/" className="flex items-center gap-2.5" data-testid="link-logo">
+    <Link href="/home" className="flex items-center gap-2.5" data-testid="link-logo">
       <span>
         <img src={roomlyMark} alt="" className="h-12 w-12 object-contain" />
       </span>
@@ -143,7 +143,14 @@ function AppShellContent({
             >
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
-            <Avatar name={owner ? 'Maya Patel' : 'Sam Taylor'} size="sm" />
+            <Link
+              href={owner ? '/owner/profile' : '/profile'}
+              className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F6E56] focus-visible:ring-offset-2"
+              aria-label={t('nav.myProfile')}
+              data-testid="link-account-avatar"
+            >
+              <Avatar name={owner ? 'Maya Patel' : 'Sam Taylor'} size="sm" />
+            </Link>
           </div>
         </div>
 
