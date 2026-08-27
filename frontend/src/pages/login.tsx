@@ -6,6 +6,7 @@ import { Button } from '@/components/shared/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
+import { postAuthRoute } from '@/lib/auth-role';
 import roomlyMark from '@assets/3-removebg-preview_1787501992159.png';
 
 export function LoginPage() {
@@ -36,7 +37,7 @@ export function LoginPage() {
         throw new Error('No session returned by Supabase Auth.');
       }
 
-      setLocation('/home');
+      setLocation(await postAuthRoute(data.session.user));
     } catch (err) {
       setError(err instanceof Error ? err.message : t('auth.loginError'));
     } finally {

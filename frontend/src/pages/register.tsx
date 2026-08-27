@@ -6,6 +6,7 @@ import { Button } from '@/components/shared/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
+import { postAuthRoute } from '@/lib/auth-role';
 import roomlyMark from '@assets/3-removebg-preview_1787501992159.png';
 
 export function RegisterPage() {
@@ -52,7 +53,9 @@ export function RegisterPage() {
 
       if (data.session) {
         // Email confirmation disabled: Supabase already returned a session + JWT.
-        setLocation('/home');
+        // Admins (admin = true on the utenti table) go straight to the app;
+        // everyone else lands on the waitlist confirmation dashboard.
+        setLocation(await postAuthRoute(data.session.user));
         return;
       }
 
