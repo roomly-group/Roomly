@@ -172,9 +172,15 @@ export function NewListingPage() {
               </p>
             )}
 
-            <Button type="submit" className="mt-7 w-full sm:w-auto" disabled={createListing.isPending} data-testid="button-publish-listing">
-              {createListing.isPending ? t('newListing.publishing') : t('newListing.publish')} <ArrowRight size={16} />
-            </Button>
+            <button
+              type="submit"
+              aria-label="Pubblica"
+              title="Pubblica"
+              data-testid="button-search"
+              className="mt-2 h-12 min-w-[80px] shrink-0 rounded-xl bg-[#EF9F27] px-4 font-extrabold text-[#2C2C2A] transition-all duration-200 hover:bg-[#e6a53d] active:scale-[0.98]"
+            >
+              Pubblica
+            </button> 
           </div>
 
           <aside className="space-y-5">

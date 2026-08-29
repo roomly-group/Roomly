@@ -1,49 +1,36 @@
 # Roomly
 
-Roomly è una demo full-stack per cercare stanze, pubblicare annunci e mantenere conversazioni tra studenti e proprietari. Il progetto è diviso in due applicazioni standalone:
+Roomly è una demo full-stack per cercare stanze, pubblicare annunci e scambiare
+messaggi tra studenti e proprietari. È composta da due applicazioni indipendenti:
 
-- `frontend/`: interfaccia React + TypeScript, servita e compilata da Vite.
-- `backend/`: API Express + TypeScript.
-- `backend/local-libs/api-zod/`: tipi e schemi Zod condivisi dal backend.
-- `frontend/local-libs/api-client-react/`: client HTTP e hook React Query generati
-	a partire dallo stesso contratto API.
+- `frontend/`: React 19, TypeScript, Vite, Wouter e React Query;
+- `backend/`: Express, TypeScript e Zod;
+- `backend/local-libs/api-zod/`: contratto condiviso con schemi e tipi;
+- `frontend/local-libs/api-client-react/`: client HTTP e hook React Query generati.
 
-## Mappa generale
+## 1. Architettura
 
 ```text
-Browser
-	|
-	| React, Wouter, React Query
-	v
-Vite frontend :5173
-	|
-	| /api/* proxy -> BACKEND_URL
-	v
-Express backend :3001
-	|
-	| CORS, JSON/urlencoded, pino-http
-	v
-Router /api
-	|
-	| parsing e validazione con @workspace/api-zod
-	v
-Stato in memoria
-	listings, conversations, messages
+Browser -> Vite frontend -> proxy /api -> Express backend
+                                      -> dati demo in memoria
 ```
 
-In sviluppo il browser chiama URL relativi come `/api/listings`. Vite inoltra
-queste richieste al backend configurato con `BACKEND_URL`; il browser quindi non
-deve conoscere direttamente la porta del backend. Il backend accetta richieste
-cross-origin tramite CORS.
+Il browser usa URL relativi come `/api/listings`. Vite inoltra `/api` al backend
+configurato con `BACKEND_URL`; in questo modo il frontend non deve conoscere la
+porta dell'API. Il backend abilita CORS, parsing JSON e URL encoded, logging con
+`pino-http` e monta tutte le rotte sotto `/api`.
 
-## Come si avvia
+## 2. Avvio locale
 
-Sono necessari due processi, uno per ciascuna cartella:
+### 2.1 Avvio dei server
+
+Servono due terminali. Il backend richiede obbligatoriamente `PORT`.
 
 ```bash
 # Terminale 1
 cd backend
 npm install
+$env:PORT=3001       # PowerShell; usare PORT=3001 in bash
 npm run dev
 
 # Terminale 2
@@ -52,177 +39,268 @@ npm install
 npm run dev
 ```
 
-URL predefiniti:
+Indirizzi predefiniti: frontend `http://localhost:5173`, backend
+`http://localhost:3001`.
 
-- frontend: `http://localhost:5173`
-- backend: `http://localhost:3001`
+### 2.2 Variabili d'ambiente
 
-Il backend richiede la variabile `PORT`. Il frontend usa `PORT` per la porta Vite,
-`BACKEND_URL` per la destinazione del proxy e `BASE_PATH` per il prefisso di
-deploy. I valori predefiniti sono rispettivamente `5173`,
-`http://localhost:3001` e `/`.
+Le variabili del frontend sono lette da `frontend/vite.config.ts`:
 
-Comandi disponibili:
+| Variabile | Default | Scopo |
+| --- | --- | --- |
+| `PORT` | `5173` | Porta di Vite e della preview |
+| `BACKEND_URL` | `http://localhost:3001` | Destinazione del proxy `/api` |
+| `BASE_PATH` | `/` | Prefisso dell'app in fase di deploy |
+
+### 2.3 Comandi utili
 
 ```bash
 cd backend
 npm run typecheck
-npm run dev       # tsx watch src/index.ts
+npm run dev       # sviluppo con watch
 npm start         # avvio senza watch
 
 cd frontend
 npm run typecheck
-npm run build     # output in dist/public
-npm run serve      # preview della build
+npm run build     # frontend/dist/public
+npm run serve     # preview della build
 ```
 
-## Backend: funzionamento
+## 3. Backend
 
-`backend/src/index.ts` carica `.env`, verifica che `PORT` esista e sia un numero
-positivo, quindi avvia l'app Express. `backend/src/app.ts` configura:
+### 3.1 Bootstrap e middleware
 
-1. `pino-http` per logging delle richieste e delle risposte;
-2. `cors()` per consentire le chiamate dal frontend;
-3. parser JSON e `application/x-www-form-urlencoded`;
-4. il router principale sotto il prefisso `/api`.
+Il bootstrap è in `backend/src/index.ts`: carica `.env`, controlla `PORT` e
+avvia Express. La configurazione dei middleware è in `backend/src/app.ts`.
+`backend/src/routes/index.ts` compone il router; la logica principale è in
+`backend/src/routes/roomly.ts`.
 
-`backend/src/routes/index.ts` monta le rotte di salute e quelle funzionali.
-Gli handler funzionali sono in `backend/src/routes/roomly.ts` e lavorano su
-array e `Map` locali. Ogni input viene validato con Zod e ogni risposta viene
-verificata con lo schema di risposta corrispondente.
+### 3.2 API disponibili
 
-### API disponibili
-
-| Metodo | Endpoint | Comportamento |
+| Metodo | Endpoint | Funzione |
 | --- | --- | --- |
-| `GET` | `/api/healthz` | Restituisce `{ "status": "ok" }`. |
-| `GET` | `/api/listings` | Elenca gli annunci; supporta `zone`, `maxPrice` e `furnished`. |
-| `POST` | `/api/listings` | Valida e aggiunge un annuncio; assegna ID incrementale e proprietario `Tu`. |
-| `GET` | `/api/listings/:id` | Restituisce un annuncio oppure `404`. |
-| `GET` | `/api/conversations` | Restituisce l'elenco delle conversazioni demo. |
-| `GET` | `/api/conversations/:id/messages` | Restituisce i messaggi della conversazione, oppure un array vuoto. |
-| `POST` | `/api/conversations/:id/messages` | Valida il testo e aggiunge un messaggio inviato dallo studente. |
-| `GET` | `/api/dashboard/owner` | Restituisce metriche demo per il pannello proprietario. |
+| `GET` | `/api/healthz` | Health check |
+| `GET` | `/api/listings` | Lista annunci; filtri `zone`, `maxPrice`, `furnished` |
+| `POST` | `/api/listings` | Crea un annuncio e risponde `201` |
+| `GET` | `/api/listings/:id` | Dettaglio annuncio oppure `404` |
+| `GET` | `/api/conversations` | Lista conversazioni demo |
+| `GET` | `/api/conversations/:id/messages` | Messaggi di una conversazione |
+| `POST` | `/api/conversations/:id/messages` | Aggiunge un messaggio dello studente |
+| `GET` | `/api/dashboard/owner` | Metriche demo del proprietario |
 
-Un annuncio contiene ID, titolo, zona, prezzo, proprietario, rating, numero di
-foto, descrizione, disponibilità, arredamento e Wi-Fi. Le richieste di creazione
-richiedono titolo, zona, prezzo e descrizione; `furnished`, `wifi` e `photos`
-sono opzionali.
+### 3.3 Contratto e validazione
 
-### Limiti attuali del backend
+Gli input e le risposte positive vengono verificati con gli schemi di
+`@workspace/api-zod`. Per cambiare una forma dati, modificare il contratto in
+`backend/local-libs/api-zod/src/generated/` e aggiornare il client generato del
+frontend insieme al backend.
 
-- Non c'è un database: annunci, conversazioni e messaggi sono dati mock in RAM.
-- Tutti i dati inseriti vengono persi al riavvio del backend.
-- Non c'è autenticazione, autorizzazione o gestione di utenti reali.
-- Il contatto dall'annuncio apre solo un dialog frontend; non crea una nuova
-	conversazione nell'API.
-- Il dashboard proprietario restituisce valori demo, non calcolati da transazioni.
+### 3.4 Stato in memoria
 
-## Frontend: funzionamento
+I dati sono definiti direttamente in `roomly.ts`: `listings` è un array,
+`conversations` un array e `messages` una `Map` indicizzata per conversazione.
+Un nuovo annuncio riceve un ID incrementale, proprietario `Tu` e valori demo per
+rating e disponibilità.
 
-`frontend/src/main.tsx` monta l'app sull'elemento HTML `#root`, la avvolge in un
-`ErrorBoundary` e importa gli stili globali. `frontend/src/App.tsx` configura
-un unico `QueryClient`, il provider delle traduzioni, i tooltip, il router
-Wouter e le notifiche.
+## 4. Frontend
 
-### Navigazione e schermate
+### 4.1 Bootstrap e provider
 
-| Rotta | Schermata | Funzione principale |
-| --- | --- | --- |
-| `/` | Home studente | Mostra gli annunci iniziali, lo stato backend, la ricerca rapida e il passaggio al ruolo proprietario. |
-| `/search` | Ricerca | Filtra gli annunci per zona, prezzo massimo e arredamento. |
-| `/listings/:id` | Dettaglio annuncio | Carica un annuncio singolo, mostra dettagli e permette di aprire il dialog di contatto. |
-| `/messages` | Messaggi studente | Carica l'inbox e seleziona la prima conversazione. |
-| `/messages/:id` | Conversazione studente | Carica i messaggi e invia nuovi messaggi. |
-| `/profile` | Profilo studente | Mostra dati demo e attiva/disattiva l'editor visuale. |
-| `/owner` | Dashboard proprietario | Mostra metriche e annunci del proprietario. |
-| `/owner/listings/new` | Nuovo annuncio | Invia un annuncio validato dal backend e apre il dettaglio creato. |
-| `/owner/messages` | Messaggi proprietario | Riusa l'inbox e il pannello conversazioni in modalità proprietario. |
-| `/owner/profile` | Profilo proprietario | Mostra il profilo demo del proprietario. |
+`frontend/src/main.tsx` monta React su `#root`. `App.tsx` costruisce i provider
+globali: React Query, tooltip, routing Wouter, lingua e notifiche. Il router è in
+`frontend/src/router.tsx` e usa `BASE_PATH`.
 
-Le rotte sconosciute vengono gestite dalla pagina `NotFound`. `AppShell` contiene
-logo, navigazione desktop/mobile, selettore lingua, avatar e collegamento per
-passare dalla vista studente a quella proprietario.
+### 4.2 Routing
 
-### Dati e chiamate dal frontend
+L'applicazione apre ora sulla pagina di lista di attesa invece che sulla Home.
 
-Gli hook in `@workspace/api-client-react` sono generati e usano
-`frontend/local-libs/api-client-react/src/custom-fetch.ts`:
+| Rotta | Schermata |
+| --- | --- |
+| `/` | Lista di attesa (waitlist) |
+| `/home` | Home studente, health check, ricerca rapida e primi annunci |
+| `/search` | Ricerca per zona, prezzo massimo e arredamento |
+| `/listings/:id` | Dettaglio, preferito e dialog di contatto |
+| `/messages`, `/messages/:id` | Inbox e conversazione studente |
+| `/profile` | Profilo studente e impostazioni lingua |
+| `/owner` | Dashboard proprietario |
+| `/owner/listings/new` | Form per pubblicare un annuncio |
+| `/owner/messages` | Inbox proprietario |
+| `/owner/profile` | Profilo proprietario |
 
-- `useHealthCheck` controlla `/api/healthz` e aggiorna lo stato online della Home;
-- `useListListings` carica gli annunci e ricrea la query quando cambiano i filtri;
-- `useGetListing` carica il dettaglio tramite ID;
-- `useListConversations` carica l'inbox;
-- `useListMessages` carica i messaggi della conversazione selezionata;
-- `useSendMessage` invia un messaggio e aggiorna localmente la cache React Query;
-- `useCreateListing` crea un annuncio e poi naviga al suo dettaglio;
-- `useGetOwnerDashboard` carica le metriche del proprietario.
+Le rotte sconosciute mostrano `NotFound`. `AppShell` contiene header, logo,
+navigazione desktop/mobile, avatar e cambio tra vista studente e proprietario.
 
-React Query gestisce loading, errori, cache e refetch. Durante il caricamento
-compaiono skeleton; in caso di errore viene mostrato un componente con azione di
-retry. Il router usa `BASE_URL`, così l'app può funzionare anche sotto un
-prefisso diverso dalla root.
+### 4.3 Pagine e chiamate API
 
-### Lingue e stato locale
+Le pagine in `frontend/src/pages/` usano gli hook di
+`@workspace/api-client-react`:
 
-Il provider in `frontend/src/lib/i18n.tsx` supporta inglese, italiano, spagnolo,
-francese, tedesco e portoghese. All'avvio sceglie prima la lingua salvata in
-`localStorage` con chiave `roomly-language`, poi prova `navigator.languages` e
-infine usa l'inglese. La scelta aggiorna anche l'attributo `lang` del documento.
+- `home.tsx`: `useListListings` e `useHealthCheck`;
+- `search.tsx`: `useListListings` con query costruita dai filtri;
+- `listing-detail.tsx`: `useGetListing`;
+- `messages.tsx`: `useListConversations`, `useListMessages`, `useSendMessage`;
+- `new-listing.tsx`: `useCreateListing`, poi navigazione al dettaglio;
+- `owner-dashboard.tsx`: `useGetOwnerDashboard`;
+- `profile.tsx`: dati demo locali e `LanguageSetting`.
 
-Preferiti, profili, modifica profilo e alcuni controlli della UI sono attualmente
-solo stato locale React: non vengono salvati tramite API.
+React Query gestisce cache, caricamento, errori e refetch. Gli stati di loading
+usano skeleton; gli errori mostrano `QueryError`; le liste vuote usano
+`EmptyState`.
 
-## Contratto condiviso
+### 4.4 Componenti riusabili
 
-Il backend importa gli schemi da `@workspace/api-zod`, mentre il frontend importa
-tipi e hook da `@workspace/api-client-react`. Entrambi sono pacchetti locali
-collegati con dipendenze `file:`. Questa separazione mantiene coerenti forme dei
-dati, parametri di query e risposte senza duplicare manualmente il contratto tra
-client e server.
+I componenti riusabili applicativi sono in `components/shared` e comprendono
+`ListingCard`, `PageIntro`, `Button`, `LoadingCards`, `EmptyState` e
+`QueryError`. `components/ui` contiene primitive Radix/shadcn già predisposte
+(dialog, form, input, select, toast, tabs e altre).
 
-## Flussi principali
+## 5. Stato e traduzioni
 
-### Studente che cerca una stanza
+### 5.1 Stato remoto e stato locale
 
-1. L'utente apre `/` e il frontend chiama `GET /api/listings`.
-2. La Home mostra i primi tre annunci e una chiamata parallela a `GET /api/healthz`.
-3. La ricerca porta a `/search`; filtri e query producono, per esempio,
-	 `GET /api/listings?zone=...&maxPrice=...&furnished=true`.
-4. Selezionando un annuncio si apre `/listings/:id`, che chiama
-	 `GET /api/listings/:id`.
+Lo stato remoto appartiene a React Query. Lo stato locale React gestisce filtri,
+preferiti, menu mobile, dialog di contatto, editor profilo e controlli del
+dashboard.
 
-### Studente che invia un messaggio
+### 5.2 Lingue
 
-1. La pagina dettaglio mostra un dialog informativo di contatto.
-2. La sezione `/messages` carica conversazioni e messaggi esistenti.
-3. L'invio usa `POST /api/conversations/:id/messages` con `{ "body": "..." }`.
-4. Alla risposta positiva il frontend aggiunge il messaggio alla cache React Query
-	 e svuota il campo di testo.
+`frontend/src/lib/i18n.tsx` supporta inglese, italiano, spagnolo, francese,
+tedesco e portoghese. La lingua viene scelta in quest'ordine:
 
-### Proprietario che pubblica una stanza
+1. preferenza in `localStorage`;
+2. `navigator.languages` / `navigator.language`;
+3. inglese.
 
-1. Il proprietario apre `/owner/listings/new` e compila titolo, zona, prezzo,
-	 descrizione, arredamento, Wi-Fi e numero di foto.
-2. Il frontend invia `POST /api/listings`.
-3. Il backend valida il payload, crea l'annuncio in memoria e risponde `201`.
-4. Il frontend naviga a `/listings/:id` per mostrare l'annuncio appena creato.
+La preferenza è separata per persona nelle chiavi
+`roomly-language:student` e `roomly-language:owner`. Le zone visualizzate sono
+tradotte, ma il valore inviato all'API resta quello della costante in
+`frontend/src/lib/constants.ts`. Prezzi e iniziali sono formattati dalle funzioni
+presenti nello stesso file.
 
-## Struttura essenziale
+## 6. Flussi principali
+
+### 6.1 Flusso studente: cercare una stanza
+
+La Home carica annunci e health check. La ricerca porta a `/search`, dove i filtri
+aggiornano la query React Query e producono, per esempio,
+`/api/listings?zone=...&maxPrice=...&furnished=true`. Un click apre
+`/listings/:id`.
+
+### 6.2 Flusso studente: inviare un messaggio
+
+Le conversazioni demo vengono caricate da `/api/conversations`. La chat carica i
+messaggi e invia `{ "body": "..." }` a
+`POST /api/conversations/:id/messages`; dopo la risposta il messaggio viene
+aggiunto alla cache locale.
+
+### 6.3 Flusso proprietario: pubblicare una stanza
+
+Il form in `/owner/listings/new` raccoglie titolo, zona, prezzo, descrizione,
+arredamento e Wi-Fi. Il backend valida il payload, aggiunge l'annuncio in RAM e
+il frontend apre `/listings/:id` dell'annuncio creato.
+
+## 7. Limiti della demo e prossimi punti di modifica
+
+### 7.1 Funzionalità ancora simulate
+
+- Non esistono database, autenticazione, autorizzazione o utenti reali.
+- Il riavvio del backend cancella annunci e messaggi creati durante la sessione.
+- Il dialog di contatto non crea ancora una conversazione.
+- Preferiti e profili restano nello stato locale del frontend.
+- Il dashboard usa metriche demo; le righe degli annunci sono hardcoded e non
+  rappresentano necessariamente quelli presenti nell'array backend.
+- Le zone seed del backend (`San Lorenzo`, `Fuorigrotta`, `Vomero`) non coincidono
+  con quelle proposte dal frontend (`North Campus`, `Riverside`, ecc.). Per
+  aggiungere una zona, aggiornare sia `roomly.ts` sia `constants.ts` e le
+  traduzioni.
+- Su mobile il pannello della conversazione è nascosto, quindi il flusso chat è
+  pensato principalmente per desktop.
+
+### 7.2 Evoluzione consigliata
+
+Per portare la demo verso un'applicazione reale, i primi punti da sostituire sono
+lo stato in `roomly.ts` con un repository/database, l'identità fissa con
+autenticazione, le statistiche hardcoded con query reali e la generazione del
+client dopo ogni modifica al contratto API.
+
+## 8. Struttura da consultare
+
+### 8.1 Dove intervenire
 
 ```text
-Roomly/
+roomly/
 ├── backend/
-│   ├── src/index.ts                 # bootstrap e PORT
-│   ├── src/app.ts                   # middleware e /api
-│   ├── src/routes/health.ts         # health check
-│   ├── src/routes/roomly.ts         # annunci, chat, dashboard
-│   └── local-libs/api-zod/           # schemi e tipi Zod
+│   ├── src/
+│   │   ├── index.ts                 # avvio del server e validazione di PORT
+│   │   ├── app.ts                   # Express, middleware e prefisso /api
+│   │   ├── lib/logger.ts            # logger pino
+│   │   ├── middlewares/             # middleware aggiuntivi
+│   │   └── routes/
+│   │       ├── index.ts             # composizione dei router
+│   │       ├── health.ts            # GET /api/healthz
+│   │       └── roomly.ts            # annunci, messaggi e dashboard
+│   └── local-libs/api-zod/
+│       └── src/generated/           # schemi e tipi del contratto API
 └── frontend/
-		├── src/main.tsx                 # bootstrap React
-		├── src/App.tsx                  # shell, pagine e routing
-		├── src/lib/i18n.tsx             # lingue e localStorage
-		├── src/components/              # ErrorBoundary, lingua e UI
-		├── src/pages/not-found.tsx      # fallback 404
-		└── local-libs/api-client-react/  # fetch e hook React Query
+    ├── src/
+    │   ├── main.tsx                 # bootstrap React e ErrorBoundary
+    │   ├── App.tsx                  # provider globali e router
+    │   ├── router.tsx               # associa rotte e pagine
+    │   ├── pages/                   # pagine collegate alle rotte
+    │   ├── components/
+    │   │   ├── layout/              # AppShell, logo, avatar e navigazione
+    │   │   ├── shared/              # componenti usati da più pagine
+    │   │   └── ui/                  # primitive Radix/shadcn
+    │   ├── hooks/                   # hook locali, ad esempio label delle zone
+    │   └── lib/                     # i18n, costanti e utilità
+    └── local-libs/api-client-react/
+        └── src/                     # fetch, tipi e hook React Query generati
 ```
+
+### 8.2 Pagine frontend
+
+| File | Rotta | Responsabilità |
+| --- | --- | --- |
+| `pages/waitlist.tsx` | `/` | Lista di attesa (waitlist) |
+| `pages/home.tsx` | `/home` | Home studente, annunci iniziali, health check e ricerca rapida |
+| `pages/search.tsx` | `/search` | Filtri per zona, prezzo massimo e arredamento; lista risultati |
+| `pages/listing-detail.tsx` | `/listings/:id` | Dettaglio annuncio, preferito e dialog di contatto |
+| `pages/messages.tsx` | `/messages`, `/messages/:id` | Inbox, selezione conversazione, lettura e invio messaggi |
+| `pages/profile.tsx` | `/profile` | Profilo studente e impostazioni della lingua |
+| `pages/owner-dashboard.tsx` | `/owner` | Metriche e riepilogo del pannello proprietario |
+| `pages/new-listing.tsx` | `/owner/listings/new` | Form di creazione e pubblicazione di un annuncio |
+| `pages/profile.tsx` | `/owner/profile` | Stesso componente del profilo, visualizzato per il proprietario |
+| `pages/messages.tsx` | `/owner/messages` | Stessa inbox, visualizzata in modalità proprietario |
+| `pages/not-found.tsx` | altre rotte | Pagina di fallback per gli indirizzi non riconosciuti |
+
+Le pagine che mostrano dati dal backend seguono quasi sempre lo stesso schema:
+
+1. importano l'hook generato da `@workspace/api-client-react`;
+2. mostrano skeleton mentre `isLoading` è attivo;
+3. mostrano `QueryError` in caso di errore e consentono il retry;
+4. renderizzano i dati oppure `EmptyState` quando la lista è vuota.
+
+### 8.3 Componenti condivisi
+
+- `components/layout/app-shell.tsx`: involucro comune delle pagine, navigazione,
+  cambio ruolo, avatar e provider lingua per persona;
+- `components/shared/listing-card.tsx`: card di un annuncio con prezzo,
+  valutazione, preferito e link al dettaglio;
+- `components/shared/page-intro.tsx`: intestazione riutilizzata dalle pagine;
+- `components/shared/button.tsx`: pulsante applicativo con varianti comuni;
+- `components/shared/loading-cards.tsx`: placeholder di caricamento per gli annunci;
+- `components/shared/query-error.tsx`: messaggio di errore con azione di retry;
+- `components/shared/empty-state.tsx`: stato vuoto per liste e risultati;
+- `components/language-selector.tsx`: controllo della lingua nel profilo;
+- `components/ui/`: componenti di base riutilizzabili per dialog, form, input,
+  select, toast, tabs e altri controlli.
+
+### 8.4 File di supporto
+
+- `lib/i18n.tsx`: lingue, traduzioni, rilevamento browser e localStorage;
+- `lib/constants.ts`: zone, chiavi di traduzione, gradienti, prezzi e iniziali;
+- `hooks/use-zone-label.ts`: restituisce la label tradotta di una zona;
+- `local-libs/api-client-react/src/custom-fetch.ts`: fetch comune e gestione
+  degli errori HTTP;
+- `local-libs/api-client-react/src/generated/`: hook, tipi e funzioni API usati
+  dalle pagine.

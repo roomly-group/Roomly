@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowRight, ChevronDown, KeyRound, MapPin, Search, ShieldCheck, Sparkles } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import {
@@ -95,6 +95,36 @@ export function Home() {
   const [role, setRole] = useState<'student' | 'owner'>('student');
   const onSearch = (nextZone: string) =>
     setLocation(`/search${nextZone ? `?zone=${encodeURIComponent(nextZone)}` : ''}`);
+
+  // Redirect non-admin users away from the home page
+  useEffect(() => {
+    async function checkAuthAndRole() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setLocation('/login');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/me/role', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (!response.ok) {
+          // Fail safe: treat as non-admin
+          setLocation('/waitlist/confirmed');
+          return;
+        }
+        const { role } = await response.json();
+        if (role !== 'admin') {
+          setLocation('/waitlist/confirmed');
+        }
+      } catch (err) {
+        console.error('Failed to fetch role:', err);
+        setLocation('/waitlist/confirmed');
+      }
+    }
+    checkAuthAndRole();
+  }, [setLocation]);
 
   return (
     <AppShell>

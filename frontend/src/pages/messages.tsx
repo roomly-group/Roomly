@@ -29,8 +29,8 @@ function TimeAgo({ value }: { value: string }) {
   return <>{date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</>;
 }
 
-function MessageBubble({ message }: { message: Message }) {
-  const mine = message.sender.toLowerCase().includes('sam') || message.sender.toLowerCase().includes('you');
+function MessageBubble({ message, owner }: { message: Message; owner: boolean }) {
+  const mine = message.sender === (owner ? 'owner' : 'student');
   return (
     <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`} data-testid={`message-${message.id}`}>
       <div
@@ -105,9 +105,11 @@ function ConversationList({
 function ConversationPanel({
   conversationId,
   conversation,
+  owner,
 }: {
   conversationId: number;
   conversation?: Conversation;
+  owner: boolean;
 }) {
   const { t } = useLanguage();
   const { data, isLoading } = useListMessages(conversationId, {
@@ -186,7 +188,7 @@ function ConversationPanel({
             ))}
           </>
         ) : messages.length ? (
-          messages.map((message) => <MessageBubble key={message.id} message={message} />)
+          messages.map((message) => <MessageBubble key={message.id} message={message} owner={owner} />)
         ) : (
           <div className="flex h-full flex-col items-center justify-center text-center">
             <div className="rounded-xl bg-[#E1F5EE] p-3 text-[#0F6E56]">
@@ -232,7 +234,9 @@ export function MessagesPage({ owner = false }: { owner?: boolean }) {
     query: { queryKey: getListConversationsQueryKey() },
   });
   const conversations = data ?? [];
-  const selectedId = id ? Number(id) : conversations[0]?.id;
+  // No conversation is auto-opened: the right panel starts on the
+  // "select a contact" placeholder until the person picks one from the inbox.
+  const selectedId = id ? Number(id) : undefined;
 
   return (
     <AppShell owner={owner}>
@@ -273,11 +277,12 @@ export function MessagesPage({ owner = false }: { owner?: boolean }) {
             )}
           </section>
 
-          <section className="hidden lg:block">
+          <section className="hidden lg:block">s
             {selectedId ? (
               <ConversationPanel
                 conversationId={selectedId}
                 conversation={conversations.find((item) => item.id === selectedId)}
+                owner={owner}
               />
             ) : (
               <div className="flex h-full flex-col items-center justify-center p-8 text-center">

@@ -44,7 +44,7 @@ export function SearchPage() {
           description={t('searchPage.description')}
           action={
             <Link
-              href="/"
+              href="/home"
               className="hidden items-center gap-2 text-sm font-black text-[#0F6E56] sm:flex"
               data-testid="link-back-home"
             >
