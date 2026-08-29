@@ -107,15 +107,15 @@ export function LoginPage() {
               </p>
             ) : null}
 
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={isSubmitting}
-              className="mt-2 w-full justify-center"
-              data-testid="button-login-submit"
-            >
-              {isSubmitting ? t('auth.loggingIn') : t('auth.loginCta')}
-            </Button>
+            <button
+                type="submit"
+                aria-label="Accedi"
+                title="Accedi"
+                data-testid="button-search"
+                className="h-12 min-w-[80px] shrink-0 rounded-xl bg-[#0F6E56] px-4 font-extrabold text-white transition-all duration-200 hover:bg-[#0c5a47] active:scale-[0.98]"
+              >
+                Accedi
+              </button>   
           </form>
         </div>
 

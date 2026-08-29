@@ -238,15 +238,15 @@ export function RegisterPage() {
               </p>
             ) : null}
 
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={isSubmitting}
-              className="mt-2 w-full justify-center"
-              data-testid="button-register-submit"
-            >
-              {isSubmitting ? t('auth.registering') : t('auth.registerCta')}
-            </Button>
+              <button
+                type="submit"
+                aria-label="Registrati"
+                title="Registrati"
+                data-testid="button-search"
+                className="h-12 min-w-[80px] shrink-0 rounded-xl bg-[#0F6E56] px-4 font-extrabold text-white transition-all duration-200 hover:bg-[#0c5a47] active:scale-[0.98]"
+              >
+                Registrati
+              </button>   
           </form>
         </div>
 
