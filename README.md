@@ -112,12 +112,9 @@ globali: React Query, tooltip, routing Wouter, lingua e notifiche. Il router è 
 
 ### 4.2 Routing
 
-L'applicazione apre ora sulla pagina di lista di attesa invece che sulla Home.
-
 | Rotta | Schermata |
 | --- | --- |
-| `/` | Lista di attesa (waitlist) |
-| `/home` | Home studente, health check, ricerca rapida e primi annunci |
+| `/` | Home studente, health check, ricerca rapida e primi annunci |
 | `/search` | Ricerca per zona, prezzo massimo e arredamento |
 | `/listings/:id` | Dettaglio, preferito e dialog di contatto |
 | `/messages`, `/messages/:id` | Inbox e conversazione studente |
@@ -261,8 +258,7 @@ roomly/
 
 | File | Rotta | Responsabilità |
 | --- | --- | --- |
-| `pages/waitlist.tsx` | `/` | Lista di attesa (waitlist) |
-| `pages/home.tsx` | `/home` | Home studente, annunci iniziali, health check e ricerca rapida |
+| `pages/home.tsx` | `/` | Home studente, annunci iniziali, health check e ricerca rapida |
 | `pages/search.tsx` | `/search` | Filtri per zona, prezzo massimo e arredamento; lista risultati |
 | `pages/listing-detail.tsx` | `/listings/:id` | Dettaglio annuncio, preferito e dialog di contatto |
 | `pages/messages.tsx` | `/messages`, `/messages/:id` | Inbox, selezione conversazione, lettura e invio messaggi |

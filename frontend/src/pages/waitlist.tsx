@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { Link } from 'wouter';
 import {
   Sparkle,
@@ -17,30 +16,6 @@ import { Button } from '@/components/shared/button';
 import roomlyMark from '@assets/3-removebg-preview_1787501992159.png';
 
 export function WaitlistPage() {
-  // Real count of rows in `utenti`, fetched from the backend instead of
-  // using a hardcoded number.
-  const [waitlistCount, setWaitlistCount] = useState<number | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    fetch('/api/waitlist/count')
-      .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then((data: { count: number }) => {
-        if (!cancelled) setWaitlistCount(data.count);
-      })
-      .catch(() => {
-        // Leave it as null on failure rather than showing a made-up number.
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const waitlistCountLabel =
-    waitlistCount !== null ? waitlistCount.toLocaleString('it-IT') : '…';
-
   return (
     <div className="min-h-screen bg-[#F1EFE8]">
       <div className="mx-auto max-w-[1040px] px-6 py-6">
@@ -99,14 +74,14 @@ export function WaitlistPage() {
 
           <div className="relative z-10 mt-6 inline-block rounded-full border border-[#08504129] bg-white/60 px-5 py-2 text-sm font-semibold text-[#085041]">
             <Sparkle size={14} className="mr-1.5 inline -translate-y-px" />
-            <strong className="font-black">{waitlistCountLabel}</strong> studenti già registrati
+            <strong className="font-black">1.284</strong> studenti già registrati
           </div>
         </section>
 
         {/* Stats strip */}
         <section className="grid grid-cols-3 gap-4 py-10">
-          <Stat value={waitlistCountLabel} label="Studenti in lista" />
-          <Stat value="10" label="Città coperte" />
+          <Stat value="1.284" label="Studenti in lista" />
+          <Stat value="47" label="Città coperte" />
           <Stat value="4,8/5" label="Valutazione media" />
         </section>
 
