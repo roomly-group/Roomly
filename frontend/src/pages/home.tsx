@@ -10,6 +10,7 @@ import {
 import { useLanguage } from '@/lib/i18n';
 import { zones, zoneTranslationKeys } from '@/lib/constants';
 import { AppShell } from '@/components/layout/app-shell';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/shared/button';
 import { ListingCard } from '@/components/shared/listing-card';
 import { LoadingCards } from '@/components/shared/loading-cards';
