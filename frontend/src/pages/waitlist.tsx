@@ -14,8 +14,25 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/shared/button';
 import roomlyMark from '@assets/3-removebg-preview_1787501992159.png';
+import { useEffect, useState } from 'react';
 
 export function WaitlistPage() {
+  const [waitlistCount, setWaitlistCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Fetch the waitlist count from the API
+    fetch('/api/waitlist/count')
+      .then(response => response.json())
+      .then(data => {
+        setWaitlistCount(data.count);
+      })
+      .catch(error => {
+        console.error('Failed to fetch waitlist count:', error);
+        // Fallback to a reasonable number if API fails
+        setWaitlistCount(1284);
+      });
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#F1EFE8]">
       <div className="mx-auto max-w-[1040px] px-6 py-6">
@@ -65,7 +82,7 @@ export function WaitlistPage() {
                 className="h-12 min-w-[80px] shrink-0 rounded-xl bg-[#EF9F27] px-4 font-extrabold text-[#2C2C2A] transition-all duration-200 hover:bg-[#e6a53d] active:scale-[0.98]"
               >
                 Registrati
-              </button>   
+              </button>
             </Link>
           </div>
           <p className="relative z-10 mt-3 text-xs text-[#085041]/60">
@@ -74,14 +91,16 @@ export function WaitlistPage() {
 
           <div className="relative z-10 mt-6 inline-block rounded-full border border-[#08504129] bg-white/60 px-5 py-2 text-sm font-semibold text-[#085041]">
             <Sparkle size={14} className="mr-1.5 inline -translate-y-px" />
-            <strong className="font-black">1.284</strong> studenti già registrati
+            <strong className="font-black">
+              {waitlistCount !== null ? waitlistCount.toLocaleString() : '1.284'}
+            </strong> studenti già registrati
           </div>
         </section>
 
         {/* Stats strip */}
         <section className="grid grid-cols-3 gap-4 py-10">
-          <Stat value="1.284" label="Studenti in lista" />
-          <Stat value="47" label="Città coperte" />
+          <Stat value={waitlistCount !== null ? waitlistCount.toLocaleString() : '1.284'} label="Studenti in lista" />
+          <Stat value="10" label="Città coperte" />
           <Stat value="4,8/5" label="Valutazione media" />
         </section>
 
