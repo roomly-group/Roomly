@@ -11,7 +11,7 @@ import {
 import { Link, useLocation } from 'wouter';
 import { LanguageProvider, useLanguage } from '@/lib/i18n';
 import { initials } from '@/lib/constants';
-import roomlyMark from '@assets/3-removebg-preview_1787501992159.png';
+import roomlyMark from '@assets/logo_no_background.png';
 
 export function Logo() {
   return (

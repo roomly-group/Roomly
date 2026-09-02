@@ -13,7 +13,7 @@ import {
   Clock3,
 } from 'lucide-react';
 import { Button } from '@/components/shared/button';
-import roomlyMark from '@assets/3-removebg-preview_1787501992159.png';
+import roomlyMark from '@assets/logo_no_background.png';
 import { useEffect, useState } from 'react';
 
 export function WaitlistPage() {
@@ -60,8 +60,8 @@ export function WaitlistPage() {
             Il modo più piacevole di trovare una stanza
           </div>
 
-          <div className="relative z-10 mx-auto mt-7 flex h-[76px] w-[76px] items-center justify-center rounded-[20px] bg-[#085041] shadow-[0_14px_30px_rgba(8,80,65,0.28)]">
-            <img src={roomlyMark} alt="" className="h-9 w-9 object-contain" />
+          <div className="relative z-10 mx-auto mt-7 flex h-[76px] w-[76px] items-center justify-center rounded-[20px] bg-white shadow-[0_14px_30px_rgba(8,80,65,0.1)]">
+            <img src={roomlyMark} alt="" className="h-13 w-13 object-contain" />
           </div>
 
           <h1 className="relative z-10 mx-auto mt-7 max-w-lg text-4xl font-black leading-[1.1] text-[#085041] sm:text-5xl">
@@ -86,7 +86,7 @@ export function WaitlistPage() {
             </Link>
           </div>
           <p className="relative z-10 mt-3 text-xs text-[#085041]/60">
-            Bastano 30 secondi. Nessuna carta richiesta.
+            Bastano 30 secondi. 
           </p>
 
           <div className="relative z-10 mt-6 inline-block rounded-full border border-[#08504129] bg-white/60 px-5 py-2 text-sm font-semibold text-[#085041]">
@@ -98,9 +98,8 @@ export function WaitlistPage() {
         </section>
 
         {/* Stats strip */}
-        <section className="grid grid-cols-3 gap-4 py-10">
+        <section className="grid grid-cols-2 gap-4 py-10">
           <Stat value={waitlistCount !== null ? waitlistCount.toLocaleString() : '1.284'} label="Studenti in lista" />
-          <Stat value="10" label="Città coperte" />
           <Stat value="4,8/5" label="Valutazione media" />
         </section>
 
@@ -138,17 +137,11 @@ export function WaitlistPage() {
         </section>
 
         {/* Feature cards */}
-        <section className="grid gap-5 py-14 sm:grid-cols-3">
+        <section className="grid gap-5 py-14 sm:grid-cols-2">
           <FeatureCard
             icon={<ShieldCheck size={20} className="text-[#E1F5EE]" />}
             title="Proprietari verificati"
             text="Ogni annuncio ha un proprietario reale, verificato, con un prezzo chiaro e nessun dettaglio nascosto."
-          />
-          <FeatureCard
-            icon={<Zap size={20} className="text-[#2C2C2A]" />}
-            title="Matching veloce"
-            text="Un algoritmo locale suggerisce le stanze giuste in base a zona, budget e stile di vita, in pochi secondi."
-            amber
           />
           <FeatureCard
             icon={<MessageCircle size={20} className="text-[#E1F5EE]" />}

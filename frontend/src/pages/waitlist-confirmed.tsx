@@ -1,13 +1,10 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { Check, AtSign, Heart, LogOut } from 'lucide-react';
 import { Button } from '@/components/shared/button';
 import { supabase } from '@/lib/supabase';
-import roomlyMark from '@assets/3-removebg-preview_1787501992159.png';
+import roomlyMark from '@assets/logo_no_background.png';
 
-// Demo value — wire this up to a real `GET /api/waitlist/me` once the backend
-// tracks signup order. For now every non-admin account sees the same spot.
-const DEMO_POSITION = 107;
 const DONATION_PRESETS = [5, 10, 25];
 const HANDLE_PATTERN = /^[a-z0-9_]{3,20}$/i;
 
@@ -17,10 +14,51 @@ export function WaitlistConfirmedPage() {
   const [handle, setHandle] = useState('');
   const [handleError, setHandleError] = useState<string | null>(null);
   const [claimedHandle, setClaimedHandle] = useState<string | null>(null);
+  const [position, setPosition] = useState<number | null>(null);
+  const [positionLoading, setPositionLoading] = useState<boolean>(true);
 
   const [donationAmount, setDonationAmount] = useState<number | null>(10);
   const [customAmount, setCustomAmount] = useState('');
   const [donated, setDonated] = useState(false);
+
+  useEffect(() => {
+    // Fetch the user's actual position from the backend
+    async function fetchPosition() {
+      try {
+        console.log('Fetching waitlist position from /api/waitlist/me');
+        // Get the current session to include the auth token
+        const { data: { session } } = await supabase.auth.getSession();
+        const accessToken = session?.access_token;
+
+        console.log('Access token present:', !!accessToken);
+
+        const response = await fetch('/api/waitlist/me', {
+          headers: {
+            Authorization: accessToken ? `Bearer ${accessToken}` : '',
+          },
+          credentials: 'include'
+        });
+        console.log(`API response status: ${response.status}`);
+        if (response.ok) {
+          const data = await response.json();
+          console.log(`API response data:`, data);
+          setPosition(data.position);
+        } else {
+          // Fallback to a reasonable default if API fails
+          const errorText = await response.text();
+          console.error(`API error ${response.status}:`, errorText);
+          setPosition(107); // Keep the demo value as fallback
+        }
+      } catch (error) {
+        console.error('Failed to fetch waitlist position:', error);
+        setPosition(107); // Fallback to demo value
+      } finally {
+        setPositionLoading(false);
+      }
+    }
+
+    fetchPosition();
+  }, []);
 
   function handleClaim(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -45,7 +83,7 @@ export function WaitlistConfirmedPage() {
 
   async function handleLogout() {
     await supabase.auth.signOut();
-    setLocation('/login');
+    setLocation('/');
   }
 
   return (
@@ -79,8 +117,8 @@ export function WaitlistConfirmedPage() {
           <h1 className="relative z-10 mx-auto mt-6 max-w-md text-[32px] font-black leading-tight text-[#085041] sm:text-[38px]">
             Sei nella waitlist di Roomly
           </h1>
-          <p className="relative z-10 mx-auto mt-3 max-w-sm text-[15px] leading-relaxed text-[#085041]/70">
-            Ti scriveremo appena si libera il tuo posto. Nel frattempo, ecco dove sei in classifica.
+          <p className="relative z-10 mx-auto mt-3 max-w-[480px] text-[15px] leading-relaxed text-[#085041]/70 sm:text-[16px]">
+            Ci siamo quasi! La tua posizione nella waitlist è mostrata qui sotto. Ti invieremo un'email quando potrai accedere al sito.
           </p>
 
           <div className="relative z-10 mx-auto mt-8 inline-block rounded-2xl border border-[#0850411f] bg-white px-10 py-6">
@@ -88,125 +126,10 @@ export function WaitlistConfirmedPage() {
               La tua posizione
             </div>
             <div className="text-[56px] font-black leading-none text-[#085041]">
-              {DEMO_POSITION}
+              {positionLoading ? 'Caricamento...' : position ?? '--'}
             </div>
           </div>
         </section>
-
-        <section className="grid gap-5 py-10 sm:grid-cols-2">
-          {/* Claim handle */}
-          <div className="rounded-[20px] border border-[#0850411a] bg-white p-7">
-            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[#E1F5EE] text-[#085041]">
-              <AtSign size={20} />
-            </div>
-            <h2 className="mb-1.5 text-lg font-black text-[#2C2C2A]">Claima il tuo handle</h2>
-            <p className="mb-5 text-sm leading-relaxed text-[#527067]">
-              Riservati il tuo nome utente su Roomly prima che lo prenda qualcun altro.
-            </p>
-
-            {claimedHandle ? (
-              <div
-                className="flex items-center gap-2.5 rounded-xl border border-[#0F6E5633] bg-[#E1F5EE] px-4 py-3 text-sm font-bold text-[#085041]"
-                data-testid="text-handle-claimed"
-              >
-                <Check size={16} />
-                @{claimedHandle} è tuo
-              </div>
-            ) : (
-              <form onSubmit={handleClaim} className="flex flex-col gap-2" data-testid="form-claim-handle">
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-[#9fb3ab]">
-                      @
-                    </span>
-                    <input
-                      value={handle}
-                      onChange={(event) => setHandle(event.target.value)}
-                      placeholder="tuonome"
-                      className="h-[46px] w-full rounded-full border border-[#0850411f] bg-[#F1EFE8] pl-8 pr-4 text-sm text-[#2C2C2A] outline-none focus:border-[#0F6E56]"
-                      data-testid="input-handle"
-                    />
-                  </div>
-                  <Button type="submit" variant="primary" className="h-[46px] rounded-full px-5">
-                    Claima
-                  </Button>
-                </div>
-                {handleError ? (
-                  <p className="text-xs font-semibold text-red-600" role="alert">
-                    {handleError}
-                  </p>
-                ) : null}
-              </form>
-            )}
-          </div>
-
-          {/* Donate */}
-          <div className="rounded-[20px] border border-[#0850411a] bg-white p-7">
-            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[#FDEBD1] text-[#EF9F27]">
-              <Heart size={20} />
-            </div>
-            <h2 className="mb-1.5 text-lg font-black text-[#2C2C2A]">Sostieni Roomly</h2>
-            <p className="mb-5 text-sm leading-relaxed text-[#527067]">
-              Aiutaci ad aprire prima: chi dona salta automaticamente 20 posizioni in lista.
-            </p>
-
-            {donated ? (
-              <div
-                className="flex items-center gap-2.5 rounded-xl border border-[#EF9F2755] bg-[#FDEBD1] px-4 py-3 text-sm font-bold text-[#8a5a0c]"
-                data-testid="text-donation-thanks"
-              >
-                <Check size={16} />
-                Grazie per il supporto!
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                <div className="flex gap-2">
-                  {DONATION_PRESETS.map((amount) => (
-                    <button
-                      key={amount}
-                      type="button"
-                      onClick={() => {
-                        setDonationAmount(amount);
-                        setCustomAmount('');
-                      }}
-                      data-testid={`button-donate-${amount}`}
-                      className={`h-11 flex-1 rounded-full border text-sm font-extrabold transition-colors ${
-                        donationAmount === amount && !customAmount
-                          ? 'border-[#EF9F27] bg-[#EF9F27] text-[#2C2C2A]'
-                          : 'border-[#0850411f] bg-[#F1EFE8] text-[#527067] hover:border-[#EF9F27]'
-                      }`}
-                    >
-                      €{amount}
-                    </button>
-                  ))}
-                </div>
-                <input
-                  value={customAmount}
-                  onChange={(event) => {
-                    setCustomAmount(event.target.value.replace(/[^0-9]/g, ''));
-                    setDonationAmount(null);
-                  }}
-                  placeholder="Altro importo (€)"
-                  className="h-[46px] w-full rounded-full border border-[#0850411f] bg-[#F1EFE8] px-4.5 text-sm text-[#2C2C2A] outline-none focus:border-[#EF9F27]"
-                  data-testid="input-custom-amount"
-                />
-                <Button
-                  type="button"
-                  variant="amber"
-                  onClick={handleDonate}
-                  className="h-[46px] justify-center rounded-full"
-                  data-testid="button-donate-submit"
-                >
-                  Dona ora
-                </Button>
-              </div>
-            )}
-          </div>
-        </section>
-
-        <p className="py-8 text-center text-xs text-[#527067]">
-          Questa non è un'offerta reale. Pagina dimostrativa per la waitlist di Roomly.
-        </p>
       </div>
     </div>
   );

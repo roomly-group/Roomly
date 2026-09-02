@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
 import { postAuthRoute } from '@/lib/auth-role';
-import roomlyMark from '@assets/3-removebg-preview_1787501992159.png';
+import roomlyMark from '@assets/logo_no_background.png';
 
 export function RegisterPage() {
   const { t } = useLanguage();

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
 import { postAuthRoute } from '@/lib/auth-role';
-import roomlyMark from '@assets/3-removebg-preview_1787501992159.png';
+import roomlyMark from '@assets/logo_no_background.png';
 
 export function LoginPage() {
   const { t } = useLanguage();
@@ -49,7 +49,9 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-[#F1EFE8] px-4 py-12">
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center gap-2 text-center">
-          <img src={roomlyMark} alt="Roomly" className="h-14 w-14 object-contain" />
+          <div className="flex h-[60px] w-[60px] items-center justify-center rounded-xl bg-white shadow-[0_4px_12px_rgba(8,80,65,0.1)]">
+            <img src={roomlyMark} alt="Roomly" className="h-16 w-16 object-contain" />
+          </div>
           <span className="text-2xl font-black tracking-[-0.05em] text-[#085041]">roomly</span>
         </div>
 
