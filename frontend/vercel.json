@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "https://roomly-production-67d0.up.railway.app↗" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
