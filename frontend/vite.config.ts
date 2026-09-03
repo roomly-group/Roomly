@@ -8,7 +8,7 @@ const basePath = process.env.BASE_PATH || '/';
 const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
 
 export default defineConfig({
-  base: basePath,
+  base: process.env.VITE_BASE_PATH || "/Roomly",
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
