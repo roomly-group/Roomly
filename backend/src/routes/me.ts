@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
-import { requireAuth, type AuthenticatedRequest } from "../middlewares/auth";
-import { supabaseAdmin } from "../lib/supabase-admin";
-import { securityFlags } from "../config/security-flags";
+import { requireAuth, type AuthenticatedRequest } from "../middlewares/auth.js";
+import { supabaseAdmin } from "../lib/supabase-admin.js";
+import { securityFlags } from "../config/security-flags.js";
 
 const router: IRouter = Router();
 

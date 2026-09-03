@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
-import { supabaseAdmin } from "../lib/supabase-admin";
-import { securityFlags, devUser } from "../config/security-flags";
+import { supabaseAdmin } from "../lib/supabase-admin.js";
+import { securityFlags, devUser } from "../config/security-flags.js";
 
 export type AuthenticatedRequest = Request & {
   userId: string;

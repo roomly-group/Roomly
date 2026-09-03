@@ -1,9 +1,9 @@
 import { Router, type IRouter } from "express";
-import healthRouter from "./health";
-import roomlyRouter from "./roomly";
-import meRouter from "./me";
-import waitlistRouter from "./waitlist";
-import authRouter from "./auth";
+import healthRouter from "./health.js";
+import roomlyRouter from "./roomly.js";
+import meRouter from "./me.js";
+import waitlistRouter from "./waitlist.js";
+import authRouter from "./auth.js";
 
 const router: IRouter = Router();
 
