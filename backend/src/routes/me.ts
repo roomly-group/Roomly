@@ -39,7 +39,7 @@ router.get("/me/role", requireAuth, async (req, res) => {
       }
 
       // Estrai nome e cognome dal metadata (con valori di default vuoti)
-      const { nome = "", cognome = "" } = authUser.user_metadata ?? {};
+      const { nome = "", cognome = "" } = authUser.user.user_metadata ?? {};
       const full_name = `${nome} ${cognome}`.trim();
 
       // Inserisci il nuovo record in utenti
