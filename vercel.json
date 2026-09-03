@@ -11,6 +11,7 @@
     "env": {
         "VITE_BASE_PATH": ""
     },
+    "_ci": "trigger rebuild",
     "rewrites": [
         {
             "source": "/api(/.*)?",
