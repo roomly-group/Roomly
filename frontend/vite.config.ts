@@ -4,11 +4,10 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
 const port = Number(process.env.PORT) || 5173;
-const basePath = process.env.BASE_PATH || '/';
 const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
 
 export default defineConfig({
-  base: process.env.VITE_BASE_PATH || "/Roomly",
+  base: process.env.VITE_BASE_PATH || "",
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
