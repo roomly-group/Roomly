@@ -83,6 +83,8 @@ export function WaitlistConfirmedPage() {
 
   async function handleLogout() {
     await supabase.auth.signOut();
+    // Clear session storage to remove any persisted session data
+    window.sessionStorage.removeItem('sb-session');
     setLocation('/');
   }
 

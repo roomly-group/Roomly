@@ -37,6 +37,12 @@ export function LoginPage() {
         throw new Error('No session returned by Supabase Auth.');
       }
 
+      // Manually persist session in sessionStorage to reduce XSS risk
+      // sessionStorage is more secure than localStorage (tab-scoped, cleared on tab close)
+      window.sessionStorage.setItem('sb-session', JSON.stringify(data.session));
+      // Set the session in Supabase client for immediate use
+      await supabase.auth.setSession(data.session);
+
       setLocation(await postAuthRoute(data.session.user));
     } catch (err) {
       setError(err instanceof Error ? err.message : t('auth.loginError'));

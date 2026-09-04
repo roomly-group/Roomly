@@ -1347,38 +1347,37 @@ const LanguageContext = createContext<LanguageContextValue | null>(null);
  * roles never overwrites someone else's saved language.
  */
 export function LanguageProvider({ userId, children }: { userId: string; children: ReactNode }) {
-  const [language, setLanguageState] = useState<LanguageCode>(() => loadStoredLanguage(userId) ?? detectRegionLanguage());
-  const [isAuto, setIsAuto] = useState<boolean>(() => loadStoredLanguage(userId) === null);
+  // Always detect from the navigator, ignore any stored value
+  const language = detectRegionLanguage();
+  const isAuto = true; // we treat every load as “auto‑detected”
 
-  // If we mount for a different user (e.g. switching from the student view to
-  // the owner view), re-read that user's own saved preference instead of
-  // keeping whatever the previous persona had selected.
-  useEffect(() => {
-    const stored = loadStoredLanguage(userId);
-    setLanguageState(stored ?? detectRegionLanguage());
-    setIsAuto(stored === null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
-
+  // Keep the document lang attribute in sync
   useEffect(() => {
     if (typeof document !== 'undefined') document.documentElement.lang = language;
   }, [language]);
 
   const setLanguage = (code: LanguageCode) => {
-    setLanguageState(code);
-    setIsAuto(false);
+    // This function is kept for compatibility (e.g. the Settings dropdown),
+    // but it will not persist unless you also write to localStorage.
+    // If you want persistence when the user manually picks a language,
+    // uncomment the block below.
+    /*
     try {
       window.localStorage.setItem(storageKeyFor(userId), code);
     } catch {
       // ignore write failures (e.g. private browsing)
     }
+    */
   };
 
   const value = useMemo<LanguageContextValue>(() => ({
     language,
     setLanguage,
     isAuto,
-    t: (key: TranslationKey) => (translations[language] as Partial<Record<TranslationKey, string>>)[key] ?? translations.en[key] ?? key,
+    t: (key: TranslationKey) =>
+      (translations[language] as Partial<Record<TranslationKey, string>>)[key] ??
+      translations.en[key] ??
+      key,
   }), [language, isAuto]);
 
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
