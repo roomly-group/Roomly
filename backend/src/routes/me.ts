@@ -36,7 +36,7 @@ async function ensureUtenteRecord(userId: string) {
 
   const { data: newRow, error: newError } = await supabaseAdmin
     .from("utenti")
-    .select("nome, cognome, email, posizione, admin, lingua")
+    .select("nome, cognome, email, posizione, admin, owner, lingua")
     .eq("id", userId)
     .single();
 
@@ -52,21 +52,27 @@ async function ensureUtenteRecord(userId: string) {
 // system that is allowed to see that value on the caller's behalf. The
 // frontend must trust only this response, never read `utenti` directly.
 router.get("/me/role", requireAuth, async (req, res) => {
-  const { userId } = req as AuthenticatedRequest;
+  const { userId } = req;
 
   const { data, error } = await supabaseAdmin
     .from("utenti")
-    .select("admin")
+    .select("admin, owner")   // <-- aggiunto owner
     .eq("id", userId)
     .single();
 
   if (error || !data) {
     const created = await ensureUtenteRecord(userId);
-    res.json({ role: created?.admin ? "admin" : "user" });
+    res.json({
+      role: created?.admin ? "admin" : "user",
+      owner: created?.owner === true,
+    });
     return;
   }
 
-  res.json({ role: data.admin ? "admin" : "user" });
+  res.json({
+    role: data.admin ? "admin" : "user",
+    owner: data.owner === true,
+  });
 });
 
 // Restituisce i dati reali del profilo dell'utente autenticato,

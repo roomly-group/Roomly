@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Redirect } from 'wouter';
 import { supabase } from '@/lib/supabase';
+import { getIsOwner } from '@/lib/auth-role';
 import NotFound from '@/pages/not-found';
 import { useLanguage } from '@/lib/i18n';
 
@@ -14,22 +14,15 @@ export function RequireOwner({ children }: { children: React.ReactNode }) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const user = session?.user;
+
         if (!user) {
           setIsOwner(false);
           setLoading(false);
           return;
         }
 
-        const { count, error } = await supabase
-          .from('annunci')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', user.id);
-
-        if (error) {
-          throw error;
-        }
-
-        setIsOwner((count ?? 0) > 0);
+        const owner = await getIsOwner(user);
+        setIsOwner(owner);
       } catch (err) {
         console.error('Failed to check owner status:', err);
         setIsOwner(false);

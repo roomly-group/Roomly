@@ -1,45 +1,50 @@
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 
-// Role check happens server-side now: the backend reads the boolean
-// `admin` column on `utenti` using the Supabase service-role key (which
-// bypasses RLS), so the browser never queries `utenti` directly and never
-// has a way to see or infer another user's admin flag.
-// Every normal sign-up defaults to admin = false and lands on the waitlist
-// page instead of the full site.
 export type UserRole = 'admin' | 'user';
 
-async function fetchRoleFromBackend(accessToken: string): Promise<UserRole> {
+type RoleResponse = { role: UserRole; owner: boolean };
+
+async function fetchRoleFromBackend(accessToken: string): Promise<RoleResponse> {
   try {
     const response = await fetch('/api/me/role', {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
     if (!response.ok) {
-      // Expired/invalid token, backend down, etc.: fail safe as a normal user.
-      return 'user';
+      return { role: 'user', owner: false };
     }
 
-    const data = (await response.json()) as { role?: string };
-    return data.role === 'admin' ? 'admin' : 'user';
+    const data = (await response.json()) as { role?: string; owner?: boolean };
+    return {
+      role: data.role === 'admin' ? 'admin' : 'user',
+      owner: data.owner === true,
+    };
   } catch {
-    // Network error: fail safe as a normal user.
-    return 'user';
+    return { role: 'user', owner: false };
   }
 }
 
-export async function getUserRole(user: User | null | undefined): Promise<UserRole> {
-  if (!user) return 'user';
+async function fetchRole(user: User | null | undefined): Promise<RoleResponse> {
+  if (!user) return { role: 'user', owner: false };
 
   const { data } = await supabase.auth.getSession();
-  const sessionData = data?.session;
-  const accessToken = sessionData?.access_token;
-  if (!accessToken) return 'user';
+  const accessToken = data?.session?.access_token;
+  if (!accessToken) return { role: 'user', owner: false };
 
   return fetchRoleFromBackend(accessToken);
 }
 
-// Where a signed-in user should land right after login/registration.
+export async function getUserRole(user: User | null | undefined): Promise<UserRole> {
+  const { role } = await fetchRole(user);
+  return role;
+}
+
+export async function getIsOwner(user: User | null | undefined): Promise<boolean> {
+  const { owner } = await fetchRole(user);
+  return owner;
+}
+
 export async function postAuthRoute(user: User | null | undefined): Promise<string> {
   const role = await getUserRole(user);
   return role === 'admin' ? '/home' : '/waitlist/confirmed';
