@@ -277,7 +277,7 @@ export function MessagesPage({ owner = false }: { owner?: boolean }) {
             )}
           </section>
 
-          <section className="hidden lg:block">s
+          <section className="hidden lg:block">
             {selectedId ? (
               <ConversationPanel
                 conversationId={selectedId}

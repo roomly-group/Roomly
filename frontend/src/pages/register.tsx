@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Sparkles, Mail, Lock, User } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
+import { LanguagePicker } from '@/components/language-selector';
 import { Button } from '@/components/shared/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -118,6 +119,9 @@ export function RegisterPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#F1EFE8] px-4 py-12">
       <div className="w-full max-w-md">
+        <div className="mb-3 flex justify-end">
+          <LanguagePicker />
+        </div>
         <div className="mb-8 flex flex-col items-center gap-2 text-center">
           <img src={roomlyMark} alt="Roomly" className="h-14 w-14 object-contain" />
           <span className="text-2xl font-black tracking-[-0.05em] text-[#085041]">roomly</span>
@@ -240,12 +244,13 @@ export function RegisterPage() {
 
               <button
                 type="submit"
-                aria-label="Registrati"
-                title="Registrati"
+                disabled={isSubmitting}
+                aria-label={t('auth.registerCta')}
+                title={t('auth.registerCta')}
                 data-testid="button-search"
-                className="h-12 min-w-[80px] shrink-0 rounded-xl bg-[#0F6E56] px-4 font-extrabold text-white transition-all duration-200 hover:bg-[#0c5a47] active:scale-[0.98]"
+                className="h-12 min-w-[80px] shrink-0 rounded-xl bg-[#0F6E56] px-4 font-extrabold text-white transition-all duration-200 hover:bg-[#0c5a47] active:scale-[0.98] disabled:opacity-60"
               >
-                Registrati
+                {isSubmitting ? t('auth.registering') : t('auth.registerCta')}
               </button>   
           </form>
         </div>

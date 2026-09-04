@@ -2,21 +2,21 @@ import { Link } from 'wouter';
 import {
   Sparkle,
   ShieldCheck,
-  Zap,
   MessageCircle,
   Search,
   UserPlus,
   KeyRound,
-  ArrowRight,
   MapPin,
   Wallet,
   Clock3,
 } from 'lucide-react';
-import { Button } from '@/components/shared/button';
+import { useLanguage } from '@/lib/i18n';
+import { LanguagePicker } from '@/components/language-selector';
 import roomlyMark from '@assets/logo_no_background.png';
 import { useEffect, useState } from 'react';
 
 export function WaitlistPage() {
+  const { t } = useLanguage();
   const [waitlistCount, setWaitlistCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -36,18 +36,21 @@ export function WaitlistPage() {
   return (
     <div className="min-h-screen bg-[#F1EFE8]">
       <div className="mx-auto max-w-[1040px] px-6 py-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <img src={roomlyMark} alt="Roomly" className="h-8 w-8 object-contain" />
             <span className="text-lg font-black tracking-[-0.03em] text-[#085041]">roomly</span>
           </div>
-          <Link
-            href="/register"
-            className="hidden text-sm font-extrabold text-[#085041] hover:text-[#0F6E56] sm:block"
-            data-testid="link-nav-register"
-          >
-            Crea un account
-          </Link>
+          <div className="flex items-center gap-3">
+            <LanguagePicker />
+            <Link
+              href="/register"
+              className="hidden text-sm font-extrabold text-[#085041] hover:text-[#0F6E56] sm:block"
+              data-testid="link-nav-register"
+            >
+              {t('waitlist.navRegister')}
+            </Link>
+          </div>
         </div>
 
         {/* Hero */}
@@ -57,7 +60,7 @@ export function WaitlistPage() {
 
           <div className="relative z-10 mx-auto inline-flex items-center gap-2 rounded-full border border-[#08504129] bg-[#08504114] px-4 py-1.5 text-xs font-extrabold text-[#085041]">
             <span className="h-1.5 w-1.5 rounded-full bg-[#EF9F27]" />
-            Il modo più piacevole di trovare una stanza
+            {t('waitlist.badge')}
           </div>
 
           <div className="relative z-10 mx-auto mt-7 flex h-[76px] w-[76px] items-center justify-center rounded-[20px] bg-white shadow-[0_14px_30px_rgba(8,80,65,0.1)]">
@@ -65,52 +68,51 @@ export function WaitlistPage() {
           </div>
 
           <h1 className="relative z-10 mx-auto mt-7 max-w-lg text-4xl font-black leading-[1.1] text-[#085041] sm:text-5xl">
-            Roomly sta arrivando
+            {t('waitlist.title')}
           </h1>
           <p className="relative z-10 mx-auto mt-4 max-w-md text-[17px] leading-relaxed text-[#085041]/75">
-            Stanze vere, proprietari verificati e conversazioni dirette. Crea il tuo account ora e
-            sarai tra i primi ad avere accesso quando apriamo.
+            {t('waitlist.subtitle')}
           </p>
 
           <div className="relative z-10 mt-8 flex justify-center">
             <Link href="/register">
               <button
                 type="submit"
-                aria-label="Registrati"
-                title="Registrati"
+                aria-label={t('waitlist.ctaRegister')}
+                title={t('waitlist.ctaRegister')}
                 data-testid="button-search"
                 className="h-12 min-w-[80px] shrink-0 rounded-xl bg-[#EF9F27] px-4 font-extrabold text-[#2C2C2A] transition-all duration-200 hover:bg-[#e6a53d] active:scale-[0.98]"
               >
-                Registrati
+                {t('waitlist.ctaRegister')}
               </button>
             </Link>
           </div>
           <p className="relative z-10 mt-3 text-xs text-[#085041]/60">
-            Bastano 30 secondi. 
+            {t('waitlist.ctaNote')}
           </p>
 
           <div className="relative z-10 mt-6 inline-block rounded-full border border-[#08504129] bg-white/60 px-5 py-2 text-sm font-semibold text-[#085041]">
             <Sparkle size={14} className="mr-1.5 inline -translate-y-px" />
             <strong className="font-black">
               {waitlistCount !== null ? waitlistCount.toLocaleString() : '1.284'}
-            </strong> studenti già registrati
+            </strong> {t('waitlist.socialProofSuffix')}
           </div>
         </section>
 
         {/* Stats strip */}
         <section className="grid grid-cols-2 gap-4 py-10">
-          <Stat value={waitlistCount !== null ? waitlistCount.toLocaleString() : '1.284'} label="Studenti in lista" />
-          <Stat value="4,8/5" label="Valutazione media" />
+          <Stat value={waitlistCount !== null ? waitlistCount.toLocaleString() : '1.284'} label={t('waitlist.statPositionsLabel')} />
+          <Stat value="4,8/5" label={t('waitlist.statRatingLabel')} />
         </section>
 
         {/* How it works */}
         <section className="py-6">
           <div className="mb-8 text-center">
             <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-[#0F6E56]">
-              Come funziona
+              {t('waitlist.howItWorksEyebrow')}
             </p>
             <h2 className="text-[28px] font-black text-[#2C2C2A] sm:text-[32px]">
-              Da zero a chiavi in mano
+              {t('waitlist.howItWorksTitle')}
             </h2>
           </div>
 
@@ -118,20 +120,20 @@ export function WaitlistPage() {
             <StepCard
               icon={<UserPlus size={20} />}
               step="1"
-              title="Crea il tuo profilo"
-              text="Registrati con email in meno di un minuto e raccontaci cosa cerchi: zona, budget e stile di vita."
+              title={t('waitlist.step1Title')}
+              text={t('waitlist.step1Text')}
             />
             <StepCard
               icon={<Search size={20} />}
               step="2"
-              title="Trova la stanza giusta"
-              text="Filtra tra annunci verificati e scrivi direttamente al proprietario, senza intermediari."
+              title={t('waitlist.step2Title')}
+              text={t('waitlist.step2Text')}
             />
             <StepCard
               icon={<KeyRound size={20} />}
               step="3"
-              title="Prenota e trasferisciti"
-              text="Metti d'accordo i dettagli in chat e sei pronto per il trasloco, senza sorprese."
+              title={t('waitlist.step3Title')}
+              text={t('waitlist.step3Text')}
             />
           </div>
         </section>
@@ -140,13 +142,13 @@ export function WaitlistPage() {
         <section className="grid gap-5 py-14 sm:grid-cols-2">
           <FeatureCard
             icon={<ShieldCheck size={20} className="text-[#E1F5EE]" />}
-            title="Proprietari verificati"
-            text="Ogni annuncio ha un proprietario reale, verificato, con un prezzo chiaro e nessun dettaglio nascosto."
+            title={t('waitlist.feature1Title')}
+            text={t('waitlist.feature1Text')}
           />
           <FeatureCard
             icon={<MessageCircle size={20} className="text-[#E1F5EE]" />}
-            title="Conversazioni dirette"
-            text="Chatta con chi affitta davvero la stanza, senza intermediari e senza annunci anonimi."
+            title={t('waitlist.feature3Title')}
+            text={t('waitlist.feature3Text')}
           />
         </section>
 
@@ -154,26 +156,26 @@ export function WaitlistPage() {
         <section className="py-6">
           <div className="mb-8 text-center">
             <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-[#0F6E56]">
-              In anteprima
+              {t('waitlist.previewEyebrow')}
             </p>
             <h2 className="text-[28px] font-black text-[#2C2C2A] sm:text-[32px]">
-              Cosa cercano gli studenti fuori sede
+              {t('waitlist.previewTitle')}
             </h2>
           </div>
           <div className="grid gap-5 sm:grid-cols-3">
-            <MiniPoint icon={<MapPin size={18} />} text="Vicino al campus o ai mezzi giusti" />
-            <MiniPoint icon={<Wallet size={18} />} text="Prezzo chiaro, senza costi nascosti" />
-            <MiniPoint icon={<Clock3 size={18} />} text="Risposta dal proprietario in tempi rapidi" />
+            <MiniPoint icon={<MapPin size={18} />} text={t('waitlist.point1')} />
+            <MiniPoint icon={<Wallet size={18} />} text={t('waitlist.point2')} />
+            <MiniPoint icon={<Clock3 size={18} />} text={t('waitlist.point3')} />
           </div>
         </section>
 
         {/* Final CTA */}
         <section className="my-14 rounded-[28px] bg-[#085041] px-8 py-14 text-center sm:px-14">
           <h2 className="mx-auto max-w-md text-[28px] font-black leading-tight text-white sm:text-[32px]">
-            Il tuo prossimo capitolo inizia con una chiave
+            {t('waitlist.finalTitle')}
           </h2>
           <p className="mx-auto mt-3 max-w-sm text-[15px] leading-relaxed text-[#E1F5EE]/75">
-            Crea il tuo account e sarai tra i primi ad accedere a Roomly quando apriamo.
+            {t('waitlist.finalSubtitle')}
           </p>
         </section>
       </div>

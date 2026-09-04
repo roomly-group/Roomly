@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { PenLine, Settings, ShieldCheck } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Settings, ShieldCheck } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { AppShell, Avatar } from '@/components/layout/app-shell';
-import { Button } from '@/components/shared/button';
 import { PageIntro } from '@/components/shared/page-intro';
 import { LanguageSetting } from '@/components/language-selector';
+import { supabase } from '@/lib/supabase';
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
@@ -15,18 +15,48 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-[#d6e7de] p-4">
-      <p className="text-2xl font-black text-[#0F6E56]">{value}</p>
-      <p className="mt-1 text-xs font-bold text-[#527067]">{label}</p>
-    </div>
-  );
-}
+type RealProfile = {
+  nome: string;
+  cognome: string;
+  full_name: string;
+  email: string;
+  posizione: number;
+};
 
 export function ProfilePage({ owner = false }: { owner?: boolean }) {
   const { t } = useLanguage();
   const [editing, setEditing] = useState(false);
+  const [profile, setProfile] = useState<RealProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchProfile() {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const accessToken = data?.session?.access_token;
+
+        const response = await fetch('/api/me', {
+          headers: {
+            Authorization: accessToken ? `Bearer ${accessToken}` : '',
+          },
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const json = await response.json();
+          setProfile(json);
+        }
+      } catch (error) {
+        console.error('Failed to fetch profile:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchProfile();
+  }, []);
+
+  const displayName = profile?.full_name?.trim() || profile?.email || 'Utente';
 
   return (
     <AppShell owner={owner}>
@@ -39,20 +69,21 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
 
         <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
           <aside className="surface h-fit rounded-2xl p-5 text-center">
-            <Avatar name={owner ? 'Maya Patel' : 'Sam Taylor'} size="lg" />
+            <Avatar name={loading ? '—' : displayName} size="lg" />
             <h2 className="mt-3 text-lg font-black text-[#085041]">
-              {owner ? 'Maya Patel' : 'Sam Taylor'}
+              {loading ? 'Caricamento...' : displayName}
             </h2>
-            <p className="mt-1 text-sm text-[#527067]">
-              {owner ? t('profile.ownerSubtitle') : t('profile.studentSubtitle')}
-            </p>
+            <p className="mt-1 text-sm text-[#527067]">{profile?.email ?? ''}</p>
             <div className="my-5 border-t border-[#e1ebe4]" />
             <div className="flex items-center justify-center gap-1 text-xs font-extrabold text-[#0F6E56]">
               <ShieldCheck size={14} /> {t('profile.identityChecked')}
             </div>
-            
+
             {editing && (
-              <p className="mt-3 text-left text-xs font-bold leading-5 text-[#527067]" data-testid="status-profile-editing">
+              <p
+                className="mt-3 text-left text-xs font-bold leading-5 text-[#527067]"
+                data-testid="status-profile-editing"
+              >
                 {t('profile.editingStatus')}
               </p>
             )}
@@ -75,35 +106,17 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
                 </button>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
+                <InfoRow label={t('profile.labelEmail')} value={profile?.email ?? '—'} />
+                <InfoRow label="Nome" value={profile?.nome || '—'} />
+                <InfoRow label="Cognome" value={profile?.cognome || '—'} />
                 <InfoRow
-                  label={t('profile.labelEmail')}
-                  value={owner ? 'maya.patel@example.com' : 'sam.taylor@example.com'}
+                  label="Posizione in waitlist"
+                  value={profile ? `#${profile.posizione}` : '—'}
                 />
-                <InfoRow label={t('profile.labelBasedAround')} value={t('zones.northCampus')} />
-                <InfoRow
-                  label={t('profile.labelLookingFor')}
-                  value={owner ? t('profile.ownerLookingFor') : t('profile.studentLookingFor')}
-                />
-                <InfoRow label={t('profile.labelPreferredContact')} value={t('profile.preferredContactValue')} />
               </div>
             </section>
 
             <LanguageSetting />
-
-            <section className="surface rounded-2xl p-5 sm:p-7">
-              <p className="eyebrow">{t('profile.yourHabits')}</p>
-              <h2 className="mt-1 text-xl font-black text-[#085041]">
-                {owner ? t('profile.ownerHabits') : t('profile.studentHabits')}
-              </h2>
-              <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                <Stat
-                  label={owner ? t('profile.statOwnerActive') : t('profile.statStudentSaved')}
-                  value={owner ? '2' : '6'}
-                />
-                <Stat label={t('profile.statConversations')} value="4" />
-                <Stat label={t('profile.statJoined')} value={owner ? '2022' : '2024'} />
-              </div>
-            </section>
           </div>
         </div>
       </div>
@@ -118,3 +131,5 @@ export function StudentProfileRoute() {
 export function OwnerProfileRoute() {
   return <ProfilePage owner />;
 }
+
+export default ProfilePage;

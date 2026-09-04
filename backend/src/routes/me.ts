@@ -4,6 +4,49 @@ import { supabaseAdmin } from "../lib/supabase-admin.js";
 
 const router: IRouter = Router();
 
+// Crea il record in "utenti" per un utente che ha fatto login ma non ha
+// ancora una riga (lazy creation). "posizione" è una colonna IDENTITY:
+// il database la assegna da solo, non va mai scritta a mano.
+async function ensureUtenteRecord(userId: string) {
+  const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId);
+
+  if (authError || !authUser) {
+    return null;
+  }
+
+  const { email_confirmed_at } = authUser.user;
+  if (!email_confirmed_at) {
+    return null;
+  }
+
+  const { nome = "", cognome = "" } = authUser.user.user_metadata ?? {};
+
+  const { error: insertError } = await supabaseAdmin.from("utenti").insert({
+    id: userId,
+    email: authUser.user.email ?? "",
+    nome,
+    cognome,
+    email_verificata: true,
+  });
+
+  if (insertError) {
+    console.error("Failed to create utenti record:", insertError);
+    return null;
+  }
+
+  const { data: newRow, error: newError } = await supabaseAdmin
+    .from("utenti")
+    .select("nome, cognome, email, posizione, admin, lingua")
+    .eq("id", userId)
+    .single();
+
+  if (newError || !newRow) {
+    return null;
+  }
+
+  return newRow;
+}
+
 // Authoritative admin check. Reads the `admin` column on `utenti` using the
 // service-role client, which bypasses RLS — this is the one place in the
 // system that is allowed to see that value on the caller's behalf. The
@@ -18,83 +61,72 @@ router.get("/me/role", requireAuth, async (req, res) => {
     .single();
 
   if (error || !data) {
-    // Nessun record in utenti trovato - creiamolo ora dai dati di Supabase Auth
-    try {
-      // Recupera l'utente da Supabase Auth (incluso il metadata)
-      const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId);
-
-      if (authError || !authUser) {
-        // Impossibile recuperare l'utente auth, fallisce sicuro come utente normale
-        res.json({ role: "user" });
-        return;
-      }
-
-      // Controllo di conferma email: se non confermata, non creare il record utenti
-      const { email_confirmed_at } = authUser.user;
-      if (!email_confirmed_at) {
-        // Email non ancora confermata – trattiamo l'utente come utente normale
-        res.json({ role: "user" });
-        return;
-      }
-
-      // Estrai nome e cognome dal metadata (con valori di default vuoti)
-      const { nome = "", cognome = "" } = authUser.user.user_metadata ?? {};
-      const full_name = `${nome} ${cognome}`.trim();
-
-      // Calcola la prossima posizione nella waitlist
-      const { data: posData, error: posError } = await supabaseAdmin
-        .from("utenti")
-        .select("posizione")
-        .order("posizione", { ascending: false })
-        .limit(1);
-
-      const posizione = posError || !posData || posData.length === 0 ? 1 : posData[0].posizione + 1;
-
-      // Inserisci il nuovo record in utenti
-      const { error: insertError } = await supabaseAdmin
-        .from("utenti")
-        .insert({
-          id: userId,
-          email: authUser.user.email ?? "",
-          nome,
-          cognome,
-          full_name,
-          email_verificata: true,
-          posizione,
-          // admin: false è il valore predefinito per i nuovi utenti
-          // created_at/updated_at verranno gestiti dal database se hanno DEFAULT
-        });
-
-      if (insertError) {
-        // Se l'inserimento fallisce, logga l'errore e fallisce sicuro come utente normale
-        console.error("Failed to create utenti record:", insertError);
-        res.json({ role: "user" });
-        return;
-      }
-
-      // Ora recupera il record appena creato per determinare il ruolo
-      // (i nuovi utenti non sono admin per impostazione predefinita)
-      const { data: newData, error: newError } = await supabaseAdmin
-        .from("utenti")
-        .select("admin")
-        .eq("id", userId)
-        .single();
-
-      if (newError || !newData) {
-        res.json({ role: "user" });
-        return;
-      }
-
-      res.json({ role: newData.admin ? "admin" : "user" });
-      return;
-    } catch (err) {
-      console.error("Error in utenti lazy creation:", err);
-      res.json({ role: "user" });
-      return;
-    }
+    const created = await ensureUtenteRecord(userId);
+    res.json({ role: created?.admin ? "admin" : "user" });
+    return;
   }
 
   res.json({ role: data.admin ? "admin" : "user" });
+});
+
+// Restituisce i dati reali del profilo dell'utente autenticato,
+// creando il record in "utenti" se non esiste ancora.
+router.get("/me", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const { userId } = req;
+
+  const { data, error } = await supabaseAdmin
+    .from("utenti")
+    .select("nome, cognome, email, posizione, lingua")
+    .eq("id", userId)
+    .single();
+
+  if (error || !data) {
+    const created = await ensureUtenteRecord(userId);
+
+    if (!created) {
+      res.status(404).json({ error: "Profilo non trovato" });
+      return;
+    }
+
+    res.json({
+      nome: created.nome,
+      cognome: created.cognome,
+      email: created.email,
+      posizione: created.posizione,
+      full_name: `${created.nome ?? ""} ${created.cognome ?? ""}`.trim(),
+    });
+    return;
+  }
+
+  res.json({
+    ...data,
+    full_name: `${data.nome ?? ""} ${data.cognome ?? ""}`.trim(),
+  });
+});
+const SUPPORTED_LANGUAGES = ["en", "it", "es", "fr", "de", "pt"];
+
+// Salva la lingua scelta manualmente dall'utente.
+router.patch("/me/language", requireAuth, async (req: AuthenticatedRequest, res) => {
+  const { userId } = req;
+  const { language } = req.body as { language?: string };
+
+  if (!language || !SUPPORTED_LANGUAGES.includes(language)) {
+    res.status(400).json({ error: "Lingua non valida" });
+    return;
+  }
+
+  const { error } = await supabaseAdmin
+    .from("utenti")
+    .update({ lingua: language })
+    .eq("id", userId);
+
+  if (error) {
+    console.error("Failed to update language:", error);
+    res.status(500).json({ error: "Impossibile salvare la lingua" });
+    return;
+  }
+
+  res.json({ language });
 });
 
 export default router;

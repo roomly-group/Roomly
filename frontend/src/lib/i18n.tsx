@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { supabase } from '@/lib/supabase';
 
 export type LanguageCode = 'en' | 'it' | 'es' | 'fr' | 'de' | 'pt';
 
@@ -282,6 +283,69 @@ export const translations = {
     'zones.oldTown': 'Old Town',
     'zones.southbank': 'Southbank',
     'zones.mapleQuarter': 'Maple Quarter',
+
+    'waitlist.navRegister': 'Create an account',
+    'waitlist.badge': 'The most pleasant way to find a room',
+    'waitlist.title': 'Roomly is on its way',
+    'waitlist.subtitle': "Real rooms, verified owners, direct conversations. Create your account now and be among the first to get access when we open.",
+    'waitlist.ctaRegister': 'Sign up now',
+    'waitlist.ctaNote': "Takes 30 seconds. No card required.",
+    'waitlist.socialProofSuffix': 'students already signed up',
+    'waitlist.statPositionsLabel': 'Students on the list',
+    'waitlist.statCitiesLabel': 'Cities covered',
+    'waitlist.statRatingLabel': 'Average rating',
+    'waitlist.howItWorksEyebrow': 'How it works',
+    'waitlist.howItWorksTitle': 'From zero to keys in hand',
+    'waitlist.step1Title': 'Create your profile',
+    'waitlist.step1Text': 'Sign up with your email in under a minute and tell us what you\'re looking for: area, budget and lifestyle.',
+    'waitlist.step2Title': 'Find the right room',
+    'waitlist.step2Text': 'Filter through verified listings and message the owner directly, no middlemen.',
+    'waitlist.step3Title': 'Book and move in',
+    'waitlist.step3Text': 'Sort out the details in chat and you\'re ready to move, no surprises.',
+    'waitlist.feature1Title': 'Verified owners',
+    'waitlist.feature1Text': 'Every listing has a real, verified owner, a clear price and nothing hidden.',
+    'waitlist.feature2Title': 'Fast matching',
+    'waitlist.feature2Text': 'A local algorithm suggests the right rooms based on area, budget and lifestyle, in seconds.',
+    'waitlist.feature3Title': 'Direct conversations',
+    'waitlist.feature3Text': "Chat with whoever actually rents out the room, no middlemen and no anonymous listings.",
+    'waitlist.previewEyebrow': 'Sneak peek',
+    'waitlist.previewTitle': 'What students moving out are looking for',
+    'waitlist.point1': 'Close to campus or the right transport links',
+    'waitlist.point2': 'A clear price, with no hidden costs',
+    'waitlist.point3': 'Quick replies from the owner',
+    'waitlist.finalTitle': 'Your next chapter starts with a key',
+    'waitlist.finalSubtitle': "Create your account and be among the first to access Roomly when we open.",
+
+    'waitlistConfirmed.logout': 'Log out',
+    'waitlistConfirmed.badge': 'Sign-up confirmed',
+    'waitlistConfirmed.title': "You're on the Roomly waitlist",
+    'waitlistConfirmed.subtitle': "Almost there! Your spot on the waitlist is shown below. We'll email you as soon as you can access the site.",
+    'waitlistConfirmed.positionLabel': 'Your position',
+    'waitlistConfirmed.claimTitle': 'Claim your handle',
+    'waitlistConfirmed.claimText': 'Reserve your username on Roomly before someone else takes it.',
+    'waitlistConfirmed.claimPlaceholder': 'yourname',
+    'waitlistConfirmed.claimButton': 'Claim',
+    'waitlistConfirmed.claimError': 'Use 3-20 characters: letters, numbers or underscores.',
+    'waitlistConfirmed.claimedSuffix': 'is yours',
+    'waitlistConfirmed.donateTitle': 'Support Roomly',
+    'waitlistConfirmed.donateText': 'Help us open sooner: donors automatically skip 20 spots in line.',
+    'waitlistConfirmed.donateCustomPlaceholder': 'Other amount (€)',
+    'waitlistConfirmed.donateButton': 'Donate now',
+    'waitlistConfirmed.donateThanks': 'Thanks for the support!',
+    'waitlistConfirmed.disclaimer': "This isn't a real offer. Demo page for the Roomly waitlist.",
+    'waitlistConfirmed.menuPositionLabel': 'Position in line',
+    'waitlistConfirmed.emailUnavailable': 'Email unavailable',
+    'waitlistConfirmed.fullProfileLink': 'Go to full profile',
+    'waitlistConfirmed.defaultDisplayName': 'Student',
+    'waitlistConfirmed.positionLoading': 'Loading...',
+    'waitlistConfirmed.whatNextEyebrow': "What's next",
+    'waitlistConfirmed.whatNextTitle': 'Your next steps',
+    'waitlistConfirmed.step1Title': "You're on the list",
+    'waitlistConfirmed.step1Text': 'Your spot is confirmed: no action needed from you.',
+    'waitlistConfirmed.step2Title': "We'll let you know",
+    'waitlistConfirmed.step2Text': "We'll email you as soon as your turn to access opens up.",
+    'waitlistConfirmed.step3Title': 'Get early access',
+    'waitlistConfirmed.step3Text': "You'll be among the first to see listings and message owners.",
   },
   it: {
     'nav.findRoom': 'Trova una stanza',
@@ -510,6 +574,69 @@ export const translations = {
     'zones.oldTown': 'Centro storico',
     'zones.southbank': 'Sponda Sud',
     'zones.mapleQuarter': 'Quartiere Maple',
+
+    'waitlist.navRegister': 'Crea un account',
+    'waitlist.badge': 'Il modo più piacevole di trovare una stanza',
+    'waitlist.title': 'Roomly sta arrivando',
+    'waitlist.subtitle': 'Stanze vere, proprietari verificati e conversazioni dirette. Crea il tuo account ora e sarai tra i primi ad avere accesso quando apriamo.',
+    'waitlist.ctaRegister': 'Registrati ora',
+    'waitlist.ctaNote': 'Bastano 30 secondi. Nessuna carta richiesta.',
+    'waitlist.socialProofSuffix': 'studenti già registrati',
+    'waitlist.statPositionsLabel': 'Studenti in lista',
+    'waitlist.statCitiesLabel': 'Città coperte',
+    'waitlist.statRatingLabel': 'Valutazione media',
+    'waitlist.howItWorksEyebrow': 'Come funziona',
+    'waitlist.howItWorksTitle': 'Da zero a chiavi in mano',
+    'waitlist.step1Title': 'Crea il tuo profilo',
+    'waitlist.step1Text': 'Registrati con email in meno di un minuto e raccontaci cosa cerchi: zona, budget e stile di vita.',
+    'waitlist.step2Title': 'Trova la stanza giusta',
+    'waitlist.step2Text': 'Filtra tra annunci verificati e scrivi direttamente al proprietario, senza intermediari.',
+    'waitlist.step3Title': 'Prenota e trasferisciti',
+    'waitlist.step3Text': "Metti d'accordo i dettagli in chat e sei pronto per il trasloco, senza sorprese.",
+    'waitlist.feature1Title': 'Proprietari verificati',
+    'waitlist.feature1Text': 'Ogni annuncio ha un proprietario reale, verificato, con un prezzo chiaro e nessun dettaglio nascosto.',
+    'waitlist.feature2Title': 'Matching veloce',
+    'waitlist.feature2Text': 'Un algoritmo locale suggerisce le stanze giuste in base a zona, budget e stile di vita, in pochi secondi.',
+    'waitlist.feature3Title': 'Conversazioni dirette',
+    'waitlist.feature3Text': "Chatta con chi affitta davvero la stanza, senza intermediari e senza annunci anonimi.",
+    'waitlist.previewEyebrow': 'In anteprima',
+    'waitlist.previewTitle': 'Cosa cercano gli studenti fuori sede',
+    'waitlist.point1': 'Vicino al campus o ai mezzi giusti',
+    'waitlist.point2': 'Prezzo chiaro, senza costi nascosti',
+    'waitlist.point3': 'Risposta dal proprietario in tempi rapidi',
+    'waitlist.finalTitle': 'Il tuo prossimo capitolo inizia con una chiave',
+    'waitlist.finalSubtitle': 'Crea il tuo account e sarai tra i primi ad accedere a Roomly quando apriamo.',
+
+    'waitlistConfirmed.logout': 'Esci',
+    'waitlistConfirmed.badge': 'Iscrizione confermata',
+    'waitlistConfirmed.title': 'Sei nella waitlist di Roomly',
+    'waitlistConfirmed.subtitle': "Ci siamo quasi! La tua posizione nella waitlist è mostrata qui sotto. Ti invieremo un'email quando potrai accedere al sito.",
+    'waitlistConfirmed.positionLabel': 'La tua posizione',
+    'waitlistConfirmed.claimTitle': 'Claima il tuo handle',
+    'waitlistConfirmed.claimText': 'Riservati il tuo nome utente su Roomly prima che lo prenda qualcun altro.',
+    'waitlistConfirmed.claimPlaceholder': 'tuonome',
+    'waitlistConfirmed.claimButton': 'Claima',
+    'waitlistConfirmed.claimError': 'Usa 3-20 caratteri: lettere, numeri o underscore.',
+    'waitlistConfirmed.claimedSuffix': 'è tuo',
+    'waitlistConfirmed.donateTitle': 'Sostieni Roomly',
+    'waitlistConfirmed.donateText': 'Aiutaci ad aprire prima: chi dona salta automaticamente 20 posizioni in lista.',
+    'waitlistConfirmed.donateCustomPlaceholder': 'Altro importo (€)',
+    'waitlistConfirmed.donateButton': 'Dona ora',
+    'waitlistConfirmed.donateThanks': 'Grazie per il supporto!',
+    'waitlistConfirmed.disclaimer': "Questa non è un'offerta reale. Pagina dimostrativa per la waitlist di Roomly.",
+    'waitlistConfirmed.menuPositionLabel': 'Posizione in lista',
+    'waitlistConfirmed.emailUnavailable': 'Email non disponibile',
+    'waitlistConfirmed.fullProfileLink': 'Vai al profilo completo',
+    'waitlistConfirmed.defaultDisplayName': 'Studente',
+    'waitlistConfirmed.positionLoading': 'Caricamento...',
+    'waitlistConfirmed.whatNextEyebrow': 'Cosa succede adesso',
+    'waitlistConfirmed.whatNextTitle': 'I prossimi passi',
+    'waitlistConfirmed.step1Title': 'Sei in lista',
+    'waitlistConfirmed.step1Text': 'Il tuo posto è confermato: nessuna azione richiesta da parte tua.',
+    'waitlistConfirmed.step2Title': 'Ti avvisiamo noi',
+    'waitlistConfirmed.step2Text': "Ti scriviamo via email non appena si libera il tuo turno d'accesso.",
+    'waitlistConfirmed.step3Title': 'Accedi in anteprima',
+    'waitlistConfirmed.step3Text': 'Sarai tra i primi a vedere gli annunci e a scrivere ai proprietari.',
   },
   es: {
     'nav.findRoom': 'Buscar habitación',
@@ -544,6 +671,30 @@ export const translations = {
     'notFound.backHome': 'Volver al inicio',
     'errorBoundary.title': 'Algo salió mal',
     'errorBoundary.text': 'Esta parte de la app tuvo un error. El resto de la app sigue funcionando.',
+
+    'auth.badge': 'Bienvenido a Roomly',
+    'auth.loginTitle': 'Inicia sesión en tu cuenta',
+    'auth.loginSubtitle': 'Introduce tus datos para seguir explorando habitaciones.',
+    'auth.registerTitle': 'Crea tu cuenta',
+    'auth.registerSubtitle': 'Solo te llevará un minuto empezar.',
+    'auth.firstNameLabel': 'Nombre',
+    'auth.firstNamePlaceholder': 'Jane',
+    'auth.lastNameLabel': 'Apellido',
+    'auth.lastNamePlaceholder': 'Doe',
+    'auth.emailLabel': 'Email',
+    'auth.emailPlaceholder': 'tu@ejemplo.com',
+    'auth.passwordLabel': 'Contraseña',
+    'auth.confirmPasswordLabel': 'Confirma la contraseña',
+    'auth.loginCta': 'Iniciar sesión',
+    'auth.loggingIn': 'Iniciando sesión...',
+    'auth.registerCta': 'Regístrate',
+    'auth.registering': 'Creando cuenta...',
+    'auth.noAccount': '¿Aún no tienes cuenta?',
+    'auth.hasAccount': '¿Ya tienes una cuenta?',
+    'auth.loginError': 'No hemos podido iniciar tu sesión. Inténtalo de nuevo.',
+    'auth.registerError': 'No hemos podido crear tu cuenta. Inténtalo de nuevo.',
+    'auth.registerCheckEmail': '¡Cuenta creada! Revisa tu bandeja de entrada para confirmar tu email antes de iniciar sesión.',
+    'auth.passwordMismatch': 'Las contraseñas no coinciden.',
 
     'searchBar.anywhere': 'En cualquier zona del campus',
     'searchBar.maxMonthly': 'Máximo mensual',
@@ -714,6 +865,69 @@ export const translations = {
     'zones.oldTown': 'Casco antiguo',
     'zones.southbank': 'Orilla Sur',
     'zones.mapleQuarter': 'Barrio Maple',
+
+    'waitlist.navRegister': 'Crear una cuenta',
+    'waitlist.badge': 'La forma más agradable de encontrar una habitación',
+    'waitlist.title': 'Roomly está en camino',
+    'waitlist.subtitle': 'Habitaciones reales, propietarios verificados y conversaciones directas. Crea tu cuenta ahora y sé de los primeros en tener acceso cuando abramos.',
+    'waitlist.ctaRegister': 'Regístrate ahora',
+    'waitlist.ctaNote': 'Solo 30 segundos. No se requiere tarjeta.',
+    'waitlist.socialProofSuffix': 'estudiantes ya registrados',
+    'waitlist.statPositionsLabel': 'Estudiantes en la lista',
+    'waitlist.statCitiesLabel': 'Ciudades cubiertas',
+    'waitlist.statRatingLabel': 'Valoración media',
+    'waitlist.howItWorksEyebrow': 'Cómo funciona',
+    'waitlist.howItWorksTitle': 'De cero a llaves en mano',
+    'waitlist.step1Title': 'Crea tu perfil',
+    'waitlist.step1Text': 'Regístrate con tu email en menos de un minuto y cuéntanos qué buscas: zona, presupuesto y estilo de vida.',
+    'waitlist.step2Title': 'Encuentra la habitación adecuada',
+    'waitlist.step2Text': 'Filtra entre anuncios verificados y escribe directamente al propietario, sin intermediarios.',
+    'waitlist.step3Title': 'Reserva y múdate',
+    'waitlist.step3Text': 'Acuerda los detalles por chat y estarás listo para mudarte, sin sorpresas.',
+    'waitlist.feature1Title': 'Propietarios verificados',
+    'waitlist.feature1Text': 'Cada anuncio tiene un propietario real, verificado, con un precio claro y nada oculto.',
+    'waitlist.feature2Title': 'Coincidencia rápida',
+    'waitlist.feature2Text': 'Un algoritmo local sugiere las habitaciones adecuadas según zona, presupuesto y estilo de vida, en segundos.',
+    'waitlist.feature3Title': 'Conversaciones directas',
+    'waitlist.feature3Text': 'Chatea con quien realmente alquila la habitación, sin intermediarios ni anuncios anónimos.',
+    'waitlist.previewEyebrow': 'Adelanto',
+    'waitlist.previewTitle': 'Qué buscan los estudiantes que se mudan',
+    'waitlist.point1': 'Cerca del campus o del transporte adecuado',
+    'waitlist.point2': 'Precio claro, sin costes ocultos',
+    'waitlist.point3': 'Respuesta rápida del propietario',
+    'waitlist.finalTitle': 'Tu próximo capítulo empieza con una llave',
+    'waitlist.finalSubtitle': 'Crea tu cuenta y sé de los primeros en acceder a Roomly cuando abramos.',
+
+    'waitlistConfirmed.logout': 'Cerrar sesión',
+    'waitlistConfirmed.badge': 'Registro confirmado',
+    'waitlistConfirmed.title': 'Estás en la lista de espera de Roomly',
+    'waitlistConfirmed.subtitle': '¡Ya casi está! Tu posición en la lista de espera se muestra abajo. Te enviaremos un email en cuanto puedas acceder al sitio.',
+    'waitlistConfirmed.positionLabel': 'Tu posición',
+    'waitlistConfirmed.claimTitle': 'Reclama tu identificador',
+    'waitlistConfirmed.claimText': 'Reserva tu nombre de usuario en Roomly antes de que alguien más lo tome.',
+    'waitlistConfirmed.claimPlaceholder': 'tunombre',
+    'waitlistConfirmed.claimButton': 'Reclamar',
+    'waitlistConfirmed.claimError': 'Usa 3-20 caracteres: letras, números o guiones bajos.',
+    'waitlistConfirmed.claimedSuffix': 'es tuyo',
+    'waitlistConfirmed.donateTitle': 'Apoya a Roomly',
+    'waitlistConfirmed.donateText': 'Ayúdanos a abrir antes: quien dona salta automáticamente 20 posiciones en la lista.',
+    'waitlistConfirmed.donateCustomPlaceholder': 'Otro importe (€)',
+    'waitlistConfirmed.donateButton': 'Donar ahora',
+    'waitlistConfirmed.donateThanks': '¡Gracias por tu apoyo!',
+    'waitlistConfirmed.disclaimer': 'Esta no es una oferta real. Página de demostración para la lista de espera de Roomly.',
+    'waitlistConfirmed.menuPositionLabel': 'Posición en la lista',
+    'waitlistConfirmed.emailUnavailable': 'Email no disponible',
+    'waitlistConfirmed.fullProfileLink': 'Ir al perfil completo',
+    'waitlistConfirmed.defaultDisplayName': 'Estudiante',
+    'waitlistConfirmed.positionLoading': 'Cargando...',
+    'waitlistConfirmed.whatNextEyebrow': 'Qué pasa ahora',
+    'waitlistConfirmed.whatNextTitle': 'Tus próximos pasos',
+    'waitlistConfirmed.step1Title': 'Estás en la lista',
+    'waitlistConfirmed.step1Text': 'Tu plaza está confirmada: no necesitas hacer nada más.',
+    'waitlistConfirmed.step2Title': 'Te avisamos nosotros',
+    'waitlistConfirmed.step2Text': 'Te escribiremos por email en cuanto se libere tu turno de acceso.',
+    'waitlistConfirmed.step3Title': 'Accede en primicia',
+    'waitlistConfirmed.step3Text': 'Serás de los primeros en ver los anuncios y escribir a los propietarios.',
   },
   fr: {
     'nav.findRoom': 'Trouver une chambre',
@@ -748,6 +962,30 @@ export const translations = {
     'notFound.backHome': "Retour à l'accueil",
     'errorBoundary.title': "Une erreur s'est produite",
     'errorBoundary.text': "Cette partie de l'application a rencontré une erreur. Le reste de l'application fonctionne toujours.",
+
+    'auth.badge': 'Bienvenue sur Roomly',
+    'auth.loginTitle': 'Connectez-vous à votre compte',
+    'auth.loginSubtitle': 'Saisissez vos identifiants pour continuer à explorer les chambres.',
+    'auth.registerTitle': 'Créez votre compte',
+    'auth.registerSubtitle': "Il ne faut qu'une minute pour commencer.",
+    'auth.firstNameLabel': 'Prénom',
+    'auth.firstNamePlaceholder': 'Jane',
+    'auth.lastNameLabel': 'Nom',
+    'auth.lastNamePlaceholder': 'Doe',
+    'auth.emailLabel': 'Email',
+    'auth.emailPlaceholder': 'vous@exemple.com',
+    'auth.passwordLabel': 'Mot de passe',
+    'auth.confirmPasswordLabel': 'Confirmez le mot de passe',
+    'auth.loginCta': 'Se connecter',
+    'auth.loggingIn': 'Connexion...',
+    'auth.registerCta': "S'inscrire",
+    'auth.registering': 'Création du compte...',
+    'auth.noAccount': "Pas encore inscrit ?",
+    'auth.hasAccount': 'Vous avez déjà un compte ?',
+    'auth.loginError': "Impossible de vous connecter. Réessayez.",
+    'auth.registerError': "Impossible de créer votre compte. Réessayez.",
+    'auth.registerCheckEmail': 'Compte créé ! Vérifiez votre boîte mail pour confirmer votre adresse avant de vous connecter.',
+    'auth.passwordMismatch': 'Les mots de passe ne correspondent pas.',
 
     'searchBar.anywhere': 'Partout autour du campus',
     'searchBar.maxMonthly': 'Maximum mensuel',
@@ -918,6 +1156,69 @@ export const translations = {
     'zones.oldTown': 'Vieille ville',
     'zones.southbank': 'Rive Sud',
     'zones.mapleQuarter': 'Quartier Maple',
+
+    'waitlist.navRegister': 'Créer un compte',
+    'waitlist.badge': "La façon la plus agréable de trouver une chambre",
+    'waitlist.title': 'Roomly arrive bientôt',
+    'waitlist.subtitle': "Des chambres réelles, des propriétaires vérifiés et des échanges directs. Créez votre compte dès maintenant pour être parmi les premiers à y accéder lors de l'ouverture.",
+    'waitlist.ctaRegister': "S'inscrire maintenant",
+    'waitlist.ctaNote': "30 secondes suffisent. Aucune carte requise.",
+    'waitlist.socialProofSuffix': 'étudiants déjà inscrits',
+    'waitlist.statPositionsLabel': 'Étudiants sur la liste',
+    'waitlist.statCitiesLabel': 'Villes couvertes',
+    'waitlist.statRatingLabel': 'Note moyenne',
+    'waitlist.howItWorksEyebrow': 'Comment ça marche',
+    'waitlist.howItWorksTitle': "De zéro aux clés en main",
+    'waitlist.step1Title': 'Créez votre profil',
+    'waitlist.step1Text': "Inscrivez-vous avec votre email en moins d'une minute et dites-nous ce que vous cherchez : quartier, budget et style de vie.",
+    'waitlist.step2Title': 'Trouvez la bonne chambre',
+    'waitlist.step2Text': "Filtrez parmi des annonces vérifiées et écrivez directement au propriétaire, sans intermédiaire.",
+    'waitlist.step3Title': 'Réservez et emménagez',
+    'waitlist.step3Text': "Réglez les détails par chat et vous êtes prêt à déménager, sans surprise.",
+    'waitlist.feature1Title': 'Propriétaires vérifiés',
+    'waitlist.feature1Text': "Chaque annonce a un propriétaire réel et vérifié, avec un prix clair et rien de caché.",
+    'waitlist.feature2Title': 'Matching rapide',
+    'waitlist.feature2Text': "Un algorithme local suggère les bonnes chambres selon le quartier, le budget et le style de vie, en quelques secondes.",
+    'waitlist.feature3Title': 'Échanges directs',
+    'waitlist.feature3Text': "Discutez avec la personne qui loue vraiment la chambre, sans intermédiaire ni annonce anonyme.",
+    'waitlist.previewEyebrow': 'En avant-première',
+    'waitlist.previewTitle': "Ce que recherchent les étudiants qui déménagent",
+    'waitlist.point1': 'Proche du campus ou des bons transports',
+    'waitlist.point2': 'Un prix clair, sans coûts cachés',
+    'waitlist.point3': 'Une réponse rapide du propriétaire',
+    'waitlist.finalTitle': "Votre prochain chapitre commence avec une clé",
+    'waitlist.finalSubtitle': "Créez votre compte et soyez parmi les premiers à accéder à Roomly lors de l'ouverture.",
+
+    'waitlistConfirmed.logout': 'Se déconnecter',
+    'waitlistConfirmed.badge': 'Inscription confirmée',
+    'waitlistConfirmed.title': "Vous êtes sur la liste d'attente de Roomly",
+    'waitlistConfirmed.subtitle': "On y est presque ! Votre position sur la liste d'attente est indiquée ci-dessous. Nous vous enverrons un email dès que vous pourrez accéder au site.",
+    'waitlistConfirmed.positionLabel': 'Votre position',
+    'waitlistConfirmed.claimTitle': 'Réservez votre identifiant',
+    'waitlistConfirmed.claimText': "Réservez votre nom d'utilisateur sur Roomly avant que quelqu'un d'autre ne le prenne.",
+    'waitlistConfirmed.claimPlaceholder': 'votrenom',
+    'waitlistConfirmed.claimButton': 'Réserver',
+    'waitlistConfirmed.claimError': 'Utilisez 3 à 20 caractères : lettres, chiffres ou tirets bas.',
+    'waitlistConfirmed.claimedSuffix': 'est à vous',
+    'waitlistConfirmed.donateTitle': 'Soutenez Roomly',
+    'waitlistConfirmed.donateText': "Aidez-nous à ouvrir plus tôt : les donateurs sautent automatiquement 20 places dans la file.",
+    'waitlistConfirmed.donateCustomPlaceholder': 'Autre montant (€)',
+    'waitlistConfirmed.donateButton': 'Faire un don',
+    'waitlistConfirmed.donateThanks': 'Merci pour votre soutien !',
+    'waitlistConfirmed.disclaimer': "Ce n'est pas une offre réelle. Page de démonstration pour la liste d'attente de Roomly.",
+    'waitlistConfirmed.menuPositionLabel': "Position dans la file",
+    'waitlistConfirmed.emailUnavailable': 'Email indisponible',
+    'waitlistConfirmed.fullProfileLink': 'Voir le profil complet',
+    'waitlistConfirmed.defaultDisplayName': 'Étudiant',
+    'waitlistConfirmed.positionLoading': 'Chargement...',
+    'waitlistConfirmed.whatNextEyebrow': 'Et maintenant',
+    'waitlistConfirmed.whatNextTitle': 'Vos prochaines étapes',
+    'waitlistConfirmed.step1Title': "Vous êtes sur la liste",
+    'waitlistConfirmed.step1Text': "Votre place est confirmée : aucune action requise de votre part.",
+    'waitlistConfirmed.step2Title': 'On vous préviendra',
+    'waitlistConfirmed.step2Text': "Nous vous écrirons par email dès que votre tour d'accès arrive.",
+    'waitlistConfirmed.step3Title': 'Accès en avant-première',
+    'waitlistConfirmed.step3Text': "Vous serez parmi les premiers à voir les annonces et à écrire aux propriétaires.",
   },
   de: {
     'nav.findRoom': 'Zimmer finden',
@@ -952,6 +1253,30 @@ export const translations = {
     'notFound.backHome': 'Zur Startseite',
     'errorBoundary.title': 'Etwas ist schiefgelaufen',
     'errorBoundary.text': 'In diesem Teil der App ist ein Fehler aufgetreten. Der Rest der App läuft weiterhin.',
+
+    'auth.badge': 'Willkommen bei Roomly',
+    'auth.loginTitle': 'Melde dich bei deinem Konto an',
+    'auth.loginSubtitle': 'Gib deine Daten ein, um weiter Zimmer zu entdecken.',
+    'auth.registerTitle': 'Erstelle dein Konto',
+    'auth.registerSubtitle': 'Der Einstieg dauert nur eine Minute.',
+    'auth.firstNameLabel': 'Vorname',
+    'auth.firstNamePlaceholder': 'Jane',
+    'auth.lastNameLabel': 'Nachname',
+    'auth.lastNamePlaceholder': 'Doe',
+    'auth.emailLabel': 'E-Mail',
+    'auth.emailPlaceholder': 'du@beispiel.com',
+    'auth.passwordLabel': 'Passwort',
+    'auth.confirmPasswordLabel': 'Passwort bestätigen',
+    'auth.loginCta': 'Anmelden',
+    'auth.loggingIn': 'Anmeldung läuft...',
+    'auth.registerCta': 'Registrieren',
+    'auth.registering': 'Konto wird erstellt...',
+    'auth.noAccount': 'Noch nicht registriert?',
+    'auth.hasAccount': 'Schon ein Konto?',
+    'auth.loginError': 'Anmeldung fehlgeschlagen. Bitte versuche es erneut.',
+    'auth.registerError': 'Konto konnte nicht erstellt werden. Bitte versuche es erneut.',
+    'auth.registerCheckEmail': 'Konto erstellt! Prüfe dein Postfach, um deine E-Mail zu bestätigen, bevor du dich anmeldest.',
+    'auth.passwordMismatch': 'Die Passwörter stimmen nicht überein.',
 
     'searchBar.anywhere': 'Überall rund um den Campus',
     'searchBar.maxMonthly': 'Maximal monatlich',
@@ -1122,6 +1447,69 @@ export const translations = {
     'zones.oldTown': 'Altstadt',
     'zones.southbank': 'Südufer',
     'zones.mapleQuarter': 'Maple-Viertel',
+
+    'waitlist.navRegister': 'Konto erstellen',
+    'waitlist.badge': 'Der angenehmste Weg, ein Zimmer zu finden',
+    'waitlist.title': 'Roomly kommt bald',
+    'waitlist.subtitle': 'Echte Zimmer, verifizierte Vermieter und direkte Gespräche. Erstelle jetzt dein Konto und sei einer der Ersten mit Zugang bei unserer Eröffnung.',
+    'waitlist.ctaRegister': 'Jetzt registrieren',
+    'waitlist.ctaNote': 'Dauert 30 Sekunden. Keine Karte nötig.',
+    'waitlist.socialProofSuffix': 'Studierende bereits registriert',
+    'waitlist.statPositionsLabel': 'Studierende auf der Liste',
+    'waitlist.statCitiesLabel': 'Abgedeckte Städte',
+    'waitlist.statRatingLabel': 'Durchschnittliche Bewertung',
+    'waitlist.howItWorksEyebrow': 'So funktioniert es',
+    'waitlist.howItWorksTitle': 'Von null zum eigenen Schlüssel',
+    'waitlist.step1Title': 'Erstelle dein Profil',
+    'waitlist.step1Text': 'Registriere dich in unter einer Minute mit deiner E-Mail und erzähl uns, wonach du suchst: Lage, Budget und Lebensstil.',
+    'waitlist.step2Title': 'Finde das passende Zimmer',
+    'waitlist.step2Text': 'Filtere verifizierte Angebote und schreib direkt mit dem Vermieter, ganz ohne Zwischenhändler.',
+    'waitlist.step3Title': 'Buchen und einziehen',
+    'waitlist.step3Text': 'Kläre die Details im Chat und schon kannst du umziehen, ganz ohne Überraschungen.',
+    'waitlist.feature1Title': 'Verifizierte Vermieter',
+    'waitlist.feature1Text': 'Jedes Angebot hat einen echten, verifizierten Vermieter, einen klaren Preis und keine versteckten Details.',
+    'waitlist.feature2Title': 'Schnelles Matching',
+    'waitlist.feature2Text': 'Ein lokaler Algorithmus schlägt in Sekunden die passenden Zimmer nach Lage, Budget und Lebensstil vor.',
+    'waitlist.feature3Title': 'Direkte Gespräche',
+    'waitlist.feature3Text': 'Chatte direkt mit der Person, die das Zimmer wirklich vermietet, ohne Zwischenhändler und anonyme Anzeigen.',
+    'waitlist.previewEyebrow': 'Vorschau',
+    'waitlist.previewTitle': 'Worauf umziehende Studierende Wert legen',
+    'waitlist.point1': 'Nah am Campus oder an guten Verkehrsanbindungen',
+    'waitlist.point2': 'Klarer Preis, ohne versteckte Kosten',
+    'waitlist.point3': 'Schnelle Antwort vom Vermieter',
+    'waitlist.finalTitle': 'Dein nächstes Kapitel beginnt mit einem Schlüssel',
+    'waitlist.finalSubtitle': 'Erstelle dein Konto und sei einer der Ersten mit Zugang zu Roomly bei unserer Eröffnung.',
+
+    'waitlistConfirmed.logout': 'Abmelden',
+    'waitlistConfirmed.badge': 'Anmeldung bestätigt',
+    'waitlistConfirmed.title': 'Du stehst auf der Roomly-Warteliste',
+    'waitlistConfirmed.subtitle': 'Fast geschafft! Deine Position auf der Warteliste siehst du unten. Wir schreiben dir per E-Mail, sobald du auf die Seite zugreifen kannst.',
+    'waitlistConfirmed.positionLabel': 'Deine Position',
+    'waitlistConfirmed.claimTitle': 'Sichere dir deinen Nutzernamen',
+    'waitlistConfirmed.claimText': 'Reserviere deinen Nutzernamen auf Roomly, bevor ihn jemand anderes bekommt.',
+    'waitlistConfirmed.claimPlaceholder': 'deinname',
+    'waitlistConfirmed.claimButton': 'Sichern',
+    'waitlistConfirmed.claimError': 'Verwende 3-20 Zeichen: Buchstaben, Zahlen oder Unterstriche.',
+    'waitlistConfirmed.claimedSuffix': 'gehört dir',
+    'waitlistConfirmed.donateTitle': 'Unterstütze Roomly',
+    'waitlistConfirmed.donateText': 'Hilf uns, früher zu starten: Spender überspringen automatisch 20 Plätze in der Warteschlange.',
+    'waitlistConfirmed.donateCustomPlaceholder': 'Anderer Betrag (€)',
+    'waitlistConfirmed.donateButton': 'Jetzt spenden',
+    'waitlistConfirmed.donateThanks': 'Danke für deine Unterstützung!',
+    'waitlistConfirmed.disclaimer': 'Dies ist kein echtes Angebot. Demoseite für die Roomly-Warteliste.',
+    'waitlistConfirmed.menuPositionLabel': 'Position in der Warteliste',
+    'waitlistConfirmed.emailUnavailable': 'E-Mail nicht verfügbar',
+    'waitlistConfirmed.fullProfileLink': 'Zum vollständigen Profil',
+    'waitlistConfirmed.defaultDisplayName': 'Student',
+    'waitlistConfirmed.positionLoading': 'Wird geladen...',
+    'waitlistConfirmed.whatNextEyebrow': 'Was passiert jetzt',
+    'waitlistConfirmed.whatNextTitle': 'Deine nächsten Schritte',
+    'waitlistConfirmed.step1Title': 'Du stehst auf der Liste',
+    'waitlistConfirmed.step1Text': 'Dein Platz ist bestätigt: du musst nichts weiter tun.',
+    'waitlistConfirmed.step2Title': 'Wir melden uns',
+    'waitlistConfirmed.step2Text': 'Wir schreiben dir per E-Mail, sobald dein Zugang frei wird.',
+    'waitlistConfirmed.step3Title': 'Vorab-Zugang',
+    'waitlistConfirmed.step3Text': 'Du gehörst zu den Ersten, die Angebote sehen und Vermietern schreiben können.',
   },
   pt: {
     'nav.findRoom': 'Encontrar um quarto',
@@ -1156,6 +1544,30 @@ export const translations = {
     'notFound.backHome': 'Voltar ao início',
     'errorBoundary.title': 'Algo correu mal',
     'errorBoundary.text': 'Esta parte da aplicação teve um erro. O resto da aplicação continua a funcionar.',
+
+    'auth.badge': 'Bem-vindo ao Roomly',
+    'auth.loginTitle': 'Inicia sessão na tua conta',
+    'auth.loginSubtitle': 'Introduz os teus dados para continuares a explorar quartos.',
+    'auth.registerTitle': 'Cria a tua conta',
+    'auth.registerSubtitle': 'Demora só um minuto para começares.',
+    'auth.firstNameLabel': 'Nome',
+    'auth.firstNamePlaceholder': 'Jane',
+    'auth.lastNameLabel': 'Apelido',
+    'auth.lastNamePlaceholder': 'Doe',
+    'auth.emailLabel': 'Email',
+    'auth.emailPlaceholder': 'tu@exemplo.com',
+    'auth.passwordLabel': 'Palavra-passe',
+    'auth.confirmPasswordLabel': 'Confirma a palavra-passe',
+    'auth.loginCta': 'Iniciar sessão',
+    'auth.loggingIn': 'A iniciar sessão...',
+    'auth.registerCta': 'Registar',
+    'auth.registering': 'A criar conta...',
+    'auth.noAccount': 'Ainda não tens conta?',
+    'auth.hasAccount': 'Já tens conta?',
+    'auth.loginError': 'Não foi possível iniciar sessão. Tenta novamente.',
+    'auth.registerError': 'Não foi possível criar a tua conta. Tenta novamente.',
+    'auth.registerCheckEmail': 'Conta criada! Verifica a tua caixa de entrada para confirmar o teu email antes de iniciares sessão.',
+    'auth.passwordMismatch': 'As palavras-passe não coincidem.',
 
     'searchBar.anywhere': 'Em qualquer zona do campus',
     'searchBar.maxMonthly': 'Máximo mensal',
@@ -1326,6 +1738,69 @@ export const translations = {
     'zones.oldTown': 'Centro histórico',
     'zones.southbank': 'Margem Sul',
     'zones.mapleQuarter': 'Bairro Maple',
+
+    'waitlist.navRegister': 'Criar uma conta',
+    'waitlist.badge': 'A forma mais agradável de encontrar um quarto',
+    'waitlist.title': 'O Roomly está a chegar',
+    'waitlist.subtitle': 'Quartos reais, proprietários verificados e conversas diretas. Cria já a tua conta e sê dos primeiros a ter acesso quando abrirmos.',
+    'waitlist.ctaRegister': 'Regista-te agora',
+    'waitlist.ctaNote': 'Demora 30 segundos. Não é preciso cartão.',
+    'waitlist.socialProofSuffix': 'estudantes já registados',
+    'waitlist.statPositionsLabel': 'Estudantes na lista',
+    'waitlist.statCitiesLabel': 'Cidades abrangidas',
+    'waitlist.statRatingLabel': 'Avaliação média',
+    'waitlist.howItWorksEyebrow': 'Como funciona',
+    'waitlist.howItWorksTitle': 'Do zero às chaves na mão',
+    'waitlist.step1Title': 'Cria o teu perfil',
+    'waitlist.step1Text': 'Regista-te com o teu email em menos de um minuto e diz-nos o que procuras: zona, orçamento e estilo de vida.',
+    'waitlist.step2Title': 'Encontra o quarto certo',
+    'waitlist.step2Text': 'Filtra anúncios verificados e escreve diretamente ao proprietário, sem intermediários.',
+    'waitlist.step3Title': 'Reserva e muda-te',
+    'waitlist.step3Text': 'Combina os detalhes no chat e estás pronto para te mudares, sem surpresas.',
+    'waitlist.feature1Title': 'Proprietários verificados',
+    'waitlist.feature1Text': 'Cada anúncio tem um proprietário real e verificado, com um preço claro e nada escondido.',
+    'waitlist.feature2Title': 'Correspondência rápida',
+    'waitlist.feature2Text': 'Um algoritmo local sugere os quartos certos com base na zona, orçamento e estilo de vida, em segundos.',
+    'waitlist.feature3Title': 'Conversas diretas',
+    'waitlist.feature3Text': 'Fala diretamente com quem realmente arrenda o quarto, sem intermediários nem anúncios anónimos.',
+    'waitlist.previewEyebrow': 'Antevisão',
+    'waitlist.previewTitle': 'O que procuram os estudantes que se mudam',
+    'waitlist.point1': 'Perto do campus ou de bons transportes',
+    'waitlist.point2': 'Preço claro, sem custos escondidos',
+    'waitlist.point3': 'Resposta rápida do proprietário',
+    'waitlist.finalTitle': 'O teu próximo capítulo começa com uma chave',
+    'waitlist.finalSubtitle': 'Cria a tua conta e sê dos primeiros a aceder ao Roomly quando abrirmos.',
+
+    'waitlistConfirmed.logout': 'Sair',
+    'waitlistConfirmed.badge': 'Registo confirmado',
+    'waitlistConfirmed.title': 'Estás na lista de espera do Roomly',
+    'waitlistConfirmed.subtitle': 'Estamos quase lá! A tua posição na lista de espera está indicada abaixo. Enviamos-te um email assim que puderes aceder ao site.',
+    'waitlistConfirmed.positionLabel': 'A tua posição',
+    'waitlistConfirmed.claimTitle': 'Reclama o teu identificador',
+    'waitlistConfirmed.claimText': 'Reserva o teu nome de utilizador no Roomly antes que outra pessoa o faça.',
+    'waitlistConfirmed.claimPlaceholder': 'oteunome',
+    'waitlistConfirmed.claimButton': 'Reclamar',
+    'waitlistConfirmed.claimError': 'Usa 3-20 carateres: letras, números ou underscores.',
+    'waitlistConfirmed.claimedSuffix': 'é teu',
+    'waitlistConfirmed.donateTitle': 'Apoia o Roomly',
+    'waitlistConfirmed.donateText': 'Ajuda-nos a abrir mais cedo: quem doa avança automaticamente 20 posições na lista.',
+    'waitlistConfirmed.donateCustomPlaceholder': 'Outro valor (€)',
+    'waitlistConfirmed.donateButton': 'Doar agora',
+    'waitlistConfirmed.donateThanks': 'Obrigado pelo apoio!',
+    'waitlistConfirmed.disclaimer': 'Esta não é uma oferta real. Página de demonstração para a lista de espera do Roomly.',
+    'waitlistConfirmed.menuPositionLabel': 'Posição na lista',
+    'waitlistConfirmed.emailUnavailable': 'Email não disponível',
+    'waitlistConfirmed.fullProfileLink': 'Ir para o perfil completo',
+    'waitlistConfirmed.defaultDisplayName': 'Estudante',
+    'waitlistConfirmed.positionLoading': 'A carregar...',
+    'waitlistConfirmed.whatNextEyebrow': 'O que acontece agora',
+    'waitlistConfirmed.whatNextTitle': 'Os teus próximos passos',
+    'waitlistConfirmed.step1Title': 'Estás na lista',
+    'waitlistConfirmed.step1Text': 'O teu lugar está confirmado: não precisas de fazer mais nada.',
+    'waitlistConfirmed.step2Title': 'Avisamos-te nós',
+    'waitlistConfirmed.step2Text': 'Escrevemos-te por email assim que a tua vez de acesso chegar.',
+    'waitlistConfirmed.step3Title': 'Acesso antecipado',
+    'waitlistConfirmed.step3Text': 'Serás dos primeiros a ver os anúncios e a escrever aos proprietários.',
   },
 } as const;
 
@@ -1347,27 +1822,80 @@ const LanguageContext = createContext<LanguageContextValue | null>(null);
  * roles never overwrites someone else's saved language.
  */
 export function LanguageProvider({ userId, children }: { userId: string; children: ReactNode }) {
-  // Always detect from the navigator, ignore any stored value
-  const language = detectRegionLanguage();
-  const isAuto = true; // we treat every load as “auto‑detected”
+  const [language, setLanguageState] = useState<LanguageCode>(
+    () => loadStoredLanguage(userId) ?? detectRegionLanguage(),
+  );
+  const [isAuto, setIsAuto] = useState(() => loadStoredLanguage(userId) === null);
 
-  // Keep the document lang attribute in sync
+  // Se l'utente è loggato, carica la lingua salvata nel database.
+  // Altrimenti resta sulla lingua rilevata dal browser/regione.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSavedLanguage() {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const session = data?.session;
+        if (!session) return;
+
+        const response = await fetch('/api/me', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          credentials: 'include',
+        });
+        if (!response.ok) return;
+
+        const json = await response.json();
+        if (!cancelled && json.lingua && LANGUAGES.some((l) => l.code === json.lingua)) {
+          setLanguageState(json.lingua as LanguageCode);
+          setIsAuto(false);
+        }
+      } catch (err) {
+        // In caso di errore resta sulla lingua rilevata dal browser.
+        console.error('Failed to load language from database:', err);
+      }
+    }
+
+    loadSavedLanguage();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     if (typeof document !== 'undefined') document.documentElement.lang = language;
   }, [language]);
 
   const setLanguage = (code: LanguageCode) => {
-    // This function is kept for compatibility (e.g. the Settings dropdown),
-    // but it will not persist unless you also write to localStorage.
-    // If you want persistence when the user manually picks a language,
-    // uncomment the block below.
-    /*
+    setLanguageState(code);
+    setIsAuto(false);
+
+    // Persist locally right away so the choice survives a page reload even
+    // for guests (login/register/waitlist) who have no account yet.
     try {
       window.localStorage.setItem(storageKeyFor(userId), code);
     } catch {
-      // ignore write failures (e.g. private browsing)
+      // localStorage unavailable (e.g. private mode) — the in-memory state above still works for this session.
     }
-    */
+
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const session = data?.session;
+        if (!session) return; // utente non loggato: cambio solo locale, non salvato
+
+        await fetch('/api/me/language', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          credentials: 'include',
+          body: JSON.stringify({ language: code }),
+        });
+      } catch (err) {
+        console.error('Failed to save language preference:', err);
+      }
+    })();
   };
 
   const value = useMemo<LanguageContextValue>(() => ({
@@ -1383,8 +1911,14 @@ export function LanguageProvider({ userId, children }: { userId: string; childre
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
 
-export function useLanguage() {
-  const ctx = useContext(LanguageContext);
-  if (!ctx) throw new Error('useLanguage must be used within a LanguageProvider');
-  return ctx;
+/**
+ * Hook per leggere/cambiare la lingua dal contesto creato da LanguageProvider.
+ * Deve essere usato solo all'interno di un componente figlio del provider.
+ */
+export function useLanguage(): LanguageContextValue {
+  const context = useContext(LanguageContext);
+  if (!context) {
+    throw new Error('useLanguage must be used within a LanguageProvider');
+  }
+  return context;
 }
