@@ -11,9 +11,19 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 // Single shared Supabase client for the whole auth.
-// Disable automatic session persistence to prevent XSS token theft.
-// Use manual session management with sessionStorage (more secure than localStorage).
-// Auto-refresh tokens to maintain session, but update our storage when refreshed.
+// Security Implementation:
+// 1. Disable automatic session persistence (persistSession: false) to prevent
+//    automatic token storage in localStorage/sessionStorage by Supabase
+// 2. Use manual session management with sessionStorage (more secure than localStorage)
+//    as it's tab-scoped and cleared when the tab closes
+// 3. Auto-refresh tokens to maintain session, but update our storage when refreshed
+// 4. Listen for auth state changes to manually handle session persistence
+// 5. Restore session from sessionStorage on app startup (in main.tsx)
+// 6. Content Security Policy (CSP) implemented in backend via helmet middleware
+// 7. All user data rendered via React JSX which auto-escapes content to prevent XSS
+//
+// Note: For maximum security, consider migrating to HTTP-only cookies for token
+// storage (long-term architectural change).
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: false, // Prevent automatic storage in localStorage/sessionStorage
