@@ -13,7 +13,13 @@ const restoreSession = async () => {
     const sessionString = window.sessionStorage.getItem('sb-session');
     if (sessionString) {
       const session = JSON.parse(sessionString);
-      await supabase.auth.setSession(session);
+      // Ensure session is a non-null object
+      if (session && typeof session === 'object') {
+        await supabase.auth.setSession(session);
+      } else {
+        // Clear invalid session data
+        window.sessionStorage.removeItem('sb-session');
+      }
     }
   } catch (error) {
     console.error('Failed to restore session:', error);

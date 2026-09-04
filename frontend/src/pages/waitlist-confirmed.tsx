@@ -27,7 +27,8 @@ export function WaitlistConfirmedPage() {
       try {
         console.log('Fetching waitlist position from /api/waitlist/me');
         // Get the current session to include the auth token
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data } = await supabase.auth.getSession();
+        const session = data?.session;
         const accessToken = session?.access_token;
 
         console.log('Access token present:', !!accessToken);

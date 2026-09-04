@@ -31,8 +31,9 @@ async function fetchRoleFromBackend(accessToken: string): Promise<UserRole> {
 export async function getUserRole(user: User | null | undefined): Promise<UserRole> {
   if (!user) return 'user';
 
-  const { data: sessionData } = await supabase.auth.getSession();
-  const accessToken = sessionData.session?.access_token;
+  const { data } = await supabase.auth.getSession();
+  const sessionData = data?.session;
+  const accessToken = sessionData?.access_token;
   if (!accessToken) return 'user';
 
   return fetchRoleFromBackend(accessToken);

@@ -100,7 +100,8 @@ export function Home() {
   // Redirect non-admin users away from the home page
   useEffect(() => {
     async function checkAuthAndRole() {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data } = await supabase.auth.getSession();
+      const session = data?.session;
       if (!session) {
         setLocation('/login');
         return;
