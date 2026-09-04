@@ -1,7 +1,6 @@
 import { Router, type IRouter } from "express";
 import { requireAuth, type AuthenticatedRequest } from "../middlewares/auth.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
-import { securityFlags } from "../config/security-flags.js";
 
 const router: IRouter = Router();
 
@@ -10,14 +9,6 @@ const router: IRouter = Router();
 // system that is allowed to see that value on the caller's behalf. The
 // frontend must trust only this response, never read `utenti` directly.
 router.get("/me/role", requireAuth, async (req, res) => {
-  // DEBUG ONLY — see backend/src/config/security-flags.ts. When on, every
-  // caller is reported as admin regardless of the database. Forced off in
-  // production.
-  if (securityFlags.forceAdminRole) {
-    res.json({ role: "admin" });
-    return;
-  }
-
   const { userId } = req as AuthenticatedRequest;
 
   const { data, error } = await supabaseAdmin
@@ -38,19 +29,38 @@ router.get("/me/role", requireAuth, async (req, res) => {
         return;
       }
 
+      // Controllo di conferma email: se non confermata, non creare il record utenti
+      const { email_confirmed_at } = authUser.user;
+      if (!email_confirmed_at) {
+        // Email non ancora confermata – trattiamo l'utente come utente normale
+        res.json({ role: "user" });
+        return;
+      }
+
       // Estrai nome e cognome dal metadata (con valori di default vuoti)
       const { nome = "", cognome = "" } = authUser.user.user_metadata ?? {};
       const full_name = `${nome} ${cognome}`.trim();
+
+      // Calcola la prossima posizione nella waitlist
+      const { data: posData, error: posError } = await supabaseAdmin
+        .from("utenti")
+        .select("posizione")
+        .order("posizione", { ascending: false })
+        .limit(1);
+
+      const posizione = posError || !posData || posData.length === 0 ? 1 : posData[0].posizione + 1;
 
       // Inserisci il nuovo record in utenti
       const { error: insertError } = await supabaseAdmin
         .from("utenti")
         .insert({
           id: userId,
+          email: authUser.user.email ?? "",
           nome,
           cognome,
           full_name,
-          // Altri campi con valori di default sicuri
+          email_verificata: true,
+          posizione,
           // admin: false è il valore predefinito per i nuovi utenti
           // created_at/updated_at verranno gestiti dal database se hanno DEFAULT
         });

@@ -1,6 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
-import { securityFlags, devUser } from "../config/security-flags.js";
 
 export type AuthenticatedRequest = Request & {
   userId: string;
@@ -17,17 +16,6 @@ export async function requireAuth(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  // DEBUG ONLY — see backend/src/config/security-flags.ts. When on, this
-  // skips real token verification entirely and pretends every request is
-  // already authenticated as devUser. Forced off in production.
-  if (securityFlags.skipAuthTokenCheck) {
-    const authedReq = req as AuthenticatedRequest;
-    authedReq.userId = devUser.id;
-    authedReq.userEmail = devUser.email;
-    next();
-    return;
-  }
-
   const header = req.headers.authorization;
   const token = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : null;
 
