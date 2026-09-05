@@ -14,13 +14,22 @@ async function restoreSession() {
 
   try {
     const session = JSON.parse(stored);
-    await supabase.auth.setSession({
-      access_token: session.access_token,
-      refresh_token: session.refresh_token,
-    });
+    // Try to set the session
+    await supabase.auth.setSession(session);
+
+    // Verify the session was set correctly
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) {
+      throw new Error('Session not set correctly after restore');
+    }
   } catch (error) {
     console.error('Failed to restore session:', error);
-    storage.remove('sb-session');
+    // Only remove the stored session if we're sure it's invalid
+    // JSON parsing errors definitely mean invalid storage
+    if (error instanceof SyntaxError) {
+      storage.remove('sb-session');
+    }
+    // For other errors, we keep the stored session in case it's a transient issue
   }
 }
 
