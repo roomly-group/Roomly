@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n';
 import { LanguagePicker } from '@/components/language-selector';
 import { Avatar } from '@/components/layout/app-shell';
+import { storage } from '@/lib/storage';
 import roomlyMark from '@assets/logo_no_background.png';
 
 export function WaitlistConfirmedPage() {
@@ -66,7 +67,7 @@ export function WaitlistConfirmedPage() {
 
   async function handleLogout() {
     await supabase.auth.signOut();
-    window.sessionStorage.removeItem('sb-session');
+    storage.remove('sb-session');
     setLocation('/');
   }
 

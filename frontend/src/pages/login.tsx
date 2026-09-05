@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
 import { postAuthRoute } from '@/lib/auth-role';
+import { storage } from '@/lib/storage';
 import roomlyMark from '@assets/logo_no_background.png';
 
 export function LoginPage() {
@@ -38,9 +39,10 @@ export function LoginPage() {
         throw new Error('No session returned by Supabase Auth.');
       }
 
-      // Manually persist session in sessionStorage to reduce XSS risk
-      // sessionStorage is more secure than localStorage (tab-scoped, cleared on tab close)
-      window.sessionStorage.setItem('sb-session', JSON.stringify(data.session));
+      // Manually persist session in localStorage to maintain login across browser restarts
+      // Note: localStorage is accessible to JavaScript (similar XSS risk to sessionStorage)
+      // but persists across tabs and browser sessions
+      storage.set('sb-session', JSON.stringify(data.session));
       // Set the session in Supabase client for immediate use
       await supabase.auth.setSession(data.session);
 
