@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useLocation } from 'wouter';
-import { KeyRound, Mail, Lock } from 'lucide-react';
+import { KeyRound, Mail, Lock, EyeOff, Eye } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { Button } from '@/components/shared/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -96,16 +97,28 @@ export function LoginPage() {
                 <Lock size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#527067]" />
                 <Input
                   id="login-password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   required
                   minLength={6}
                   placeholder="••••••••"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  className="pl-9"
+                  className="pl-9 pr-10"
                   data-testid="input-password"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#527067] hover:text-[#085041] transition-colors"
+                  aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                >
+                  {showPassword ? (
+                    <Eye size={16} className="pointer-events-none" />
+                  ) : (
+                    <EyeOff size={16} className="pointer-events-none" />
+                  )}
+                </button>
               </div>
             </div>
 

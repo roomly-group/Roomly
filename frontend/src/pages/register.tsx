@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Sparkles, Mail, Lock, User } from 'lucide-react';
+import { Sparkles, Mail, Lock, User, EyeOff, Eye } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { LanguagePicker } from '@/components/language-selector';
 import { Button } from '@/components/shared/button';
@@ -24,6 +24,8 @@ export function RegisterPage() {
   // Defaults to true (the safer path) until the backend answers, so a slow
   // or failed request never accidentally skips email confirmation.
   const [requireEmailConfirmation, setRequireEmailConfirmation] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -198,16 +200,28 @@ export function RegisterPage() {
                 <Lock size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#527067]" />
                 <Input
                   id="register-password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   autoComplete="new-password"
                   required
                   minLength={6}
                   placeholder="••••••••"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  className="pl-9"
+                  className="pl-9 pr-10"
                   data-testid="input-password"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#527067] hover:text-[#085041] transition-colors"
+                  aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                >
+                  {showPassword ? (
+                    <Eye size={16} className="pointer-events-none" />
+                  ) : (
+                    <EyeOff size={16} className="pointer-events-none" />
+                  )}
+                </button>
               </div>
             </div>
 
@@ -217,16 +231,28 @@ export function RegisterPage() {
                 <Lock size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#527067]" />
                 <Input
                   id="register-confirm-password"
-                  type="password"
+                  type={showConfirmPassword ? "text" : "password"}
                   autoComplete="new-password"
                   required
                   minLength={6}
                   placeholder="••••••••"
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
-                  className="pl-9"
+                  className="pl-9 pr-10"
                   data-testid="input-confirm-password"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#527067] hover:text-[#085041] transition-colors"
+                  aria-label={showConfirmPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                >
+                  {showConfirmPassword ? (
+                    <Eye size={16} className="pointer-events-none" />
+                  ) : (
+                    <EyeOff size={16} className="pointer-events-none" />
+                  )}
+                </button>
               </div>
             </div>
 

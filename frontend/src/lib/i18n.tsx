@@ -113,6 +113,8 @@ export const translations = {
     'auth.registerError': "We couldn't create your account. Please try again.",
     'auth.registerCheckEmail': 'Account created! Check your inbox to confirm your email before logging in.',
     'auth.passwordMismatch': "Passwords don't match.",
+    'auth.showPassword': 'Show password',
+    'auth.hidePassword': 'Hide password',
 
     'searchBar.anywhere': 'Anywhere around campus',
     'searchBar.maxMonthly': 'Max monthly',
@@ -404,6 +406,8 @@ export const translations = {
     'auth.registerError': 'Non è stato possibile creare il tuo account. Riprova.',
     'auth.registerCheckEmail': 'Account creato! Controlla la tua email per confermare la registrazione prima di accedere.',
     'auth.passwordMismatch': 'Le password non coincidono.',
+    'auth.showPassword': 'Mostra password',
+    'auth.hidePassword': 'Nascondi password',
 
     'searchBar.anywhere': 'Ovunque intorno al campus',
     'searchBar.maxMonthly': 'Prezzo massimo',
@@ -695,6 +699,8 @@ export const translations = {
     'auth.registerError': 'No hemos podido crear tu cuenta. Inténtalo de nuevo.',
     'auth.registerCheckEmail': '¡Cuenta creada! Revisa tu bandeja de entrada para confirmar tu email antes de iniciar sesión.',
     'auth.passwordMismatch': 'Las contraseñas no coinciden.',
+    'auth.showPassword': 'Mostrar contraseña',
+    'auth.hidePassword': 'Ocultar contraseña',
 
     'searchBar.anywhere': 'En cualquier zona del campus',
     'searchBar.maxMonthly': 'Máximo mensual',
@@ -986,6 +992,8 @@ export const translations = {
     'auth.registerError': "Impossible de créer votre compte. Réessayez.",
     'auth.registerCheckEmail': 'Compte créé ! Vérifiez votre boîte mail pour confirmer votre adresse avant de vous connecter.',
     'auth.passwordMismatch': 'Les mots de passe ne correspondent pas.',
+    'auth.showPassword': 'Afficher le mot de passe',
+    'auth.hidePassword': 'Masquer le mot de passe',
 
     'searchBar.anywhere': 'Partout autour du campus',
     'searchBar.maxMonthly': 'Maximum mensuel',
@@ -1277,6 +1285,8 @@ export const translations = {
     'auth.registerError': 'Konto konnte nicht erstellt werden. Bitte versuche es erneut.',
     'auth.registerCheckEmail': 'Konto erstellt! Prüfe dein Postfach, um deine E-Mail zu bestätigen, bevor du dich anmeldest.',
     'auth.passwordMismatch': 'Die Passwörter stimmen nicht überein.',
+    'auth.showPassword': 'Passwort anzeigen',
+    'auth.hidePassword': 'Passwort verstecken',
 
     'searchBar.anywhere': 'Überall rund um den Campus',
     'searchBar.maxMonthly': 'Maximal monatlich',
@@ -1568,6 +1578,8 @@ export const translations = {
     'auth.registerError': 'Não foi possível criar a tua conta. Tenta novamente.',
     'auth.registerCheckEmail': 'Conta criada! Verifica a tua caixa de entrada para confirmar o teu email antes de iniciares sessão.',
     'auth.passwordMismatch': 'As palavras-passe não coincidem.',
+    'auth.showPassword': 'Mostrar palavra-passe',
+    'auth.hidePassword': 'Esconder palavra-passe',
 
     'searchBar.anywhere': 'Em qualquer zona do campus',
     'searchBar.maxMonthly': 'Máximo mensal',
