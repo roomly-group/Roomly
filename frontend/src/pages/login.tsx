@@ -25,7 +25,7 @@ export function LoginPage() {
 
     try {
       // Call our login endpoint which verifies with Supabase and sets HTTP-only cookie
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch('/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -155,4 +155,18 @@ router.post('/logout', (_req: Request, res: Response) => {
   res.json({ ok: true });
 });
 
+// Config endpoint - lets frontend know if email confirmation is required
+router.get('/config', (_req: Request, res: Response) => {
+  res.json({ requireEmailConfirmation: true });
+});
+
+// Register endpoint - registration must be done via frontend's supabase.auth.signUp()
+// to ensure email confirmation flow is respected
+router.post('/register', async (_req: Request, res: Response) => {
+  res.status(409).json({
+    error:
+      "Email confirmation is required. Use supabase.auth.signUp() from the frontend instead of this route.",
+  });
+});
+
 export default router;

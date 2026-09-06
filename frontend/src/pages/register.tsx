@@ -30,7 +30,7 @@ export function RegisterPage() {
   useEffect(() => {
     let cancelled = false;
 
-    fetch('/api/auth/config')
+    fetch('/api/config')
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((data: { requireEmailConfirmation: boolean }) => {
         if (!cancelled) setRequireEmailConfirmation(data.requireEmailConfirmation);
@@ -61,7 +61,7 @@ export function RegisterPage() {
         // (REQUIRE_EMAIL_CONFIRMATION = false). Creates the account already
         // confirmed via the backend's admin route, then hydrates the
         // Supabase client with the returned session.
-        const response = await fetch('/api/auth/register', {
+        const response = await fetch('/api/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ nome, cognome, email, password }),

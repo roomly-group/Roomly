@@ -17,7 +17,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // 2. Auto-refresh tokens to maintain session
 // 3. Listen for auth state changes to update React state/context if needed
 // 4. For persistent login across browser restarts, rely on HttpOnly cookie
-//    set by backend /api/auth/login endpoint
+//    set by backend /api/login endpoint
 // 5. Content Security Policy (CSP) implemented in backend via helmet middleware
 // 6. All user data rendered via React JSX which auto-escapes content to prevent XSS
 //
@@ -40,7 +40,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
   if (event === 'TOKEN_REFRESHED' && session) {
     try {
       // Call our backend refresh endpoint to get a new cookie with the fresh token
-      const response = await fetch('/api/auth/refresh', {
+      const response = await fetch('/api/refresh', {
         method: 'POST',
         credentials: 'include',
       });

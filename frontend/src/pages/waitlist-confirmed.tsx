@@ -60,7 +60,7 @@ export function WaitlistConfirmedPage() {
 
   async function handleLogout() {
     // Call our logout endpoint to clear the HTTP-only cookie
-    await fetch('/api/auth/logout', {
+    await fetch('/api/logout', {
       method: 'POST',
       credentials: 'include',
     });

@@ -7,7 +7,7 @@ import './index.css';
 async function initializeApp() {
   try {
     // Check if we have a valid session cookie and restore Supabase session
-    const response = await fetch('/api/auth/verify', {
+    const response = await fetch('/api/verify', {
       method: 'POST',
       credentials: 'include',
     });
