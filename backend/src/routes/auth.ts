@@ -122,7 +122,8 @@ router.post('/verify', async (req: Request, res: Response) => {
     // Validate the token with Supabase admin (only gets user data)
     const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
 
-    if (userError || !userData.user) {
+    // Check if userData is valid and contains user information
+    if (userError || !userData || typeof userData !== 'object' || !userData.user) {
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
 
