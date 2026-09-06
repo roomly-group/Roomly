@@ -119,25 +119,61 @@ router.post('/verify', async (req: Request, res: Response) => {
   }
 
   try {
-    // Validate the token with Supabase admin
-    const { data, error } = await supabaseAdmin.auth.getUser(token);
+    // Validate the token with Supabase admin (only gets user data)
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
 
-    if (error || !data.user || !data.session) {
+    if (userError || !userData.user) {
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
 
-    // Return session data to restore Supabase client session
-    res.json({
-      session: {
-        access_token: data.session.access_token,
-        expires_at: data.session.expires_at,
-        user: {
-          id: data.user.id,
-          email: data.user.email,
-          // Add other non-sensitive user fields as needed
-        }
+    // Decode JWT token to get expiration time
+    try {
+      const payloadBase64 = token.split('.')[1];
+      if (!payloadBase64) {
+        throw new Error('Invalid token format');
       }
-    });
+      // Replace URL-safe characters and add padding if needed
+      const payload = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
+      // Add padding to make length multiple of 4
+      const paddedPayload = payload.length % 4 === 0 ? payload : payload + '='.repeat(4 - (payload.length % 4));
+      const decodedPayload = Buffer.from(paddedPayload, 'base64').toString('utf-8');
+      const payloadJson = JSON.parse(decodedPayload);
+      const exp = payloadJson.exp;
+
+      if (typeof exp !== 'number') {
+        throw new Error('Invalid or missing expiration time in token');
+      }
+
+      // Return session data to restore Supabase client session
+      res.json({
+        session: {
+          access_token: token,
+          expires_at: exp * 1000, // Convert seconds to milliseconds
+          user: {
+            id: userData.user.id,
+            email: userData.user.email,
+            // Add other non-sensitive user fields as needed
+          }
+        }
+      });
+    } catch (decodeError) {
+      console.error('JWT decode error:', decodeError);
+      // If we can't decode the token or extract expiration, still return a session
+      // We know the token is valid because getUser succeeded, so we use a reasonable expiration
+      // Using 1 hour from now as a fallback - shorter is safer than longer
+      const fallbackExp = Math.floor(Date.now() / 1000) + 60 * 60; // 1 hour from now
+      res.json({
+        session: {
+          access_token: token,
+          expires_at: fallbackExp * 1000,
+          user: {
+            id: userData.user.id,
+            email: userData.user.email,
+            // Add other non-sensitive user fields as needed
+          }
+        }
+      });
+    }
   } catch (error) {
     console.error('Verify error:', error);
     res.status(500).json({ error: 'Internal server error' });
