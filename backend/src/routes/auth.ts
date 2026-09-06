@@ -206,4 +206,22 @@ router.post('/register', async (_req: Request, res: Response) => {
   });
 });
 
+// Idrata il cookie di sessione da un access_token Supabase ottenuto lato
+// client (es. subito dopo signUp(), o dopo il redirect di conferma email).
+router.post('/session', async (req: Request, res: Response) => {
+  const { access_token } = req.body as { access_token?: string };
+
+  if (!access_token) {
+    return res.status(400).json({ error: 'Missing access_token' });
+  }
+
+  const { data, error } = await supabaseAdmin.auth.getUser(access_token);
+  if (error || !data.user) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+
+  setAuthCookie(res, access_token);
+  res.json({ ok: true });
+});
+
 export default router;

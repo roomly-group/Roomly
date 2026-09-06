@@ -37,19 +37,17 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 // This ensures that when tokens are auto-refreshed by Supabase, we keep
 // our cookie in sync with the fresh token
 supabase.auth.onAuthStateChange(async (event, session) => {
-  if (event === 'TOKEN_REFRESHED' && session) {
-    try {
-      // Call our backend refresh endpoint to get a new cookie with the fresh token
-      const response = await fetch('/api/refresh', {
-        method: 'POST',
-        credentials: 'include',
-      });
+  if (session && (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN')) {
+    const endpoint = event === 'SIGNED_IN' ? '/api/session' : '/api/refresh';
+    const body = event === 'SIGNED_IN'
+      ? JSON.stringify({ access_token: session.access_token })
+      : undefined;
 
-      if (!response.ok) {
-        console.warn('Failed to refresh auth cookie after token refresh');
-      }
-    } catch (error) {
-      console.error('Error refreshing auth cookie:', error);
-    }
+    await fetch(endpoint, {
+      method: 'POST',
+      credentials: 'include',
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body,
+    }).catch((err) => console.error('Errore nel sincronizzare il cookie di sessione:', err));
   }
 });
