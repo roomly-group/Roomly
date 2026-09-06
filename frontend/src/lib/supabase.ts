@@ -33,21 +33,29 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-// Listen for session changes and update our HttpOnly cookie via backend
-// This ensures that when tokens are auto-refreshed by Supabase, we keep
-// our cookie in sync with the fresh token
+// Keep our HttpOnly cookies in sync with whatever session the Supabase
+// client currently holds:
+// - TOKEN_REFRESHED: Supabase auto-refreshed the access token in memory;
+//   push both fresh tokens back into the backend's cookies.
+// - SIGNED_IN: fires after supabase.auth.signUp() with an immediate
+//   session, and after detectSessionInUrl parses an email-confirmation
+//   redirect. Neither of those goes through /api/login, so without this
+//   the backend would never receive a session cookie at all.
+// Both cases require refresh_token as well as access_token — the backend
+// needs it to keep the refresh cookie in sync so setSession() keeps working
+// after future reloads.
 supabase.auth.onAuthStateChange(async (event, session) => {
   if (session && (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN')) {
     const endpoint = event === 'SIGNED_IN' ? '/api/session' : '/api/refresh';
-    const body = event === 'SIGNED_IN'
-      ? JSON.stringify({ access_token: session.access_token })
-      : undefined;
 
     await fetch(endpoint, {
       method: 'POST',
       credentials: 'include',
-      headers: body ? { 'Content-Type': 'application/json' } : undefined,
-      body,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      }),
     }).catch((err) => console.error('Errore nel sincronizzare il cookie di sessione:', err));
   }
 });
