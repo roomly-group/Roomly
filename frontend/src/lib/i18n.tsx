@@ -1851,7 +1851,6 @@ export function LanguageProvider({ userId, children }: { userId: string; childre
         if (!session) return;
 
         const response = await fetch('/api/me', {
-          headers: { Authorization: `Bearer ${session.access_token}` },
           credentials: 'include',
         });
         if (!response.ok) return;
@@ -1899,7 +1898,6 @@ export function LanguageProvider({ userId, children }: { userId: string; childre
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
           },
           credentials: 'include',
           body: JSON.stringify({ language: code }),

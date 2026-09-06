@@ -5,10 +5,11 @@ export type UserRole = 'admin' | 'user';
 
 type RoleResponse = { role: UserRole; owner: boolean };
 
-async function fetchRoleFromBackend(accessToken: string): Promise<RoleResponse> {
+async function fetchRoleFromBackend(_accessToken: string): Promise<RoleResponse> {
   try {
     const response = await fetch('/api/me/role', {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      // No Authorization header needed - relying on HttpOnly cookie
+      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -29,10 +30,10 @@ async function fetchRole(user: User | null | undefined): Promise<RoleResponse> {
   if (!user) return { role: 'user', owner: false };
 
   const { data } = await supabase.auth.getSession();
-  const accessToken = data?.session?.access_token;
-  if (!accessToken) return { role: 'user', owner: false };
+  if (!data.session) return { role: 'user', owner: false };
 
-  return fetchRoleFromBackend(accessToken);
+  // No need to extract token - relying on HttpOnly cookie for backend auth
+  return fetchRoleFromBackend(''); // token not used
 }
 
 export async function getUserRole(user: User | null | undefined): Promise<UserRole> {

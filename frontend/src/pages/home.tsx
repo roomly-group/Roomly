@@ -101,15 +101,15 @@ export function Home() {
   useEffect(() => {
     async function checkAuthAndRole() {
       const { data } = await supabase.auth.getSession();
-      const session = data?.session;
-      if (!session) {
+      if (!data.session) {
         setLocation('/login');
         return;
       }
 
       try {
         const response = await fetch('/api/me/role', {
-          headers: { Authorization: `Bearer ${session.access_token}` },
+          // No Authorization header needed - relying on HttpOnly cookie
+          credentials: 'include',
         });
         if (!response.ok) {
           // Fail safe: treat as non-admin

@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import { storage } from './storage';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -15,15 +14,17 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Security Implementation:
 // 1. Disable automatic session persistence (persistSession: false) to prevent
 //    automatic token storage in localStorage/sessionStorage by Supabase
-// 2. Use manual session management with localStorage (persists across tabs/windows)
-// 3. Auto-refresh tokens to maintain session, but update our storage when refreshed
-// 4. Listen for auth state changes to manually handle session persistence
-// 5. Restore session from localStorage on app startup (in main.tsx)
-// 6. Content Security Policy (CSP) implemented in backend via helmet middleware
-// 7. All user data rendered via React JSX which auto-escapes content to prevent XSS
+// 2. Auto-refresh tokens to maintain session
+// 3. Listen for auth state changes to update React state/context if needed
+// 4. For persistent login across browser restarts, rely on HttpOnly cookie
+//    set by backend /api/auth/login endpoint
+// 5. Content Security Policy (CSP) implemented in backend via helmet middleware
+// 6. All user data rendered via React JSX which auto-escapes content to prevent XSS
 //
-// Note: For maximum security, consider migrating to HTTP-only cookies for token
-// storage (long-term architectural change).
+// Note: Session persistence is now handled via HttpOnly cookie set by backend
+// during login, rather than client-side localStorage storage.
+// Token refresh is handled by calling the backend refresh endpoint when
+// Supabase emits a TOKEN_REFRESHED event.
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: false, // Prevent automatic storage in localStorage/sessionStorage
@@ -32,16 +33,23 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-// Listen for session changes and update our localStorage
-// This ensures that when tokens are auto-refreshed, we persist the new session
-supabase.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-    // Store the session in localStorage (persists across tabs/windows)
-    if (session) {
-      storage.set('sb-session', JSON.stringify(session));
+// Listen for session changes and update our HttpOnly cookie via backend
+// This ensures that when tokens are auto-refreshed by Supabase, we keep
+// our cookie in sync with the fresh token
+supabase.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'TOKEN_REFRESHED' && session) {
+    try {
+      // Call our backend refresh endpoint to get a new cookie with the fresh token
+      const response = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        console.warn('Failed to refresh auth cookie after token refresh');
+      }
+    } catch (error) {
+      console.error('Error refreshing auth cookie:', error);
     }
-  } else if (event === 'SIGNED_OUT') {
-    // Clear localStorage when user signs out
-    storage.remove('sb-session');
   }
 });

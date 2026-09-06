@@ -22,14 +22,7 @@ export function WaitlistConfirmedPage() {
   useEffect(() => {
     async function fetchPosition() {
       try {
-        const { data } = await supabase.auth.getSession();
-        const session = data?.session;
-        const accessToken = session?.access_token;
-
         const response = await fetch('/api/waitlist/me', {
-          headers: {
-            Authorization: accessToken ? `Bearer ${accessToken}` : '',
-          },
           credentials: 'include',
         });
         if (response.ok) {
@@ -66,8 +59,11 @@ export function WaitlistConfirmedPage() {
   }, []);
 
   async function handleLogout() {
-    await supabase.auth.signOut();
-    storage.remove('sb-session');
+    // Call our logout endpoint to clear the HTTP-only cookie
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+    });
     setLocation('/');
   }
 

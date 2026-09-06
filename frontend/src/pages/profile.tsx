@@ -33,12 +33,13 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
     async function fetchProfile() {
       try {
         const { data } = await supabase.auth.getSession();
-        const accessToken = data?.session?.access_token;
+        if (!data.session) {
+          setLoading(false);
+          return;
+        }
 
         const response = await fetch('/api/me', {
-          headers: {
-            Authorization: accessToken ? `Bearer ${accessToken}` : '',
-          },
+          // No Authorization header needed - relying on HttpOnly cookie
           credentials: 'include',
         });
 

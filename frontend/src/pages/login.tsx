@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
 import { postAuthRoute } from '@/lib/auth-role';
-import { storage } from '@/lib/storage';
 import roomlyMark from '@assets/logo_no_background.png';
 
 export function LoginPage() {
@@ -25,28 +24,28 @@ export function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      // Login.tsx -> supabase.auth.signInWithPassword() -> Supabase Auth -> session + JWT
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      // Call our login endpoint which verifies with Supabase and sets HTTP-only cookie
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+        credentials: 'include', // Important: send cookies with request
       });
 
-      if (signInError) {
-        throw signInError;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Login failed');
       }
 
-      if (!data.session) {
-        throw new Error('No session returned by Supabase Auth.');
-      }
+      const { session } = await response.json();
 
-      // Manually persist session in localStorage to maintain login across browser restarts
-      // Note: localStorage is accessible to JavaScript (similar XSS risk to sessionStorage)
-      // but persists across tabs and browser sessions
-      storage.set('sb-session', JSON.stringify(data.session));
-      // Set the session in Supabase client for immediate use
-      await supabase.auth.setSession(data.session);
+      // Set the session in Supabase client for immediate use (for frontend auth checks)
+      // This is only kept in memory, not persisted to localStorage
+      await supabase.auth.setSession(session);
 
-      setLocation(await postAuthRoute(data.session.user));
+      setLocation(await postAuthRoute(session.user));
     } catch (err) {
       setError(err instanceof Error ? err.message : t('auth.loginError'));
     } finally {
