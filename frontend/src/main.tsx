@@ -31,8 +31,8 @@ async function initializeApp() {
 
 initializeApp().then((session) => {
   // If we have a session and we're not already on the waitinglist/confirmed page, redirect there
-  if (session && window.location.pathname !== '/waitinglist/confirmed') {
-    window.location.href = '/waitinglist/confirmed';
+  if (session && window.location.pathname !== '/waitlist/confirmed') {
+    window.location.href = '/waitlist/confirmed';
   }
 }).finally(() => {
   createRoot(document.getElementById('root')!, {
