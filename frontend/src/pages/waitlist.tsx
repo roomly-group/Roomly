@@ -9,15 +9,46 @@ import {
   MapPin,
   Wallet,
   Clock3,
+  Plus,
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { LanguagePicker } from '@/components/language-selector';
 import roomlyMark from '@assets/logo_no_background.png';
+import { SiteFooter } from '@/components/layout/site-footer';
 import { useEffect, useState } from 'react';
+
+const FAQ_ITEMS = [
+  {
+    question: 'Cos\u2019\u00e8 Roomly?',
+    answer:
+      'Roomly \u00e8 la piattaforma che mette in contatto studenti in cerca di una stanza con proprietari che pubblicano annunci, per trovare casa in modo semplice e trasparente.',
+  },
+  {
+    question: 'Roomly \u00e8 gi\u00e0 disponibile?',
+    answer:
+      'Roomly \u00e8 attualmente in fase beta. Iscrivendoti alla waitlist avrai accesso in anteprima non appena apriremo nuovi posti.',
+  },
+  {
+    question: 'Quanto costa iscriversi alla waitlist?',
+    answer:
+      'L\u2019iscrizione alla waitlist \u00e8 completamente gratuita e non richiede alcun impegno.',
+  },
+  {
+    question: 'Come funziona la ricerca di una stanza?',
+    answer:
+      'Crei un profilo, cerchi tra gli annunci disponibili nella tua zona e contatti direttamente i proprietari tramite la messaggistica di Roomly.',
+  },
+  {
+    question: 'Posso pubblicare un annuncio come proprietario?',
+    answer:
+      'S\u00ec. Durante la beta i proprietari possono candidarsi a pubblicare i propri annunci scrivendoci dalla pagina Contatti.',
+  },
+];
 
 export function WaitlistPage() {
   const { t } = useLanguage();
   const [waitlistCount, setWaitlistCount] = useState<number | null>(null);
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   useEffect(() => {
     // Fetch the waitlist count from the API
@@ -31,6 +62,19 @@ export function WaitlistPage() {
         // Fallback to a reasonable number if API fails
         setWaitlistCount(1284);
       });
+  }, []);
+
+  useEffect(() => {
+    // Scroll to the FAQ section when arriving via a #faq link (e.g. from the footer),
+    // both on first load and if the hash changes while already on this page.
+    const scrollToFaqIfNeeded = () => {
+      if (window.location.hash === '#faq') {
+        document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' });
+      }
+    };
+    scrollToFaqIfNeeded();
+    window.addEventListener('hashchange', scrollToFaqIfNeeded);
+    return () => window.removeEventListener('hashchange', scrollToFaqIfNeeded);
   }, []);
 
   return (
@@ -169,6 +213,50 @@ export function WaitlistPage() {
           </div>
         </section>
 
+        {/* FAQ */}
+        <section id="faq" className="scroll-mt-8 py-6">
+          <div className="mb-8 text-center">
+            <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-[#0F6E56]">
+              Domande frequenti
+            </p>
+            <h2 className="text-[28px] font-black text-[#2C2C2A] sm:text-[32px]">
+              Tutto quello che c'è da sapere
+            </h2>
+          </div>
+
+          <div className="mx-auto max-w-2xl space-y-3">
+            {FAQ_ITEMS.map((item, index) => {
+              const isOpen = openFaq === index;
+              return (
+                <div
+                  key={item.question}
+                  className="overflow-hidden rounded-2xl border border-[#0850411a] bg-white"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setOpenFaq(isOpen ? null : index)}
+                    aria-expanded={isOpen}
+                    className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
+                  >
+                    <span className="text-sm font-black text-[#2C2C2A]">{item.question}</span>
+                    <Plus
+                      size={18}
+                      className={`shrink-0 text-[#085041] transition-transform duration-200 ${
+                        isOpen ? 'rotate-45' : ''
+                      }`}
+                    />
+                  </button>
+                  {isOpen && (
+                    <p className="px-5 pb-4 text-sm leading-relaxed text-[#527067]">
+                      {item.answer}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
         {/* Final CTA */}
         <section className="my-14 rounded-[28px] bg-[#085041] px-8 py-14 text-center sm:px-14">
           <h2 className="mx-auto max-w-md text-[28px] font-black leading-tight text-white sm:text-[32px]">
@@ -179,6 +267,8 @@ export function WaitlistPage() {
           </p>
         </section>
       </div>
+
+      <SiteFooter />
     </div>
   );
 }

@@ -12,6 +12,11 @@ import { OwnerDashboard } from '@/pages/owner-dashboard';
 import { NewListingPage } from '@/pages/new-listing';
 import { WaitlistPage } from '@/pages/waitlist';
 import { WaitlistConfirmedPage } from '@/pages/waitlist-confirmed';
+import { ChiSiamoPage } from '@/pages/chi-siamo';
+import { ContattiPage } from '@/pages/contatti';
+import { PrivacyPage } from '@/pages/privacy';
+import { TerminiPage } from '@/pages/termini';
+import { CookiePage } from '@/pages/cookie';
 import { RequireAuth } from '@/components/RequireAuth';
 import { RequireAdmin } from '@/components/RequireAdmin';
 import { RequireOwner } from '@/components/RequireOwner';
@@ -86,6 +91,11 @@ export function Router() {
         )} />
         <Route path="/waitlist" component={WaitlistPage} />
         <Route path="/waitlist/confirmed" component={WaitlistConfirmedPage} />
+        <Route path="/chi-siamo" component={ChiSiamoPage} />
+        <Route path="/contatti" component={ContattiPage} />
+        <Route path="/privacy" component={PrivacyPage} />
+        <Route path="/termini" component={TerminiPage} />
+        <Route path="/cookie" component={CookiePage} />
         <Route component={NotFound} />
       </Switch>
     </ErrorBoundary>
