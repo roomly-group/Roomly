@@ -57,7 +57,7 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-[#F1EFE8] px-4 py-12">
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center gap-2 text-center">
-          <div className="flex h-[60px] w-[60px] items-center justify-center rounded-xl bg-white shadow-[0_4px_12px_rgba(8,80,65,0.1)]">
+          <div className="flex h-[60px] w-[60px] items-center justify-center rounded-xl">
             <img src={roomlyMark} alt="Roomly" className="h-16 w-16 object-contain" />
           </div>
           <span className="text-2xl font-black tracking-[-0.05em] text-[#085041]">roomly</span>

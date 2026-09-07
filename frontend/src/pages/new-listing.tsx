@@ -81,7 +81,7 @@ export function NewListingPage() {
   };
 
   return (
-    <AppShell owner>
+    <AppShell>
       <div className="mx-auto max-w-[920px] px-5 py-8 lg:px-8 lg:py-12">
         <Link
           href="/owner"

@@ -12,9 +12,9 @@ import {
   Plus,
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
-import { LanguagePicker } from '@/components/language-selector';
 import roomlyMark from '@assets/logo_no_background.png';
 import { SiteFooter } from '@/components/layout/site-footer';
+import { Navbar } from '@/components/layout/navbar';
 import { useEffect, useState } from 'react';
 
 const FAQ_ITEMS = [
@@ -80,22 +80,7 @@ export function WaitlistPage() {
   return (
     <div className="min-h-screen bg-[#F1EFE8]">
       <div className="mx-auto max-w-[1040px] px-6 py-6">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <img src={roomlyMark} alt="Roomly" className="h-8 w-8 object-contain" />
-            <span className="text-lg font-black tracking-[-0.03em] text-[#085041]">roomly</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <LanguagePicker />
-            <Link
-              href="/register"
-              className="hidden text-sm font-extrabold text-[#085041] hover:text-[#0F6E56] sm:block"
-              data-testid="link-nav-register"
-            >
-              {t('waitlist.navRegister')}
-            </Link>
-          </div>
-        </div>
+        <Navbar />
 
         {/* Hero */}
         <section className="relative mt-2 overflow-hidden rounded-[28px] bg-gradient-to-br from-[#E1F5EE] via-[#9FE1CB] to-[#7FD1AE] px-6 py-16 text-center sm:px-10 sm:py-20">

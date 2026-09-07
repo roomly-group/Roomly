@@ -60,7 +60,7 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
   const displayName = profile?.full_name?.trim() || profile?.email || 'Utente';
 
   return (
-    <AppShell owner={owner}>
+    <AppShell>
       <div className="mx-auto max-w-[920px] px-5 py-8 lg:px-8 lg:py-12">
         <PageIntro
           eyebrow={owner ? t('profile.ownerEyebrow') : t('profile.studentEyebrow')}

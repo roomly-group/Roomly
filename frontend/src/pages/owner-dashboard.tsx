@@ -66,7 +66,7 @@ export function OwnerDashboard() {
     : [];
 
   return (
-    <AppShell owner>
+    <AppShell>
       <div className="mx-auto max-w-[1320px] px-5 py-8 lg:px-8 lg:py-12">
         <PageIntro
           eyebrow={t('dashboard.eyebrow')}
