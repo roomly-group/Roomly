@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Check, Bell, KeyRound } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { Navbar } from '@/components/layout/navbar';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function WaitlistConfirmedPage() {
   const { t } = useLanguage();
@@ -58,8 +59,12 @@ export function WaitlistConfirmedPage() {
             <div className="text-xs font-bold uppercase tracking-wide text-[#527067]">
               {t('waitlistConfirmed.positionLabel')}
             </div>
-            <div className="text-[56px] font-black leading-none text-[#085041]">
-              {positionLoading ? t('waitlistConfirmed.positionLoading') : position ?? '--'}
+            <div className="flex justify-center text-[56px] font-black leading-none text-[#085041]">
+              {positionLoading ? (
+                <Skeleton className="h-[56px] w-24" />
+              ) : (
+                position ?? '--'
+              )}
             </div>
           </div>
         </section>

@@ -15,6 +15,7 @@ import { useLanguage } from '@/lib/i18n';
 import roomlyMark from '@assets/logo_no_background.png';
 import { SiteFooter } from '@/components/layout/site-footer';
 import { Navbar } from '@/components/layout/navbar';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useState } from 'react';
 
 const FAQ_ITEMS = [
@@ -122,15 +123,18 @@ export function WaitlistPage() {
 
           <div className="relative z-10 mt-6 inline-block rounded-full border border-[#08504129] bg-white/60 px-5 py-2 text-sm font-semibold text-[#085041]">
             <Sparkle size={14} className="mr-1.5 inline -translate-y-px" />
-            <strong className="font-black">
-              {waitlistCount !== null ? waitlistCount.toLocaleString() : '1.284'}
-            </strong> {t('waitlist.socialProofSuffix')}
+            {waitlistCount !== null ? (
+              <strong className="font-black">{waitlistCount.toLocaleString()}</strong>
+            ) : (
+              <Skeleton className="inline-block h-4 w-10 align-middle" />
+            )}{' '}
+            {t('waitlist.socialProofSuffix')}
           </div>
         </section>
 
         {/* Stats strip */}
         <section className="grid grid-cols-2 gap-4 py-10">
-          <Stat value={waitlistCount !== null ? waitlistCount.toLocaleString() : '1.284'} label={t('waitlist.statPositionsLabel')} />
+          <Stat value={waitlistCount !== null ? waitlistCount.toLocaleString() : null} label={t('waitlist.statPositionsLabel')} />
           <Stat value="4,8/5" label={t('waitlist.statRatingLabel')} />
         </section>
 
@@ -258,10 +262,12 @@ export function WaitlistPage() {
   );
 }
 
-function Stat({ value, label }: { value: string; label: string }) {
+function Stat({ value, label }: { value: string | null; label: string }) {
   return (
     <div className="rounded-2xl border border-[#0850411f] bg-white px-4 py-6 text-center">
-      <div className="text-[28px] font-black text-[#085041] sm:text-[32px]">{value}</div>
+      <div className="flex items-center justify-center text-[28px] font-black text-[#085041] sm:text-[32px]">
+        {value !== null ? value : <Skeleton className="h-7 w-16 sm:h-8" />}
+      </div>
       <div className="mt-1 text-xs font-semibold text-[#527067]">{label}</div>
     </div>
   );

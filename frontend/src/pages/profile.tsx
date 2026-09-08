@@ -4,13 +4,18 @@ import { useLanguage } from '@/lib/i18n';
 import { AppShell, Avatar } from '@/components/layout/app-shell';
 import { PageIntro } from '@/components/shared/page-intro';
 import { LanguageSetting } from '@/components/language-selector';
+import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/lib/supabase';
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({ label, value, loading }: { label: string; value: string; loading?: boolean }) {
   return (
     <div className="rounded-xl bg-[#E1F5EE] px-4 py-3">
       <p className="text-[11px] font-black uppercase tracking-wider text-[#527067]">{label}</p>
-      <p className="mt-1 text-sm font-extrabold text-[#085041]">{value}</p>
+      {loading ? (
+        <Skeleton className="mt-1.5 h-4 w-20" />
+      ) : (
+        <p className="mt-1 text-sm font-extrabold text-[#085041]">{value}</p>
+      )}
     </div>
   );
 }
@@ -70,11 +75,21 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
 
         <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
           <aside className="surface h-fit rounded-2xl p-5 text-center">
-            <Avatar name={loading ? '—' : displayName} size="lg" />
-            <h2 className="mt-3 text-lg font-black text-[#085041]">
-              {loading ? 'Caricamento...' : displayName}
-            </h2>
-            <p className="mt-1 text-sm text-[#527067]">{profile?.email ?? ''}</p>
+            {loading ? (
+              <Skeleton className="mx-auto h-14 w-14 rounded-full" />
+            ) : (
+              <Avatar name={displayName} size="lg" />
+            )}
+            {loading ? (
+              <Skeleton className="mx-auto mt-3 h-5 w-32" />
+            ) : (
+              <h2 className="mt-3 text-lg font-black text-[#085041]">{displayName}</h2>
+            )}
+            {loading ? (
+              <Skeleton className="mx-auto mt-1.5 h-4 w-40" />
+            ) : (
+              <p className="mt-1 text-sm text-[#527067]">{profile?.email ?? ''}</p>
+            )}
             <div className="my-5 border-t border-[#e1ebe4]" />
             <div className="flex items-center justify-center gap-1 text-xs font-extrabold text-[#0F6E56]">
               <ShieldCheck size={14} /> {t('profile.identityChecked')}
@@ -107,12 +122,13 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
                 </button>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <InfoRow label={t('profile.labelEmail')} value={profile?.email ?? '—'} />
-                <InfoRow label="Nome" value={profile?.nome || '—'} />
-                <InfoRow label="Cognome" value={profile?.cognome || '—'} />
+                <InfoRow label={t('profile.labelEmail')} value={profile?.email ?? '—'} loading={loading} />
+                <InfoRow label="Nome" value={profile?.nome || '—'} loading={loading} />
+                <InfoRow label="Cognome" value={profile?.cognome || '—'} loading={loading} />
                 <InfoRow
                   label="Posizione in waitlist"
                   value={profile ? `#${profile.posizione}` : '—'}
+                  loading={loading}
                 />
               </div>
             </section>

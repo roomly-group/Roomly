@@ -4,6 +4,7 @@ import { ArrowRight, LogOut, Mail, UserRound } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n';
 import { Avatar } from '@/components/shared/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Avatar button + dropdown panel with account info, an optional extra row
 // (e.g. the waitlist position), a "full profile" link, and logout. Used by
@@ -25,6 +26,7 @@ export function ProfileMenu({
   const { t } = useLanguage();
   const [, setLocation] = useLocation();
   const [account, setAccount] = useState<{ full_name?: string; email?: string } | null>(null);
+  const [accountLoading, setAccountLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -44,6 +46,8 @@ export function ProfileMenu({
         }
       } catch {
         // fall through to the supabase-only fallback below
+      } finally {
+        if (!cancelled) setAccountLoading(false);
       }
 
       // Fallback: at least show the auth email if /api/me isn't available.
@@ -86,8 +90,17 @@ export function ProfileMenu({
         data-testid="button-profile-menu"
         aria-expanded={menuOpen}
       >
-        <Avatar name={displayName} size="sm" />
-        <span className="hidden text-sm font-extrabold text-[#085041] sm:block">{displayName}</span>
+        {accountLoading ? (
+          <>
+            <Skeleton className="h-8 w-8 rounded-full" />
+            <Skeleton className="hidden h-4 w-20 sm:block" />
+          </>
+        ) : (
+          <>
+            <Avatar name={displayName} size="sm" />
+            <span className="hidden text-sm font-extrabold text-[#085041] sm:block">{displayName}</span>
+          </>
+        )}
       </button>
 
       {menuOpen && (
@@ -96,14 +109,26 @@ export function ProfileMenu({
           data-testid="panel-profile-info"
         >
           <div className="flex items-center gap-3 border-b border-[#0850411a] pb-4">
-            <Avatar name={displayName} size="md" />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-black text-[#085041]">{displayName}</p>
-              <p className="flex items-center gap-1 truncate text-xs font-semibold text-[#527067]">
-                <Mail size={12} className="shrink-0" />
-                {userEmail ?? t('waitlistConfirmed.emailUnavailable')}
-              </p>
-            </div>
+            {accountLoading ? (
+              <>
+                <Skeleton className="h-10 w-10 rounded-full" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+              </>
+            ) : (
+              <>
+                <Avatar name={displayName} size="md" />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black text-[#085041]">{displayName}</p>
+                  <p className="flex items-center gap-1 truncate text-xs font-semibold text-[#527067]">
+                    <Mail size={12} className="shrink-0" />
+                    {userEmail ?? t('waitlistConfirmed.emailUnavailable')}
+                  </p>
+                </div>
+              </>
+            )}
           </div>
 
           {extra && <div className="mt-4 space-y-2">{extra}</div>}
