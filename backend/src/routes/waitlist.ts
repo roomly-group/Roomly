@@ -8,16 +8,22 @@ const router: IRouter = Router();
 // it shows a real number instead of a hardcoded one. `head: true` means
 // Supabase returns only the count, not the rows themselves.
 router.get("/waitlist/count", async (_req, res) => {
-  const { count, error } = await supabaseAdmin
-    .from("utenti")
-    .select("*", { count: "exact", head: true });
+  try {
+    const { count, error } = await supabaseAdmin
+      .from("utenti")
+      .select("*", { count: "exact", head: true });
 
-  if (error) {
-    res.status(500).json({ error: "Unable to load waitlist count" });
-    return;
+    if (error) {
+      console.error("Failed to load waitlist count:", error);
+      res.status(500).json({ error: "Unable to load waitlist count" });
+      return;
+    }
+
+    res.json({ count: count ?? 0 });
+  } catch (err) {
+    console.error("Unexpected error in waitlist count:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
-
-  res.json({ count: count ?? 0 });
 });
 
 // Get the current user's position in the waitlist
