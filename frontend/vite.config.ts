@@ -20,7 +20,7 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, 'dist/public'),
     emptyOutDir: true,
-    sourceMap: true,
+    sourcemap: true,
     chunkSizeWarningLimit: 1000,
   },
   server: {
