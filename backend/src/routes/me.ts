@@ -5,8 +5,16 @@ import { supabaseAdmin } from "../lib/supabase-admin.js";
 const router: IRouter = Router();
 
 // Crea il record in "utenti" per un utente che ha fatto login ma non ha
-// ancora una riga (lazy creation). "posizione" è una colonna IDENTITY:
-// il database la assegna da solo, non va mai scritta a mano.
+// ancora una riga (lazy creation), es. quando questa route viene chiamata
+// prima che il trigger `handle_email_confirmed` su auth.users abbia fatto
+// in tempo a inserirla.
+//
+// IMPORTANTE: "posizione" NON è una colonna IDENTITY, è un BIGINT DEFAULT 0
+// (vedi migration 202609040001). Se qui non calcoliamo esplicitamente il
+// valore, la riga viene creata con posizione = 0, e quando il trigger del
+// DB prova a inserirla a sua volta trova già la riga (ON CONFLICT DO
+// NOTHING) e non la corregge più: l'utente resta bloccato a una posizione
+// finta. Per questo calcoliamo qui la stessa logica del trigger.
 async function ensureUtenteRecord(userId: string) {
   const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId);
 
@@ -21,12 +29,22 @@ async function ensureUtenteRecord(userId: string) {
 
   const { nome = "", cognome = "" } = authUser.user.user_metadata ?? {};
 
+  const { data: maxRow } = await supabaseAdmin
+    .from("utenti")
+    .select("posizione")
+    .order("posizione", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const nextPosizione = (maxRow?.posizione ?? 0) + 1;
+
   const { error: insertError } = await supabaseAdmin.from("utenti").insert({
     id: userId,
     email: authUser.user.email ?? "",
     nome,
     cognome,
     email_verificata: true,
+    posizione: nextPosizione,
   });
 
   if (insertError) {

@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
+import { supabaseAuthClient } from "../lib/supabase-auth.js";
 
 const router: IRouter = Router();
 
@@ -50,8 +51,12 @@ router.post('/login', async (req: Request, res: Response) => {
   }
 
   try {
-    // Verify credentials with Supabase using admin client
-    const { data: authData, error: authError } = await supabaseAdmin.auth.signInWithPassword({
+    // IMPORTANT: use supabaseAuthClient (anon key), never supabaseAdmin, here.
+    // signInWithPassword() sets a live session on whichever client instance
+    // calls it — doing that on supabaseAdmin (shared, service-role, used to
+    // bypass RLS everywhere else) would silently switch it to run as this
+    // user for every later query, server-wide, until the next login.
+    const { data: authData, error: authError } = await supabaseAuthClient.auth.signInWithPassword({
       email,
       password,
     });
@@ -101,7 +106,9 @@ router.post('/refresh', async (req: Request, res: Response) => {
   }
 
   try {
-    const { data, error } = await supabaseAdmin.auth.refreshSession({ refresh_token: refreshToken });
+    // Same reasoning as /login: refreshSession() would set a session on
+    // whichever client calls it. Must not be supabaseAdmin.
+    const { data, error } = await supabaseAuthClient.auth.refreshSession({ refresh_token: refreshToken });
 
     if (error || !data.session) {
       clearAuthCookies(res);
