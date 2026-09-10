@@ -8,6 +8,11 @@ import { logger } from "./lib/logger.js";
 
 const app: Express = express();
 
+// Trust proxy headers if behind a reverse proxy (e.g., Nginx, AWS ELB, Heroku)
+// Set to true to trust the proxy, or specify an array of trusted IPs.
+// If not behind a proxy, set to false.
+app.set('trust proxy', true);
+
 app.use(
   pinoHttp({
     logger,

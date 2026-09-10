@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { supabaseAuthClient } from "../lib/supabase-auth.js";
+import { loginLimiter, refreshLimiter } from "../middleware/rateLimit.js";
 
 const router: IRouter = Router();
 
@@ -43,7 +44,7 @@ function clearAuthCookies(res: Response) {
 }
 
 // Login endpoint
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', loginLimiter, async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
@@ -98,7 +99,7 @@ router.post('/login', async (req: Request, res: Response) => {
 // Refresh endpoint - called to get a new cookie pair with a genuinely fresh
 // access token, using the stored refresh token (real refresh, not just a
 // cookie re-set of the same access token as before).
-router.post('/refresh', async (req: Request, res: Response) => {
+router.post('/refresh', refreshLimiter, async (req: Request, res: Response) => {
   const refreshToken = req.cookies?.['sb-refresh-token'];
 
   if (!refreshToken) {
