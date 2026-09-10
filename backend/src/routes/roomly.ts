@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { requireAuth } from "../middlewares/auth";
+import { requireAuth } from "../middleware/auth";
 import {
   CreateListingBody,
   GetListingParams,

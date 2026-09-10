@@ -2,6 +2,8 @@
 
 Backend Express standalone, estratto dal monorepo Roomly. Dati in memoria (nessun database richiesto).
 
+Per la documentazione completa, vedere il [README principale](../README.md).
+
 ## Setup
 
 ```

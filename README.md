@@ -231,7 +231,7 @@ roomly/
 │   │   ├── index.ts                 # avvio del server e validazione di PORT
 │   │   ├── app.ts                   # Express, middleware e prefisso /api
 │   │   ├── lib/logger.ts            # logger pino
-│   │   ├── middlewares/             # middleware aggiuntivi
+│   │   ├── middleware/              # middleware aggiuntivi
 │   │   └── routes/
 │   │       ├── index.ts             # composizione dei router
 │   │       ├── health.ts            # GET /api/healthz

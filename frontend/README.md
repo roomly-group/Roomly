@@ -2,6 +2,8 @@
 
 Frontend standalone estratto dal monorepo Roomly (React + TypeScript + Vite).
 
+Per la documentazione completa, vedere il [README principale](../README.md).
+
 ## Setup
 
 ```
