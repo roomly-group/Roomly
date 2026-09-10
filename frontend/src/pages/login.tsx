@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
 import { postAuthRoute } from '@/lib/auth-role';
+import { TurnstileWidget } from '@/components/shared/turnstile';
 import roomlyMark from '@assets/logo_no_background.png';
 
 export function LoginPage() {
@@ -17,25 +18,44 @@ export function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  // Bumped whenever we need to force the Turnstile widget to remount and
+  // issue a fresh token (e.g. after a failed submit consumed the old one).
+  const [turnstileKey, setTurnstileKey] = useState(0);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+
+    if (!captchaToken) {
+      setError(t('auth.captchaRequired'));
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      // Call our login endpoint which verifies with Supabase and sets HTTP-only cookie
+      // Call our login endpoint which verifies with Supabase and sets HTTP-only cookie.
+      // captchaToken is the Turnstile response token: the backend forwards it to
+      // supabase.auth.signInWithPassword({ options: { captchaToken } }), and Supabase
+      // verifies it server-side against our Turnstile secret key - same protection
+      // register already has, now covering login too.
       const response = await fetch('/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, captchaToken }),
         credentials: 'include', // Important: send cookies with request
       });
 
       if (!response.ok) {
         const errorData = await response.json();
+        // The token is single-use and short-lived; if the request failed for any
+        // reason it's already been consumed (or may now be stale), so clear it and
+        // make the widget re-render rather than let the user retry with a dead token.
+        setCaptchaToken(null);
+        setTurnstileKey((key) => key + 1);
         throw new Error(errorData.error || 'Login failed');
       }
 
@@ -123,6 +143,15 @@ export function LoginPage() {
               </div>
             </div>
 
+            <div className="flex justify-center">
+              <TurnstileWidget
+                key={turnstileKey}
+                onVerify={setCaptchaToken}
+                onExpire={() => setCaptchaToken(null)}
+                onError={() => setCaptchaToken(null)}
+              />
+            </div>
+
             {error ? (
               <p className="text-sm font-semibold text-red-600" role="alert">
                 {error}
@@ -134,10 +163,11 @@ export function LoginPage() {
                 aria-label="Accedi"
                 title="Accedi"
                 data-testid="button-search"
-                className="h-12 min-w-[80px] shrink-0 rounded-xl bg-[#0F6E56] px-4 font-extrabold text-white transition-all duration-200 hover:bg-[#0c5a47] active:scale-[0.98]"
+                disabled={isSubmitting || !captchaToken}
+                className="h-12 min-w-[80px] shrink-0 rounded-xl bg-[#0F6E56] px-4 font-extrabold text-white transition-all duration-200 hover:bg-[#0c5a47] active:scale-[0.98] disabled:opacity-60"
               >
-                Accedi
-              </button>   
+                {isSubmitting ? t('auth.loggingIn') : 'Accedi'}
+              </button>
           </form>
         </div>
 

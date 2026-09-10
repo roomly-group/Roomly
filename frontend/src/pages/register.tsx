@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Sparkles, Mail, Lock, User, EyeOff, Eye } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
@@ -6,6 +6,7 @@ import { LanguagePicker } from '@/components/language-selector';
 import { Button } from '@/components/shared/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { TurnstileWidget } from '@/components/shared/turnstile';
 import { supabase } from '@/lib/supabase';
 import { postAuthRoute } from '@/lib/auth-role';
 import roomlyMark from '@assets/logo_no_background.png';
@@ -21,28 +22,12 @@ export function RegisterPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
-  // Defaults to true (the safer path) until the backend answers, so a slow
-  // or failed request never accidentally skips email confirmation.
-  const [requireEmailConfirmation, setRequireEmailConfirmation] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    fetch('/api/config')
-      .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then((data: { requireEmailConfirmation: boolean }) => {
-        if (!cancelled) setRequireEmailConfirmation(data.requireEmailConfirmation);
-      })
-      .catch(() => {
-        // Keep the safe default (true) on failure.
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  // Bumped whenever we need to force the Turnstile widget to remount and
+  // issue a fresh token (e.g. after a failed submit consumed the old one).
+  const [turnstileKey, setTurnstileKey] = useState(0);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,58 +39,55 @@ export function RegisterPage() {
       return;
     }
 
+    if (!captchaToken) {
+      setError(t('auth.captchaRequired'));
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      if (!requireEmailConfirmation) {
-        // Debug path — see backend/src/config/security-flags.ts
-        // (REQUIRE_EMAIL_CONFIRMATION = false). Creates the account already
-        // confirmed via the backend's admin route, then hydrates the
-        // Supabase client with the returned session.
-        const response = await fetch('/api/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nome, cognome, email, password }),
-        });
-        const body = await response.json();
+      // Registration goes through our own backend now (POST /api/register)
+      // instead of calling supabase.auth.signUp() directly from the browser.
+      // That direct-from-browser call used to bypass our Express server
+      // entirely, so no server-side rate limiting could ever apply to it -
+      // anyone with the (public) anon key could script account creation
+      // straight against Supabase. Routing it through /api/register puts it
+      // behind signupLimiter (see backend/src/middleware/rateLimit.ts).
+      //
+      // captchaToken is the Turnstile response token: the backend forwards
+      // it to supabase.auth.signUp({ options: { captchaToken } }), and
+      // Supabase verifies it server-side against our Turnstile secret key.
+      // This is what actually stops a script that skips the browser and
+      // hits Supabase directly - the anon key alone is not enough to pass,
+      // it also needs a token that only a real Turnstile challenge produces.
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome, cognome, email, password, captchaToken }),
+      });
+      const body = await response.json();
 
-        if (!response.ok) {
-          throw new Error(body.error ?? t('auth.registerError'));
-        }
+      if (!response.ok) {
+        // The token is single-use and short-lived; if the request failed for
+        // any reason it's already been consumed (or may now be stale), so
+        // clear it and make the widget re-render rather than let the user
+        // retry with a dead token.
+        setCaptchaToken(null);
+        setTurnstileKey((key) => key + 1);
+        throw new Error(body.error ?? t('auth.registerError'));
+      }
 
+      if (body.session) {
+        // Email confirmation disabled in the Supabase dashboard: a session
+        // + JWT was already returned. Hydrate the Supabase client so the
+        // rest of the app sees a logged-in user, same as /login does.
         const { error: setSessionError } = await supabase.auth.setSession({
           access_token: body.session.access_token,
           refresh_token: body.session.refresh_token,
         });
         if (setSessionError) throw setSessionError;
 
-        setLocation(await postAuthRoute(body.user));
-        return;
-      }
-
-      // Register.tsx -> supabase.auth.signUp() -> Supabase Auth -> session + JWT
-      // nome/cognome are stored as user metadata on the Supabase Auth user.
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            nome,
-            cognome,
-            full_name: `${nome} ${cognome}`.trim(),
-          },
-        },
-      });
-
-      if (signUpError) {
-        throw signUpError;
-      }
-
-      if (data.session) {
-        // Email confirmation disabled in the Supabase dashboard: a session
-        // + JWT was already returned. Admins (admin = true on the utenti
-        // table) go straight to the app; everyone else lands on the
-        // waitlist confirmation dashboard.
-        setLocation(await postAuthRoute(data.session.user));
+        setLocation(await postAuthRoute(body.session.user));
         return;
       }
 
@@ -256,6 +238,15 @@ export function RegisterPage() {
               </div>
             </div>
 
+            <div className="flex justify-center">
+              <TurnstileWidget
+                key={turnstileKey}
+                onVerify={setCaptchaToken}
+                onExpire={() => setCaptchaToken(null)}
+                onError={() => setCaptchaToken(null)}
+              />
+            </div>
+
             {error ? (
               <p className="text-sm font-semibold text-red-600" role="alert">
                 {error}
@@ -270,7 +261,7 @@ export function RegisterPage() {
 
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !captchaToken}
                 aria-label={t('auth.registerCta')}
                 title={t('auth.registerCta')}
                 data-testid="button-search"

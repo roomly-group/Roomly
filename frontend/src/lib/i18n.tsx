@@ -113,6 +113,7 @@ export const translations = {
     'auth.registerError': "We couldn't create your account. Please try again.",
     'auth.registerCheckEmail': 'Account created! Check your inbox to confirm your email before logging in.',
     'auth.passwordMismatch': "Passwords don't match.",
+    'auth.captchaRequired': 'Please complete the verification challenge.',
     'auth.showPassword': 'Show password',
     'auth.hidePassword': 'Hide password',
 
@@ -520,6 +521,7 @@ export const translations = {
     'auth.registerError': 'Non è stato possibile creare il tuo account. Riprova.',
     'auth.registerCheckEmail': 'Account creato! Controlla la tua email per confermare la registrazione prima di accedere.',
     'auth.passwordMismatch': 'Le password non coincidono.',
+    'auth.captchaRequired': 'Completa la verifica di sicurezza.',
     'auth.showPassword': 'Mostra password',
     'auth.hidePassword': 'Nascondi password',
 

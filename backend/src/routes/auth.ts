@@ -1,7 +1,8 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { supabaseAuthClient } from "../lib/supabase-auth.js";
-import { loginLimiter, refreshLimiter } from "../middleware/rateLimit.js";
+import { loginLimiter, refreshLimiter, signupLimiter } from "../middleware/rateLimit.js";
+import { logger } from "../lib/logger.js";
 
 const router: IRouter = Router();
 
@@ -45,10 +46,28 @@ function clearAuthCookies(res: Response) {
 
 // Login endpoint
 router.post('/login', loginLimiter, async (req: Request, res: Response) => {
-  const { email, password } = req.body;
+  const { password, captchaToken } = req.body as { password?: string; captchaToken?: string };
+  // Trim/lowercase defensively: a leading/trailing space from copy-paste or
+  // browser autofill makes Supabase treat it as a different address (or, for
+  // password, a different credential), producing the same generic "Invalid
+  // email or password" as an actually wrong password - with no way to tell
+  // the two apart from the outside.
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : req.body?.email;
 
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password required' });
+  }
+
+  // Same backstop as /register: the Turnstile token produced by the widget
+  // on the login page, forwarded here and on to Supabase, which verifies it
+  // server-side against the Turnstile secret key (Authentication -> Attack
+  // Protection) and rejects signInWithPassword() if it's missing/invalid/
+  // reused. Without this, login had no CAPTCHA at all - only signup did -
+  // leaving credential-stuffing / brute-force scripts free to hit this
+  // route (or Supabase directly with the anon key) unchecked by anything
+  // but the rate limiter.
+  if (!captchaToken) {
+    return res.status(400).json({ error: 'Verifica di sicurezza mancante o scaduta' });
   }
 
   try {
@@ -60,9 +79,20 @@ router.post('/login', loginLimiter, async (req: Request, res: Response) => {
     const { data: authData, error: authError } = await supabaseAuthClient.auth.signInWithPassword({
       email,
       password,
+      options: { captchaToken },
     });
 
     if (authError || !authData.session) {
+      // Log the REAL reason server-side only. Supabase distinguishes wrong
+      // password / user not found / email not confirmed / etc, but we still
+      // return one generic message to the client on purpose (so a failed
+      // login never reveals whether an account exists). Without this log,
+      // "email not confirmed" and "wrong password" were indistinguishable
+      // from the outside, including to us when debugging a support report.
+      logger.warn(
+        { email, authErrorCode: (authError as { code?: string } | null)?.code, authErrorMessage: authError?.message },
+        'Login failed',
+      );
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
@@ -224,13 +254,91 @@ router.get('/config', (_req: Request, res: Response) => {
   res.json({ requireEmailConfirmation: true });
 });
 
-// Register endpoint - registration must be done via frontend's supabase.auth.signUp()
-// to ensure email confirmation flow is respected
-router.post('/register', async (_req: Request, res: Response) => {
-  res.status(409).json({
-    error:
-      "Email confirmation is required. Use supabase.auth.signUp() from the frontend instead of this route.",
-  });
+// Register endpoint - proxies to Supabase Auth's signUp() from the server
+// instead of letting the frontend call supabase.auth.signUp() directly.
+//
+// This route alone does NOT fully close off scripted mass sign-ups.
+// Supabase's /auth/v1/signup REST endpoint is public infrastructure and
+// accepts the same publishable/anon key the frontend ships to every
+// browser - that key is not a secret, so anyone can still call Supabase
+// directly, bypassing this route (and this rate limiter) entirely. This
+// endpoint's job is to make the *normal* signup path go through our own
+// rate limiting and logging.
+//
+// The actual backstop against someone hitting Supabase directly is the
+// `captchaToken`: it's a Cloudflare Turnstile response token produced by
+// the widget on the register page, forwarded here and then on to Supabase.
+// Supabase verifies it server-side against the Turnstile secret key
+// configured in the dashboard (Authentication -> Attack Protection) and
+// rejects the signUp() call if it's missing/invalid/reused - regardless of
+// whether the call came through this route or hit Supabase directly with
+// the anon key, like a script such as test.py does. Requires "Enable
+// Captcha protection" to actually be turned on in Supabase; see chat.
+router.post('/register', signupLimiter, async (req: Request, res: Response) => {
+  const { nome, cognome, password, captchaToken } = req.body as {
+    nome?: string;
+    cognome?: string;
+    email?: string;
+    password?: string;
+    captchaToken?: string;
+  };
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : req.body?.email;
+
+  if (!nome || !cognome || !email || !password) {
+    return res.status(400).json({ error: 'nome, cognome, email e password sono obbligatori' });
+  }
+
+  if (!captchaToken) {
+    return res.status(400).json({ error: 'Verifica di sicurezza mancante o scaduta' });
+  }
+
+  try {
+    // Same reasoning as /login and /refresh: signUp() sets a live session
+    // on whichever client instance calls it. Must not be supabaseAdmin.
+    const { data, error: signUpError } = await supabaseAuthClient.auth.signUp({
+      email,
+      password,
+      options: {
+        captchaToken,
+        data: {
+          nome,
+          cognome,
+          full_name: `${nome} ${cognome}`.trim(),
+        },
+      },
+    });
+
+    if (signUpError) {
+      return res.status(400).json({ error: signUpError.message });
+    }
+
+    if (data.session) {
+      // Email confirmation disabled in the Supabase dashboard: a session
+      // was already returned. Mirror /login's cookie handling so the app
+      // behaves identically regardless of which endpoint created the session.
+      const { access_token, refresh_token, user, expires_at } = data.session;
+
+      setAuthCookie(res, access_token, {
+        maxAge: Math.floor((new Date(expires_at * 1000).getTime() - Date.now()) / 1000),
+      });
+      setRefreshCookie(res, refresh_token);
+
+      return res.json({
+        session: {
+          access_token,
+          refresh_token,
+          expires_at,
+          user: { id: user.id, email: user.email },
+        },
+      });
+    }
+
+    // Email confirmation enabled: no session yet, user must confirm their inbox.
+    return res.json({ requiresEmailConfirmation: true });
+  } catch (error) {
+    console.error('Register error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Idrata i cookie di sessione da un access_token/refresh_token Supabase

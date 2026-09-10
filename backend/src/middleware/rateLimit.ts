@@ -17,7 +17,7 @@ const extractIP = (req: Request): string => {
  */
 export const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // limit each IP to 5 requests per windowMs
+  max: 10, // limit each IP to 5 requests per windowMs
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   keyGenerator: (req: Request) => {
@@ -29,6 +29,27 @@ export const loginLimiter = rateLimit({
   handler: (_req: Request, res: Response) => {
     res.status(429).json({
       error: 'Too many login attempts, please try again later.',
+    });
+  },
+});
+
+/**
+ * Rate limiter for the registration endpoint.
+ * Allows 5 signups per hour per IP.
+ * Account creation has no "wrong password" signal to throttle on like
+ * login does, so scripted mass sign-ups (e.g. hitting this endpoint in a
+ * loop with randomized emails) are the main risk here. 5/hour is generous
+ * for a real user filling out the form by hand, but throttles scripted abuse.
+ */
+export const signupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // limit each IP to 5 signups per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => extractIP(req),
+  handler: (_req: Request, res: Response) => {
+    res.status(429).json({
+      error: 'Too many accounts created from this IP, please try again later.',
     });
   },
 });

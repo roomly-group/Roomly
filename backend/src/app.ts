@@ -37,14 +37,16 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"], // Allow inline scripts for now (can be tightened)
+      // https://challenges.cloudflare.com: Turnstile CAPTCHA widget on the
+      // signup page (script + the iframe it renders + its own XHR calls).
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://challenges.cloudflare.com"], // Allow inline scripts for now (can be tightened)
       styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for Tailwind/Vite
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "https://*.supabase.co"], // Allow Supabase connections
+      connectSrc: ["'self'", "https://*.supabase.co", "https://challenges.cloudflare.com"], // Allow Supabase + Turnstile connections
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
-      frameSrc: ["'none'"],
+      frameSrc: ["https://challenges.cloudflare.com"], // Turnstile renders its challenge in an iframe
     },
   },
   crossOriginEmbedderPolicy: true,
