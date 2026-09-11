@@ -9,11 +9,11 @@ const router: IRouter = Router();
 const isProd = process.env.NODE_ENV === "production";
 
 // Helper to set the access-token cookie
-function setAuthCookie(res: Response, token: string, options: { httpOnly?: boolean; secure?: boolean; sameSite?: 'Strict' | 'Lax' | 'None'; maxAge?: number } = {}) {
+function setAuthCookie(res: Response, token: string, options: { httpOnly?: boolean; secure?: boolean; sameSite?: 'strict' | 'lax' | 'none'; maxAge?: number } = {}) {
   const defaults = {
     httpOnly: true,
     secure: isProd, // true in production, false in dev
-    sameSite: 'Strict' as const,
+    sameSite: 'lax' as const,
     maxAge: 60 * 60 * 24 * 7, // 1 week
     path: '/',
   };
@@ -30,7 +30,7 @@ function setRefreshCookie(res: Response, refreshToken: string, options: { maxAge
   const defaults = {
     httpOnly: true,
     secure: isProd,
-    sameSite: 'Strict' as const,
+    sameSite: 'lax' as const,
     maxAge: 60 * 60 * 24 * 30, // refresh tokens live longer than access tokens
     path: '/',
   };
@@ -39,7 +39,7 @@ function setRefreshCookie(res: Response, refreshToken: string, options: { maxAge
 }
 
 function clearAuthCookies(res: Response) {
-  const base = { path: '/', httpOnly: true, secure: isProd, sameSite: 'Strict' as const };
+  const base = { path: '/', httpOnly: true, secure: isProd, sameSite: 'lax' as const };
   res.clearCookie('sb-token', base);
   res.clearCookie('sb-refresh-token', base);
 }
@@ -99,10 +99,9 @@ router.post('/login', loginLimiter, async (req: Request, res: Response) => {
     const { access_token, refresh_token, user, expires_at } = authData.session;
 
     // Set HTTP-only cookies with the access token and refresh token
-    setAuthCookie(res, access_token, {
-      // Set cookie expiry to match Supabase session expiry
-      maxAge: Math.floor((new Date(expires_at * 1000).getTime() - Date.now()) / 1000),
-    });
+    setAuthCookie(res, access_token,
+      expires_at ? { maxAge: Math.floor((new Date(expires_at * 1000).getTime() - Date.now()) / 1000) } : {}
+    );
     setRefreshCookie(res, refresh_token);
 
     // Return session data for frontend to set Supabase client session
@@ -122,7 +121,7 @@ router.post('/login', loginLimiter, async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -163,7 +162,7 @@ router.post('/refresh', refreshLimiter, async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Refresh error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -239,7 +238,7 @@ router.post('/verify', async (req: Request, res: Response) => {
     }
   } catch (error) {
     console.error('Verify error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -318,9 +317,9 @@ router.post('/register', signupLimiter, async (req: Request, res: Response) => {
       // behaves identically regardless of which endpoint created the session.
       const { access_token, refresh_token, user, expires_at } = data.session;
 
-      setAuthCookie(res, access_token, {
-        maxAge: Math.floor((new Date(expires_at * 1000).getTime() - Date.now()) / 1000),
-      });
+      setAuthCookie(res, access_token,
+        expires_at ? { maxAge: Math.floor((new Date(expires_at * 1000).getTime() - Date.now()) / 1000) } : {}
+      );
       setRefreshCookie(res, refresh_token);
 
       return res.json({
@@ -337,7 +336,7 @@ router.post('/register', signupLimiter, async (req: Request, res: Response) => {
     return res.json({ requiresEmailConfirmation: true });
   } catch (error) {
     console.error('Register error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -351,14 +350,19 @@ router.post('/session', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Missing access_token or refresh_token' });
   }
 
-  const { data, error } = await supabaseAdmin.auth.getUser(access_token);
-  if (error || !data.user) {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
+  try {
+    const { data, error } = await supabaseAdmin.auth.getUser(access_token);
+    if (error || !data.user) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
 
-  setAuthCookie(res, access_token);
-  setRefreshCookie(res, refresh_token);
-  res.json({ ok: true });
+    setAuthCookie(res, access_token);
+    setRefreshCookie(res, refresh_token);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Session error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 export default router;
