@@ -243,7 +243,15 @@ router.post('/verify', async (req: Request, res: Response) => {
 });
 
 // Logout endpoint
-router.post('/logout', (_req: Request, res: Response) => {
+router.post('/logout', async (_req: Request, res: Response) => {
+  try {
+    // Invalidate tokens on Supabase side
+    await supabaseAuthClient.auth.signOut();
+  } catch (error) {
+    // Log the error but continue with cookie clearance
+    // We still want to clear cookies even if signOut fails
+    console.error('Error during signOut:', error);
+  }
   clearAuthCookies(res);
   res.json({ ok: true });
 });
