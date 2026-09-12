@@ -46,23 +46,21 @@ router.get("/waitlist/me", requireAuth, async (req: AuthenticatedRequest, res) =
 
     if (error) {
       console.error(`[waitlist/me] Supabase error for user ${userId}:`, error);
-      // If user record doesn't exist, return a fallback
-      res.json({ position: 107 });
+      res.status(500).json({ error: "Unable to load waitlist position" });
       return;
     }
 
     if (!data) {
       console.log(`[waitlist/me] No user record found for userId: ${userId}`);
-      // If user record doesn't exist, return a fallback
-      res.json({ position: 107 });
+      res.status(404).json({ error: "User not found in waitlist" });
       return;
     }
 
     console.log(`[waitlist/me] Found position ${data.posizione} for userId: ${userId}`);
-    res.json({ position: data.posizione ?? 107 });
+    res.json({ position: data.posizione });
   } catch (err) {
     console.error("Error fetching waitlist position:", err);
-    res.json({ position: 107 });
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
