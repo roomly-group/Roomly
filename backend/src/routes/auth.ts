@@ -107,7 +107,7 @@ router.post('/login', loginLimiter, async (req: Request, res: Response) => {
     // Return session data for frontend to set Supabase client session
     // Note: This is only used temporarily to set supabase.auth.setSession()
     // and is not stored persistently by frontend code
-    res.json({
+    return res.json({
       session: {
         access_token,
         refresh_token,
@@ -152,7 +152,7 @@ router.post('/refresh', refreshLimiter, async (req: Request, res: Response) => {
     });
     setRefreshCookie(res, refresh_token);
 
-    res.json({
+    return res.json({
       session: {
         access_token,
         refresh_token,
@@ -205,7 +205,7 @@ router.post('/verify', async (req: Request, res: Response) => {
       // Return session data to restore Supabase client session.
       // refresh_token MUST be included, otherwise supabase.auth.setSession()
       // fails silently on the frontend and the client ends up with no session.
-      res.json({
+      return res.json({
         session: {
           access_token: token,
           refresh_token: refreshToken,
@@ -223,7 +223,7 @@ router.post('/verify', async (req: Request, res: Response) => {
       // We know the token is valid because getUser succeeded, so we use a reasonable expiration
       // Using 1 hour from now as a fallback - shorter is safer than longer
       const fallbackExp = Math.floor(Date.now() / 1000) + 60 * 60; // 1 hour from now
-      res.json({
+      return res.json({
         session: {
           access_token: token,
           refresh_token: refreshToken,
@@ -358,7 +358,7 @@ router.post('/session', async (req: Request, res: Response) => {
 
     setAuthCookie(res, access_token);
     setRefreshCookie(res, refresh_token);
-    res.json({ ok: true });
+    return res.json({ ok: true });
   } catch (error) {
     console.error('Session error:', error);
     return res.status(500).json({ error: 'Internal server error' });

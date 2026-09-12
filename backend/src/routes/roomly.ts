@@ -100,7 +100,7 @@ router.get("/listings", (req, res) => {
   res.json(ListListingsResponse.parse(result));
 });
 
-router.post("/listings", requireAuth, (req, res) => {
+router.post("/listings", requireAuth, async (req, res) => {
   const input = CreateListingBody.parse(req.body);
   const authedReq = req as typeof req & { userId: string; userEmail?: string };
   const listing: Listing = {
@@ -127,14 +127,14 @@ router.get("/listings/:id", (req, res) => {
   return res.json(GetListingResponse.parse(listing));
 });
 
-router.get("/conversations", requireAuth, (req, res) => {
+router.get("/conversations", requireAuth, async (req, res) => {
   const authedReq = req as typeof req & { userId: string; userEmail?: string };
   // Filter conversations to only those where the authenticated user is the participant
   const userConversations = conversations.filter(conv => conv.participant === authedReq.userId);
   res.json(ListConversationsResponse.parse(userConversations));
 });
 
-router.get("/conversations/:id/messages", requireAuth, (req, res) => {
+router.get("/conversations/:id/messages", requireAuth, async (req, res) => {
   const { id } = ListMessagesParams.parse({ id: Number(req.params.id) });
   const authedReq = req as typeof req & { userId: string; userEmail?: string };
 
@@ -149,10 +149,10 @@ router.get("/conversations/:id/messages", requireAuth, (req, res) => {
     return res.status(403).json({ error: "Forbidden: You are not a participant in this conversation" });
   }
 
-  res.json(ListMessagesResponse.parse(messages.get(id) ?? []));
+  return res.json(ListMessagesResponse.parse(messages.get(id) ?? []));
 });
 
-router.post("/conversations/:id/messages", requireAuth, (req, res) => {
+router.post("/conversations/:id/messages", requireAuth, async (req, res) => {
   const { id } = SendMessageParams.parse({ id: Number(req.params.id) });
   const input = SendMessageBody.parse(req.body);
   const authedReq = req as typeof req & { userId: string; userEmail?: string };
@@ -179,10 +179,10 @@ router.post("/conversations/:id/messages", requireAuth, (req, res) => {
     sentAt: new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }),
   };
   messages.set(id, [...existing, message]);
-  res.status(201).json(SendMessageResponse.parse(message));
+  return res.status(201).json(SendMessageResponse.parse(message));
 });
 
-router.get("/dashboard/owner", requireAuth, (req, res) => {
+router.get("/dashboard/owner", requireAuth, async (req, res) => {
   const authedReq = req as typeof req & { userId: string; userEmail?: string };
 
   // Filter listings to only those owned by the authenticated user
