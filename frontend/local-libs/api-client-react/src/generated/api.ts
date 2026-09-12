@@ -100,7 +100,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof healthCheck>>> = ({ signal }) => healthCheck({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof healthCheck>>> = (options: { signal: AbortSignal }) => healthCheck({ signal: options.signal, ...requestOptions });
 
 
 
@@ -184,7 +184,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listListings>>> = ({ signal }) => listListings(params, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listListings>>> = (options: { signal: AbortSignal }) => listListings(params, { signal: options.signal, ...requestOptions });
 
 
 
@@ -259,7 +259,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createListing>>, {data: BodyType<ListingInput>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createListing>>, {data: BodyType<ListingInput>}> = (props: {data: BodyType<ListingInput>}) => {
           const {data} = props ?? {};
 
           return  createListing(data,requestOptions)
@@ -332,7 +332,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getListing>>> = ({ signal }) => getListing(id, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getListing>>> = (options: { signal: AbortSignal }) => getListing(id, { signal: options.signal, ...requestOptions });
 
 
 
@@ -409,7 +409,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listConversations>>> = ({ signal }) => listConversations({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listConversations>>> = (options: { signal: AbortSignal }) => listConversations({ signal: options.signal, ...requestOptions });
 
 
 
@@ -486,7 +486,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMessages>>> = ({ signal }) => listMessages(id, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMessages>>> = (options: { signal: AbortSignal }) => listMessages(id, { signal: options.signal, ...requestOptions });
 
 
 
@@ -562,7 +562,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendMessage>>, {id: number;data: BodyType<MessageInput>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendMessage>>, {id: number;data: BodyType<MessageInput>}> = (props: {id: number;data: BodyType<MessageInput>}) => {
           const {id,data} = props ?? {};
 
           return  sendMessage(id,data,requestOptions)
@@ -635,7 +635,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOwnerDashboard>>> = ({ signal }) => getOwnerDashboard({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOwnerDashboard>>> = (options: { signal: AbortSignal }) => getOwnerDashboard({ signal: options.signal, ...requestOptions });
 
 
 

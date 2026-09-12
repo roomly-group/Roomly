@@ -69,7 +69,7 @@ async function ensureUtenteRecord(userId: string) {
 // service-role client, which bypasses RLS — this is the one place in the
 // system that is allowed to see that value on the caller's behalf. The
 // frontend must trust only this response, never read `utenti` directly.
-router.get("/me/role", requireAuth, async (req, res) => {
+router.get("/me/role", requireAuth, async (req: AuthenticatedRequest, res) => {
   const { userId } = req;
 
   const { data, error } = await supabaseAdmin
