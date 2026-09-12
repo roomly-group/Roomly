@@ -352,6 +352,12 @@ router.post('/register', signupLimiter, async (req: Request, res: Response) => {
 // ottenuti lato client (es. subito dopo signUp(), o dopo il redirect di
 // conferma email), quando quel flusso non passa da /login.
 router.post('/session', async (req: Request, res: Response) => {
+  // CSRF protection: require custom header to prevent cross-site requests
+  const csrfToken = req.headers['x-csrf-token'];
+  if (csrfToken !== 'roomly') {
+    return res.status(403).json({ error: 'CSRF token missing or invalid' });
+  }
+
   const { access_token, refresh_token } = req.body as { access_token?: string; refresh_token?: string };
 
   if (!access_token || !refresh_token) {

@@ -51,7 +51,10 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     await fetch(endpoint, {
       method: 'POST',
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': 'roomly'
+      },
       body: JSON.stringify({
         access_token: session.access_token,
         refresh_token: session.refresh_token,
