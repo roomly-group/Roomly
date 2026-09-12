@@ -32,7 +32,16 @@ app.use(
     },
   }),
 );
-app.use(cors());
+// Determine allowed origins based on environment
+const isProduction = process.env.NODE_ENV === "production";
+const allowedOrigins = isProduction
+  ? ["https://www.roomly.group"]
+  : ["http://localhost:5173"];
+
+// Apply CORS middleware with restricted origins
+app.use(cors({
+  origin: allowedOrigins
+}));
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
