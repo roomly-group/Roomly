@@ -129,6 +129,12 @@ router.post('/login', loginLimiter, async (req: Request, res: Response) => {
 // access token, using the stored refresh token (real refresh, not just a
 // cookie re-set of the same access token as before).
 router.post('/refresh', refreshLimiter, async (req: Request, res: Response) => {
+  // CSRF protection: require custom header to prevent cross-site requests
+  const csrfToken = req.headers['x-csrf-token'];
+  if (csrfToken !== 'roomly') {
+    return res.status(403).json({ error: 'CSRF token missing or invalid' });
+  }
+
   const refreshToken = req.cookies?.['sb-refresh-token'];
 
   if (!refreshToken) {
@@ -264,7 +270,7 @@ router.get('/config', (_req: Request, res: Response) => {
 // Register endpoint - proxies to Supabase Auth's signUp() from the server
 // instead of letting the frontend call supabase.auth.signUp() directly.
 //
-// This route alone does NOT fully close off scripted mass sign-ups.
+ // This route alone does NOT fully close off scripted mass sign-ups.
 // Supabase's /auth/v1/signup REST endpoint is public infrastructure and
 // accepts the same publishable/anon key the frontend ships to every
 // browser - that key is not a secret, so anyone can still call Supabase
