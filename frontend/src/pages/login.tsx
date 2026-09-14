@@ -59,13 +59,26 @@ export function LoginPage() {
         throw new Error(errorData.error || 'Login failed');
       }
 
-      const { session } = await response.json();
+      // Get user data from response (no longer contains tokens for security)
+      const { user } = await response.json();
+
+      // Verify the session via cookies to update Supabase client
+      const verifyResponse = await fetch('/api/verify', {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!verifyResponse.ok) {
+        throw new Error('Failed to verify session after login');
+      }
+
+      const { session } = await verifyResponse.json();
 
       // Set the session in Supabase client for immediate use (for frontend auth checks)
       // This is only kept in memory, not persisted to localStorage
       await supabase.auth.setSession(session);
 
-      setLocation(await postAuthRoute(session.user));
+      setLocation(await postAuthRoute(user));
     } catch (err) {
       setError(err instanceof Error ? err.message : t('auth.loginError'));
     } finally {

@@ -77,17 +77,27 @@ export function RegisterPage() {
         throw new Error(body.error ?? t('auth.registerError'));
       }
 
-      if (body.session) {
-        // Email confirmation disabled in the Supabase dashboard: a session
-        // + JWT was already returned. Hydrate the Supabase client so the
-        // rest of the app sees a logged-in user, same as /login does.
-        const { error: setSessionError } = await supabase.auth.setSession({
-          access_token: body.session.access_token,
-          refresh_token: body.session.refresh_token,
+      if (body.user) {
+        // Email confirmation disabled in the Supabase dashboard: user data
+        // was returned. Verify the session via cookies to update Supabase client
+        // same as /login does.
+        const verifyResponse = await fetch('/api/verify', {
+          method: 'POST',
+          credentials: 'include',
         });
+
+        if (!verifyResponse.ok) {
+          throw new Error('Failed to verify session after registration');
+        }
+
+        const { session } = await verifyResponse.json();
+
+        // Set the session in Supabase client for immediate use (for frontend auth checks)
+        // This is only kept in memory, not persisted to localStorage
+        const { error: setSessionError } = await supabase.auth.setSession(session);
         if (setSessionError) throw setSessionError;
 
-        setLocation(await postAuthRoute(body.session.user));
+        setLocation(await postAuthRoute(body.user));
         return;
       }
 

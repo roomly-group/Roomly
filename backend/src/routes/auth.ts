@@ -108,15 +108,10 @@ router.post('/login', loginLimiter, async (req: Request, res: Response) => {
     // Note: This is only used temporarily to set supabase.auth.setSession()
     // and is not stored persistently by frontend code
     return res.json({
-      session: {
-        access_token,
-        refresh_token,
-        expires_at,
-        user: {
-          id: user.id,
-          email: user.email,
-          // Return other non-sensitive user fields as needed
-        }
+      user: {
+        id: user.id,
+        email: user.email,
+        // Return other non-sensitive user fields as needed
       }
     });
   } catch (error) {
@@ -159,12 +154,7 @@ router.post('/refresh', refreshLimiter, async (req: Request, res: Response) => {
     setRefreshCookie(res, refresh_token);
 
     return res.json({
-      session: {
-        access_token,
-        refresh_token,
-        expires_at: expires_at ? expires_at * 1000 : undefined,
-        user: { id: user.id, email: user.email },
-      },
+      user: { id: user.id, email: user.email },
     });
   } catch (error) {
     console.error('Refresh error:', error);
@@ -337,12 +327,7 @@ router.post('/register', signupLimiter, async (req: Request, res: Response) => {
       setRefreshCookie(res, refresh_token);
 
       return res.json({
-        session: {
-          access_token,
-          refresh_token,
-          expires_at,
-          user: { id: user.id, email: user.email },
-        },
+        user: { id: user.id, email: user.email },
       });
     }
 
