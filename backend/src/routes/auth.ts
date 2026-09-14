@@ -215,22 +215,8 @@ router.post('/verify', async (req: Request, res: Response) => {
       });
     } catch (decodeError) {
       console.error('JWT decode error:', decodeError);
-      // If we can't decode the token or extract expiration, still return a session
-      // We know the token is valid because getUser succeeded, so we use a reasonable expiration
-      // Using 1 hour from now as a fallback - shorter is safer than longer
-      const fallbackExp = Math.floor(Date.now() / 1000) + 60 * 60; // 1 hour from now
-      return res.json({
-        session: {
-          access_token: token,
-          refresh_token: refreshToken,
-          expires_at: fallbackExp * 1000,
-          user: {
-            id: userData.user.id,
-            email: userData.user.email,
-            // Add other non-sensitive user fields as needed
-          }
-        }
-      });
+      // Treat decoding failures as invalid tokens
+      return res.status(401).json({ error: 'Invalid token' });
     }
   } catch (error) {
     console.error('Verify error:', error);
