@@ -130,32 +130,26 @@ router.post('/refresh', refreshLimiter, async (req: Request, res: Response) => {
     return res.status(403).json({ error: 'CSRF token missing or invalid' });
   }
 
-  const refreshToken = req.cookies?.['sb-refresh-token'];
+  // Get tokens from request body (sent by frontend during token synchronization)
+  const { access_token, refresh_token } = req.body as { access_token?: string; refresh_token?: string };
 
-  if (!refreshToken) {
-    return res.status(401).json({ error: 'No refresh token cookie' });
+  // Validate that we have both tokens
+  if (!access_token || !refresh_token) {
+    return res.status(400).json({ error: 'Missing access_token or refresh_token in request body' });
   }
 
   try {
-    // Same reasoning as /login: refreshSession() would set a session on
-    // whichever client calls it. Must not be supabaseAdmin.
-    const { data, error } = await supabaseAuthClient.auth.refreshSession({ refresh_token: refreshToken });
-
-    if (error || !data.session) {
-      clearAuthCookies(res);
-      return res.status(401).json({ error: 'Refresh token expired or invalid' });
+    // Verify the access token is valid by checking it with Supabase admin
+    const { data, error } = await supabaseAdmin.auth.getUser(access_token);
+    if (error || !data.user) {
+      return res.status(401).json({ error: 'Invalid access token' });
     }
 
-    const { access_token, refresh_token, expires_at, user } = data.session;
-
-    setAuthCookie(res, access_token, {
-      maxAge: expires_at ? Math.floor((new Date(expires_at * 1000).getTime() - Date.now()) / 1000) : undefined,
-    });
+    // Set HTTP-only cookies with the verified tokens
+    setAuthCookie(res, access_token);
     setRefreshCookie(res, refresh_token);
 
-    return res.json({
-      user: { id: user.id, email: user.email },
-    });
+    return res.json({ ok: true });
   } catch (error) {
     console.error('Refresh error:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -246,7 +240,7 @@ router.get('/config', (_req: Request, res: Response) => {
 // Register endpoint - proxies to Supabase Auth's signUp() from the server
 // instead of letting the frontend call supabase.auth.signUp() directly.
 //
- // This route alone does NOT fully close off scripted mass sign-ups.
+// This route alone does NOT fully close off scripted mass sign-ups.
 // Supabase's /auth/v1/signup REST endpoint is public infrastructure and
 // accepts the same publishable/anon key the frontend ships to every
 // browser - that key is not a secret, so anyone can still call Supabase
