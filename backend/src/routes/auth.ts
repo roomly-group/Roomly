@@ -46,7 +46,7 @@ function clearAuthCookies(res: Response) {
 
 // Login endpoint
 router.post('/login', loginLimiter, async (req: Request, res: Response) => {
-  const { password, captchaToken } = req.body as { password?: string; captchaToken?: string };
+const { password, captchaToken } = req.body as { password?: string; captchaToken?: string };
   // Trim/lowercase defensively: a leading/trailing space from copy-paste or
   // browser autofill makes Supabase treat it as a different address (or, for
   // password, a different credential), producing the same generic "Invalid

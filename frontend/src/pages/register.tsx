@@ -11,6 +11,8 @@ import { supabase } from '@/lib/supabase';
 import { postAuthRoute } from '@/lib/auth-role';
 import roomlyMark from '@assets/logo_no_background.png';
 
+const passwordPattern = `^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*()_+=[\\]{};':"\\\\|<>?,./\`~-])[A-Za-z\\d!@#$%^&*()_+=[\\]{};':"\\\\|<>?,./\`~-]{8,}`;
+
 export function RegisterPage() {
   const { t } = useLanguage();
   const [, setLocation] = useLocation();
@@ -196,7 +198,7 @@ export function RegisterPage() {
                   autoComplete="new-password"
                   required
                   minLength={8}
-                  pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}"
+                  pattern={passwordPattern}
                   title="Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one digit, and one special character"
                   placeholder="••••••••"
                   value={password}
@@ -229,7 +231,7 @@ export function RegisterPage() {
                   autoComplete="new-password"
                   required
                   minLength={8}
-                  pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}"
+                  pattern={passwordPattern}
                   title="Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one digit, and one special character"
                   placeholder="••••••••"
                   value={confirmPassword}
