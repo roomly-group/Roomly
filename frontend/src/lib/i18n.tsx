@@ -87,6 +87,7 @@ export const translations = {
     'notFound.title': 'Page not found',
     'notFound.text': "We couldn't find that page. Double-check the link, or head back home.",
     'notFound.backHome': 'Back home',
+    'notFound.heading': '404 Error',
     'errorBoundary.title': 'Something went wrong',
     'errorBoundary.text': 'This part of the app hit an error. The rest of the app is still running.',
 
@@ -496,6 +497,7 @@ export const translations = {
     'notFound.title': 'Pagina non trovata',
     'notFound.text': 'Non abbiamo trovato questa pagina. Controlla il link o torna alla home.',
     'notFound.backHome': 'Torna alla home',
+    'notFound.heading': 'Errore 404',
     'errorBoundary.title': 'Qualcosa è andato storto',
     'errorBoundary.text': "Questa parte dell'app ha riscontrato un errore. Il resto dell'app funziona ancora.",
 
@@ -905,6 +907,7 @@ export const translations = {
     'notFound.title': 'Página no encontrada',
     'notFound.text': "No pudimos encontrar esa página. Revisa el enlace o vuelve al inicio.",
     'notFound.backHome': 'Volver al inicio',
+    'notFound.heading': 'Error 404',
     'errorBoundary.title': 'Algo salió mal',
     'errorBoundary.text': 'Esta parte de la aplicación tuvo un error. El resto de la app sigue funcionando.',
 
@@ -1313,6 +1316,7 @@ export const translations = {
     'notFound.title': 'Page introuvable',
     'notFound.text': "Nous n'avons pas trouvé cette page. Vérifiez le lien, ou revenez à l'accueil.",
     'notFound.backHome': "Retour à l'accueil",
+    'notFound.heading': 'Erreur 404',
     'errorBoundary.title': "Une erreur s'est produite",
     'errorBoundary.text': "Cette partie de l'application a rencontré une erreur. Le reste de l'application fonctionne toujours.",
 
@@ -1720,6 +1724,7 @@ export const translations = {
     'notFound.title': 'Seite nicht gefunden',
     'notFound.text': 'Wir konnten diese Seite nicht finden. Überprüfe den Link oder gehe zurück zur Startseite.',
     'notFound.backHome': 'Zur Startseite',
+    'notFound.heading': 'Fehler 404',
     'errorBoundary.title': 'Etwas ist schiefgelaufen',
     'errorBoundary.text': 'In diesem Teil der App ist ein Fehler aufgetreten. Der Rest der App läuft weiterhin.',
 
@@ -2127,6 +2132,7 @@ export const translations = {
     'notFound.title': 'Página não encontrada',
     'notFound.text': 'Não encontrámos essa página. Verifica o link ou volta à página inicial.',
     'notFound.backHome': 'Voltar ao início',
+    'notFound.heading': 'Erro 404',
     'errorBoundary.title': 'Algo correu mal',
     'errorBoundary.text': 'Esta parte da aplicação teve um erro. O resto da aplicação continua a funcionar.',
 
