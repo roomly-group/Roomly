@@ -52,7 +52,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for Tailwind/Vite
       imgSrc: ["'self'", "data:", "https:"],
       connectSrc: ["'self'", "https://*.supabase.co", "https://challenges.cloudflare.com"], // Allow Supabase + Turnstile connections
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
       frameSrc: ["https://challenges.cloudflare.com"], // Turnstile renders its challenge in an iframe
