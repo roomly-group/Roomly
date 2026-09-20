@@ -46,6 +46,12 @@ export function RegisterPage() {
       return;
     }
 
+    const passwordRegex = new RegExp(passwordPattern);
+    if (!passwordRegex.test(password)) {
+      setError(t('auth.passwordPattern'));
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       // Registration goes through our own backend now (POST /api/register)
@@ -197,9 +203,6 @@ export function RegisterPage() {
                   type={showPassword ? "text" : "password"}
                   autoComplete="new-password"
                   required
-                  minLength={8}
-                  pattern={passwordPattern}
-                  title="Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one digit, and one special character"
                   placeholder="••••••••"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
@@ -230,9 +233,6 @@ export function RegisterPage() {
                   type={showConfirmPassword ? "text" : "password"}
                   autoComplete="new-password"
                   required
-                  minLength={8}
-                  pattern={passwordPattern}
-                  title="Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one digit, and one special character"
                   placeholder="••••••••"
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}

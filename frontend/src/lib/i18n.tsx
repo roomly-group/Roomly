@@ -113,6 +113,7 @@ export const translations = {
     'auth.registerError': "We couldn't create your account. Please try again.",
     'auth.registerCheckEmail': 'Account created! Check your inbox to confirm your email before logging in.',
     'auth.passwordMismatch': "Passwords don't match.",
+    'auth.passwordPattern': 'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one digit, and one special character',
     'auth.captchaRequired': 'Please complete the verification challenge.',
     'auth.showPassword': 'Show password',
     'auth.hidePassword': 'Hide password',
@@ -521,6 +522,7 @@ export const translations = {
     'auth.registerError': 'Non è stato possibile creare il tuo account. Riprova.',
     'auth.registerCheckEmail': 'Account creato! Controlla la tua email per confermare la registrazione prima di accedere.',
     'auth.passwordMismatch': 'Le password non coincidono.',
+    'auth.passwordPattern': 'La password deve essere almeno di 8 caratteri e contenere almeno una lettera maiuscola, una lettera minuscola, un numero e un carattere speciale',
     'auth.captchaRequired': 'Completa la verifica di sicurezza.',
     'auth.showPassword': 'Mostra password',
     'auth.hidePassword': 'Nascondi password',
@@ -929,6 +931,7 @@ export const translations = {
     'auth.registerError': "No pudimos crear tu cuenta. Inténtalo de nuevo.",
     'auth.registerCheckEmail': '¡Cuenta creada! Revisa tu bandeja de entrada para confirmar tu correo antes de iniciar sesión.',
     'auth.passwordMismatch': "Las contraseñas no coinciden.",
+    'auth.passwordPattern': 'La contraseña debe tener al menos 8 caracteres y contener al menos una letra mayúscula, una letra minúscula, un dígito y un carácter especial',
     'auth.showPassword': 'Mostrar contraseña',
     'auth.hidePassword': 'Ocultar contraseña',
 
@@ -1336,6 +1339,7 @@ export const translations = {
     'auth.registerError': "Impossible de créer votre compte. Réessayez.",
     'auth.registerCheckEmail': 'Compte créé ! Vérifiez votre boîte mail pour confirmer votre adresse avant de vous connecter.',
     'auth.passwordMismatch': 'Les mots de passe ne correspondent pas.',
+    'auth.passwordPattern': 'Le mot de passe doit contenir au moins 8 caractères, dont une majuscule, une minuscule, un chiffre et un caractère spécial',
     'auth.showPassword': 'Afficher le mot de passe',
     'auth.hidePassword': 'Masquer le mot de passe',
 
@@ -1742,6 +1746,7 @@ export const translations = {
     'auth.registerError': 'Konto konnte nicht erstellt werden. Bitte versuche es erneut.',
     'auth.registerCheckEmail': 'Konto erstellt! Prüfe dein Postfach, um deine E-Mail zu bestätigen, bevor du dich anmeldest.',
     'auth.passwordMismatch': 'Die Passwörter stimmen nicht überein.',
+    'auth.passwordPattern': 'Das Passwort muss mindestens 8 Zeichen lang sein und mindestens einen Großbuchstaben, einen Kleinbuchstaben, eine Ziffer und ein Sonderzeichen enthalten',
     'auth.showPassword': 'Passwort anzeigen',
     'auth.hidePassword': 'Passwort verstecken',
 
@@ -2148,6 +2153,7 @@ export const translations = {
     'auth.registerError': 'Não foi possível criar a tua conta. Tenta novamente.',
     'auth.registerCheckEmail': 'Conta criada! Verifica a tua caixa de entrada para confirmar o teu email antes de iniciares sessão.',
     'auth.passwordMismatch': 'As palavras-passe não coincidem.',
+    'auth.passwordPattern': 'A palavra-passe deve ter pelo menos 8 caracteres e conter pelo menos uma letra maiúscula, uma letra minúscula, um dígito e um caractere especial',
     'auth.showPassword': 'Mostrar palavra-passe',
     'auth.hidePassword': 'Esconder palavra-passe',
 
