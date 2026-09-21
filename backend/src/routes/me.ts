@@ -27,7 +27,7 @@ async function ensureUtenteRecord(userId: string) {
     return null;
   }
 
-  const { nome = "", cognome = "" } = authUser.user.user_metadata ?? {};
+  const { nome = "", cognome = "", data_nascita = null } = authUser.user.user_metadata ?? {};
 
   const { data: maxRow } = await supabaseAdmin
     .from("utenti")
@@ -38,23 +38,60 @@ async function ensureUtenteRecord(userId: string) {
 
   const nextPosizione = (maxRow?.posizione ?? 0) + 1;
 
-  const { error: insertError } = await supabaseAdmin.from("utenti").insert({
-    id: userId,
-    email: authUser.user.email ?? "",
-    nome,
-    cognome,
-    email_verificata: true,
-    posizione: nextPosizione,
-  });
+  // First, check if a record already exists
+  const { data: existingUtente, error: selectError } = await supabaseAdmin
+    .from("utenti")
+    .select("data_nascita")
+    .eq("id", userId)
+    .single();
 
-  if (insertError) {
-    console.error("Failed to create utenti record:", insertError);
+  // If we got an error that is not because the record doesn't exist, return null
+  if (selectError && selectError.code !== 'PGRST116') {
+    console.error("Failed to fetch utenti record:", selectError);
     return null;
   }
 
+  // If record doesn't exist, insert it
+  if (selectError && selectError.code === 'PGRST116') {
+    const { error: insertError } = await supabaseAdmin.from("utenti").insert({
+      id: userId,
+      email: authUser.user.email ?? "",
+      nome,
+      cognome,
+      email_verificata: true,
+      posizione: nextPosizione,
+      data_nascita,
+    });
+
+    if (insertError) {
+      console.error("Failed to create utenti record:", insertError);
+      return null;
+    }
+  } else {
+    // Record exists - check if we need to update data_nascita
+    if (
+      existingUtente &&
+      existingUtente.data_nascita === null &&
+      data_nascita !== null &&
+      data_nascita !== ''
+    ) {
+      const { error: updateError } = await supabaseAdmin
+        .from("utenti")
+        .update({ data_nascita })
+        .eq("id", userId);
+
+      if (updateError) {
+        console.error("Failed to update utenti record with data_nascita:", updateError);
+        return null;
+      }
+    }
+    // If data_nascita is already set, we do nothing
+  }
+
+  // Fetch and return the complete record
   const { data: newRow, error: newError } = await supabaseAdmin
     .from("utenti")
-    .select("nome, cognome, email, posizione, admin, owner, lingua")
+    .select("nome, cognome, email, posizione, admin, owner, lingua, data_nascita")
     .eq("id", userId)
     .single();
 
@@ -100,7 +137,7 @@ router.get("/me", requireAuth, async (req: AuthenticatedRequest, res) => {
 
   const { data, error } = await supabaseAdmin
     .from("utenti")
-    .select("nome, cognome, email, posizione, lingua")
+    .select("nome, cognome, email, posizione, lingua, data_nascita")
     .eq("id", userId)
     .single();
 
@@ -117,6 +154,7 @@ router.get("/me", requireAuth, async (req: AuthenticatedRequest, res) => {
       cognome: created.cognome,
       email: created.email,
       posizione: created.posizione,
+      data_nascita: created.data_nascita,
       full_name: `${created.nome ?? ""} ${created.cognome ?? ""}`.trim(),
     });
     return;

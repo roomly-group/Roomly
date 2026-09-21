@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Sparkles, Mail, Lock, User, EyeOff, Eye } from 'lucide-react';
+import { Sparkles, Mail, Lock, User, EyeOff, Eye, Calendar } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { LanguagePicker } from '@/components/language-selector';
 import { Button } from '@/components/shared/button';
@@ -21,6 +21,7 @@ export function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [dataNascita, setDataNascita] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
@@ -38,6 +39,25 @@ export function RegisterPage() {
 
     if (password !== confirmPassword) {
       setError(t('auth.passwordMismatch'));
+      return;
+    }
+
+    // Date of birth validation
+    if (!dataNascita) {
+      setError(t('auth.dateOfBirthRequired'));
+      return;
+    }
+
+    const birthDate = new Date(dataNascita);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+
+    if (age < 18) {
+      setError(t('auth.ageUnder18'));
       return;
     }
 
@@ -71,7 +91,7 @@ export function RegisterPage() {
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome, cognome, email, password, captchaToken }),
+        body: JSON.stringify({ nome, cognome, email, password, dataNascita, captchaToken }),
       });
       const body = await response.json();
 
@@ -251,6 +271,24 @@ export function RegisterPage() {
                     <EyeOff size={16} className="pointer-events-none" />
                   )}
                 </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="register-data-nascita">{t('auth.dateOfBirthLabel')}</Label>
+              <div className="relative">
+                <Calendar size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#527067]" />
+                <Input
+                  id="register-data-nascita"
+                  type="date"
+                  autoComplete="bday"
+                  required
+                  placeholder={t('auth.dateOfBirthPlaceholder')}
+                  value={dataNascita}
+                  onChange={(event) => setDataNascita(event.target.value)}
+                  className="pl-9"
+                  data-testid="input-data-nascita"
+                />
               </div>
             </div>
 

@@ -258,11 +258,12 @@ router.get('/config', (_req: Request, res: Response) => {
 // the anon key, like a script such as test.py does. Requires "Enable
 // Captcha protection" to actually be turned on in Supabase; see chat.
 router.post('/register', signupLimiter, async (req: Request, res: Response) => {
-  const { nome, cognome, password, captchaToken } = req.body as {
+  const { nome, cognome, password, dataNascita, captchaToken } = req.body as {
     nome?: string;
     cognome?: string;
     email?: string;
     password?: string;
+    dataNascita?: string;
     captchaToken?: string;
   };
   const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : req.body?.email;
@@ -287,6 +288,7 @@ router.post('/register', signupLimiter, async (req: Request, res: Response) => {
           nome,
           cognome,
           full_name: `${nome} ${cognome}`.trim(),
+          data_nascita: dataNascita,
         },
       },
     });
