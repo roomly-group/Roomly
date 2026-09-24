@@ -286,7 +286,7 @@ export function RegisterPage() {
                   placeholder={t('auth.dateOfBirthPlaceholder')}
                   value={dataNascita}
                   onChange={(event) => setDataNascita(event.target.value)}
-                  className="pl-9"
+                  className="pl-9 pr-10"
                   data-testid="input-data-nascita"
                 />
               </div>
