@@ -44,6 +44,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 // Both cases require refresh_token as well as access_token — the backend
 // needs it to keep the refresh cookie in sync so setSession() keeps working
 // after future reloads.
+// Helper to get CSRF token from cookie
+const getCsrfToken = () => {
+  const match = document.cookie.match(/(?:^|; )csrf-token=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : '';
+};
+
 supabase.auth.onAuthStateChange(async (event, session) => {
   if (session && (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN')) {
     const endpoint = event === 'SIGNED_IN' ? '/api/session' : '/api/refresh';
@@ -53,7 +59,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRF-Token': 'roomly'
+        'X-CSRF-Token': getCsrfToken()
       },
       body: JSON.stringify({
         access_token: session.access_token,

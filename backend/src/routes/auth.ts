@@ -4,6 +4,8 @@ import { supabaseAuthClient } from "../lib/supabase-auth.js";
 import { loginLimiter, refreshLimiter, signupLimiter } from "../middleware/rateLimit.js";
 import { logger } from "../lib/logger.js";
 
+import crypto from 'crypto';
+
 const router: IRouter = Router();
 
 const isProd = process.env.NODE_ENV === "production";
@@ -42,6 +44,20 @@ function clearAuthCookies(res: Response) {
   const base = { path: '/', httpOnly: true, secure: isProd, sameSite: 'lax' as const };
   res.clearCookie('sb-token', base);
   res.clearCookie('sb-refresh-token', base);
+}
+
+// Helper to set the CSRF token cookie (not HttpOnly, so frontend can read it)
+// SameSite=Strict to prevent sending in cross-site requests
+function setCsrfCookie(res: Response, token: string, options: { maxAge?: number } = {}) {
+  const defaults = {
+    httpOnly: false, // Frontend needs to read this cookie
+    secure: isProd,
+    sameSite: 'strict' as const,
+    maxAge: 60 * 60 * 24 * 7, // 1 week, same as access token
+    path: '/',
+  };
+  const opts = { ...defaults, ...options };
+  res.cookie('csrf-token', token, opts);
 }
 
 // Login endpoint
@@ -103,6 +119,9 @@ const { password, captchaToken } = req.body as { password?: string; captchaToken
       expires_at ? { maxAge: Math.floor((new Date(expires_at * 1000).getTime() - Date.now()) / 1000) } : {}
     );
     setRefreshCookie(res, refresh_token);
+    // Set CSRF token cookie
+    const csrfToken = crypto.randomBytes(32).toString('hex');
+    setCsrfCookie(res, csrfToken);
 
     // Return session data for frontend to set Supabase client session
     // Note: This is only used temporarily to set supabase.auth.setSession()
@@ -125,8 +144,9 @@ const { password, captchaToken } = req.body as { password?: string; captchaToken
 // cookie re-set of the same access token as before).
 router.post('/refresh', refreshLimiter, async (req: Request, res: Response) => {
   // CSRF protection: require custom header to prevent cross-site requests
-  const csrfToken = req.headers['x-csrf-token'];
-  if (csrfToken !== 'roomly') {
+  const csrfTokenCookie = req.cookies?.['csrf-token'];
+  const csrfTokenHeader = req.headers['x-csrf-token'];
+  if (!csrfTokenCookie || !csrfTokenHeader || csrfTokenCookie !== csrfTokenHeader) {
     return res.status(403).json({ error: 'CSRF token missing or invalid' });
   }
 
@@ -148,6 +168,9 @@ router.post('/refresh', refreshLimiter, async (req: Request, res: Response) => {
     // Set HTTP-only cookies with the verified tokens
     setAuthCookie(res, access_token);
     setRefreshCookie(res, refresh_token);
+    // Set new CSRF token cookie
+    const newCsrfToken = crypto.randomBytes(32).toString('hex');
+    setCsrfCookie(res, newCsrfToken);
 
     return res.json({ ok: true });
   } catch (error) {
@@ -326,8 +349,9 @@ router.post('/register', signupLimiter, async (req: Request, res: Response) => {
 // conferma email), quando quel flusso non passa da /login.
 router.post('/session', async (req: Request, res: Response) => {
   // CSRF protection: require custom header to prevent cross-site requests
-  const csrfToken = req.headers['x-csrf-token'];
-  if (csrfToken !== 'roomly') {
+  const csrfTokenCookie = req.cookies?.['csrf-token'];
+  const csrfTokenHeader = req.headers['x-csrf-token'];
+  if (!csrfTokenCookie || !csrfTokenHeader || csrfTokenCookie !== csrfTokenHeader) {
     return res.status(403).json({ error: 'CSRF token missing or invalid' });
   }
 
@@ -345,6 +369,9 @@ router.post('/session', async (req: Request, res: Response) => {
 
     setAuthCookie(res, access_token);
     setRefreshCookie(res, refresh_token);
+    // Set CSRF token cookie
+    const csrfToken = crypto.randomBytes(32).toString('hex');
+    setCsrfCookie(res, csrfToken);
     return res.json({ ok: true });
   } catch (error) {
     console.error('Session error:', error);

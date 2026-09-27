@@ -15,6 +15,7 @@ type ProtectedRouteProps = {
 export function ProtectedRoute({ allowedRoles, children, redirect }: ProtectedRouteProps) {
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
+  const [redirectTo, setRedirectTo] = useState<string | null>(null);
   const { t } = useLanguage();
 
   useEffect(() => {
@@ -23,7 +24,9 @@ export function ProtectedRoute({ allowedRoles, children, redirect }: ProtectedRo
         const { data } = await supabase.auth.getSession();
         const user = data?.session?.user;
         if (!user) {
-          setRole('user'); // treat as normal user if no session
+          // No session, redirect to login page
+          const redirectPath = redirect ?? '/login';
+          setRedirectTo(redirectPath);
           setLoading(false);
           return;
         }
@@ -31,14 +34,16 @@ export function ProtectedRoute({ allowedRoles, children, redirect }: ProtectedRo
         setRole(fetchedRole);
       } catch (err) {
         console.error('Failed to fetch user role:', err);
-        setRole('user'); // fallback to normal user
+        // Error fetching role, redirect to login page
+        const redirectPath = redirect ?? '/login';
+        setRedirectTo(redirectPath);
       } finally {
         setLoading(false);
       }
     }
 
     loadRole();
-  }, []);
+  }, [redirect]);
 
   if (loading) {
     return (
@@ -50,6 +55,10 @@ export function ProtectedRoute({ allowedRoles, children, redirect }: ProtectedRo
         />
       </div>
     );
+  }
+
+  if (redirectTo) {
+    return <Navigate to={redirectTo} replace />;
   }
 
   const isAllowed = role !== null && allowedRoles.includes(role);
