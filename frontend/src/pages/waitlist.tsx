@@ -181,8 +181,33 @@ export function WaitlistPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.8 }}
-            className="relative z-10 mt-8 flex justify-center"
+            className="relative z-10 mt-8 flex flex-col items-center w-full"
           >
+            {/* Login Button */}
+            <Link href="/login">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                type="button"
+                aria-label={t('waitlist.ctaLogin')}
+                title={t('waitlist.ctaLogin')}
+                className="w-full h-12 rounded-xl bg-[#EF9F27] px-4 font-extrabold text-[#2C2C2A] transition-all duration-200 hover:bg-[#e6a53d] active:scale-[0.98] mb-3"
+              >
+                {t('waitlist.ctaLogin')}
+              </motion.button>
+            </Link>
+
+            {/* "or" Text */}
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.9 }}
+              className="w-full text-center text-xs text-[#085041]/60 mb-4"
+            >
+              {t('waitlist.ctaOr')}
+            </motion.p>
+
+            {/* Existing Sign-up Button (now moved down) */}
             <Link href="/register">
               <motion.button
                 whileHover={{ scale: 1.05 }}
@@ -191,7 +216,7 @@ export function WaitlistPage() {
                 aria-label={t('waitlist.ctaRegister')}
                 title={t('waitlist.ctaRegister')}
                 data-testid="button-search"
-                className="h-12 min-w-[80px] shrink-0 rounded-xl bg-[#EF9F27] px-4 font-extrabold text-[#2C2C2A] transition-all duration-200 hover:bg-[#e6a53d] active:scale-[0.98]"
+                className="w-full h-12 rounded-xl bg-[#EF9F27] px-4 font-extrabold text-[#2C2C2A] transition-all duration-200 hover:bg-[#e6a53d] active:scale-[0.98]"
               >
                 {t('waitlist.ctaRegister')}
               </motion.button>

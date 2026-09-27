@@ -400,6 +400,8 @@ export const translations = {
     'waitlistConfirmed.step2Text': "We'll email you as soon as your turn to access opens up.",
     'waitlistConfirmed.step3Title': 'Get early access',
     'waitlistConfirmed.step3Text': "You'll be among the first to see listings and message owners.",
+    'waitlist.ctaLogin': 'Log in',
+    'waitlist.ctaOr': 'or',
 
     'chiSiamo.title': 'About Us',
     'chiSiamo.intro': 'Roomly was created to make finding a room simple, fast, and safe, connecting students and owners directly without unnecessary middlemen.',
@@ -814,6 +816,8 @@ export const translations = {
     'waitlistConfirmed.step2Text': "Ti scriviamo via email non appena si libera il tuo turno d'accesso.",
     'waitlistConfirmed.step3Title': 'Accedi in anteprima',
     'waitlistConfirmed.step3Text': 'Sarai tra i primi a vedere gli annunci e a scrivere ai proprietari.',
+    'waitlist.ctaLogin': 'Accedi',
+    'waitlist.ctaOr': 'o',
 
     'chiSiamo.title': 'Chi siamo',
     'chiSiamo.intro': 'Roomly nasce per rendere la ricerca di una stanza semplice, veloce e sicura, mettendo in contatto studenti e proprietari senza intermediari inutili.',
@@ -1214,6 +1218,8 @@ export const translations = {
     'waitlistConfirmed.step2Text': "Te escribiremos por correo en cuanto llegue tu turno de acceso.",
     'waitlistConfirmed.step3Title': 'Accede antes que nadie',
     'waitlistConfirmed.step3Text': "Serás de los primeros en ver anuncios y escribir a los propietarios.",
+    'waitlist.ctaLogin': 'Iniciar sesión',
+    'waitlist.ctaOr': 'o',
     'waitlist.faqEyebrow': 'PREGUNTAS FRECUENTES',
     'waitlist.faqTitle': 'Todo lo que necesitas saber',
     'waitlist.faqQuestion1': '¿Qué es Roomly?',
@@ -1639,6 +1645,8 @@ export const translations = {
     'waitlistConfirmed.step2Text': "Nous vous écrirons par email dès que votre tour d'accès arrive.",
     'waitlistConfirmed.step3Title': 'Accès en avant-première',
     'waitlistConfirmed.step3Text': "Vous serez parmi les premiers à voir les annonces et à écrire aux propriétaires.",
+    'waitlist.ctaLogin': 'Se connecter',
+    'waitlist.ctaOr': 'ou',
 
     'chiSiamo.title': 'À propos',
     'chiSiamo.intro': "Roomly est né pour rendre la recherche d'une chambre simple, rapide et sûre, en mettant directement en relation étudiants et propriétaires, sans intermédiaires inutiles.",
@@ -2051,6 +2059,8 @@ export const translations = {
     'waitlistConfirmed.step2Text': 'Wir schreiben dir per E-Mail, sobald dein Zugang frei wird.',
     'waitlistConfirmed.step3Title': 'Vorab-Zugang',
     'waitlistConfirmed.step3Text': 'Du gehörst zu den Ersten, die Angebote sehen und Vermietern schreiben können.',
+    'waitlist.ctaLogin': 'Einloggen',
+    'waitlist.ctaOr': 'oder',
 
     'chiSiamo.title': 'Über uns',
     'chiSiamo.intro': 'Roomly wurde geschaffen, um die Zimmersuche einfach, schnell und sicher zu machen, indem Studierende und Vermieter direkt und ohne unnötige Zwischenhändler verbunden werden.',
@@ -2464,6 +2474,8 @@ export const translations = {
     'waitlistConfirmed.step2Text': 'Escrevemos-te por email assim que a tua vez de acesso chegar.',
     'waitlistConfirmed.step3Title': 'Acesso antecipado',
     'waitlistConfirmed.step3Text': 'Serás dos primeiros a ver os anúncios e a escrever aos proprietários.',
+    'waitlist.ctaLogin': 'Entrar',
+    'waitlist.ctaOr': 'ou',
 
     'chiSiamo.title': 'Sobre nós',
     'chiSiamo.intro': 'A Roomly nasceu para tornar a procura de um quarto simples, rápida e segura, ligando diretamente estudantes e proprietários sem intermediários desnecessários.',
