@@ -8,7 +8,6 @@ import {
   useListListings,
 } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
-import { zones, zoneTranslationKeys } from '@/lib/constants';
 import { AppShell } from '@/components/layout/app-shell';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/shared/button';
@@ -29,6 +28,29 @@ function SearchBar({
   const { t } = useLanguage();
   const [zone, setZone] = useState(initialZone);
   const [maxPrice, setMaxPrice] = useState(initialMax);
+  const [universities, setUniversities] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Fetch universities from the backend
+    fetch('/api/universita')
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('Failed to fetch universities');
+        }
+        return response.json();
+      })
+      .then((data) => {
+        // Assuming the backend returns an array of strings: ["Uni1", "Uni2", ...]
+        setUniversities(data as string[]);
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error('Error fetching universities:', error);
+        setLoading(false);
+        // Optionally, set a fallback or show error
+      });
+  }, []);
 
   return (
     <form
@@ -46,11 +68,12 @@ function SearchBar({
         onChange={(event) => setZone(event.target.value)}
         className="w-full bg-transparent text-sm font-bold text-[#2C2C2A] outline-none"
         data-testid="select-zone"
+        disabled={loading}
       >
         <option value="">{t('searchBar.anywhere')}</option>
-        {zones.map((item) => (
-          <option key={item} value={item}>
-            {t(zoneTranslationKeys[item])}
+        {universities.map((uni) => (
+          <option key={uni} value={uni}>
+            {uni}
           </option>
         ))}
       </select>
@@ -78,7 +101,7 @@ function SearchBar({
         className="h-12 min-w-[80px] shrink-0 rounded-xl bg-[#EF9F27] px-4 font-extrabold text-[#2C2C2A] transition-all duration-200 hover:bg-[#e6a53d] active:scale-[0.98]"
       >
         Cerca
-      </button>   
+      </button>
     </form>
   );
 }

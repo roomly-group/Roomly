@@ -4,6 +4,7 @@ import roomlyRouter from "./roomly.js";
 import meRouter from "./me.js";
 import waitlistRouter from "./waitlist.js";
 import authRouter from "./auth.js";
+import universitaRouter from "./universita.js";
 
 const router: IRouter = Router();
 
@@ -12,5 +13,6 @@ router.use(roomlyRouter);
 router.use(meRouter);
 router.use(waitlistRouter);
 router.use(authRouter);
+router.use("/universita", universitaRouter);
 
 export default router;
