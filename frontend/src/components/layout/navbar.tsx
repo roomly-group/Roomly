@@ -93,7 +93,7 @@ export function Navbar() {
   }, [isWaitlistConfirmed]);
 
   const logo = (
-    <Link href="/" className="flex items-center gap-2.5" data-testid="link-logo">
+    <Link href="/home" className="flex items-center gap-2.5" data-testid="link-logo">
       <img
         src={roomlyMark}
         alt={isApp ? '' : 'Roomly'}
@@ -119,7 +119,7 @@ export function Navbar() {
           { href: '/owner/profile', key: 'my-profile', label: t('nav.myProfile'), icon: UserRound },
         ]
       : [
-          { href: '/', key: 'find-a-room', label: t('nav.findRoom'), icon: Search },
+          { href: '/home', key: 'find-a-room', label: t('nav.findRoom'), icon: Search },
           { href: '/messages', key: 'messages', label: t('nav.messages'), icon: MessageCircle },
           { href: '/profile', key: 'my-profile', label: t('nav.myProfile'), icon: UserRound },
         ];
