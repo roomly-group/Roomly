@@ -62,22 +62,22 @@ function SearchBar({
       data-testid="form-search"
     >
       <label className="flex min-h-12 flex-1 items-center gap-2 rounded-xl bg-[#F1EFE8] px-3 text-[#527067]">
-      <MapPin size={18} className="text-[#0F6E56]" />
-      <select
-        value={zone}
-        onChange={(event) => setZone(event.target.value)}
-        className="w-full bg-transparent text-sm font-bold text-[#2C2C2A] outline-none"
-        data-testid="select-zone"
-        disabled={loading}
-      >
-        <option value="">{t('searchBar.anywhere')}</option>
-        {universities.map((uni) => (
-          <option key={uni} value={uni}>
-            {uni}
-          </option>
-        ))}
-      </select>
-      <ChevronDown size={16} />
+        <MapPin size={18} className="text-[#0F6E56]" />
+        <select
+          value={zone}
+          onChange={(event) => setZone(event.target.value)}
+          className="w-full bg-transparent text-sm font-bold text-[#2C2C2A] outline-none"
+          data-testid="select-zone"
+          disabled={loading}
+        >
+          <option value="">{t('searchBar.anywhere')}</option>
+          {universities.map((uni) => (
+            <option key={uni} value={uni}>
+              {uni}
+            </option>
+          ))}
+        </select>
+        <ChevronDown size={16} />
       </label>
 
       <label className="flex min-h-12 w-full flex-1 items-center gap-2 rounded-xl bg-[#F1EFE8] px-3 text-[#527067] sm:max-w-[220px]">
@@ -277,7 +277,18 @@ export function Home() {
             </div>
             <div className="flex flex-col justify-between border-t border-[#3a7767] pt-6 sm:border-l sm:border-t-0 sm:pl-7 sm:pt-0">
               <div>
-                <p className="text-4xl font-black text-[#EF9F27]">47</p>
+                {isLoading ? (
+                  <p className="text-4xl font-black text-[#EF9F27]">
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                    </svg>
+                  </p>
+                ) : isError ? (
+                  <p className="text-4xl font-black text-[#EF9F27]">--</p>
+                ) : (
+                  <p className="text-4xl font-black text-[#EF9F27]">{listings.length}</p>
+                )}
                 <p className="mt-1 text-sm text-[#9FE1CB]">{t('home.statText')}</p>
               </div>
               <button
