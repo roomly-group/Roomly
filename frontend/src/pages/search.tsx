@@ -1,9 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Check, ChevronLeft, MapPin, SlidersHorizontal } from 'lucide-react';
 import { Link } from 'wouter';
 import { getListListingsQueryKey, useListListings } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
-import { zones } from '@/lib/constants';
 import { useZoneLabel } from '@/hooks/use-zone-label';
 import { AppShell } from '@/components/layout/app-shell';
 import { Button } from '@/components/shared/button';
@@ -20,6 +19,21 @@ export function SearchPage() {
   const [zone, setZone] = useState(params.get('zone') ?? '');
   const [maxPrice, setMaxPrice] = useState('');
   const [furnished, setFurnished] = useState(false);
+  const [universities, setUniversities] = useState<string[]>([]);
+
+  // Zones are the universities stored in the database, not a hardcoded list.
+  useEffect(() => {
+    fetch('/api/universita')
+      .then((response) => (response.ok ? response.json() : []))
+      .then((data) => setUniversities(Array.isArray(data) ? (data as string[]) : []))
+      .catch(() => setUniversities([]));
+  }, []);
+
+  // Keep a zone coming from the URL (?zone=...) selectable even before the list loads.
+  const zoneOptions = useMemo(
+    () => (zone && !universities.includes(zone) ? [zone, ...universities] : universities),
+    [zone, universities],
+  );
 
   const request = useMemo(
     () => ({
@@ -74,7 +88,7 @@ export function SearchPage() {
                 data-testid="select-search-zone"
               >
                 <option value="">{t('searchPage.allAreas')}</option>
-                {zones.map((item) => (
+                {zoneOptions.map((item) => (
                   <option key={item} value={item}>
                     {zoneLabel(item)}
                   </option>

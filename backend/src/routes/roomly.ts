@@ -15,9 +15,66 @@ import {
   ListMessagesResponse,
   SendMessageResponse,
   GetOwnerDashboardResponse,
+  type Listing,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
+
+// Columns of `stanze` plus the two related rows we need. The university name
+// lives in the `universita` table, reached through stanze.universita_id, so it
+// has to be embedded as `universita:universita_id(nome)` (NOT `universita:nome`,
+// which asks for a column that does not exist and makes the whole query fail).
+const LISTING_COLUMNS = `
+  id,
+  titolo,
+  prezzo,
+  descrizione,
+  attiva,
+  stato,
+  servizi,
+  universita_id,
+  proprietario_id,
+  utenti:proprietario_id(nome_utente, nome, cognome)
+`;
+const LISTING_SELECT = `${LISTING_COLUMNS}, universita:universita_id(nome)`;
+// `!inner` turns the embed into an INNER JOIN so that filtering on
+// universita.nome actually removes non-matching rooms.
+const LISTING_SELECT_INNER = `${LISTING_COLUMNS}, universita:universita_id!inner(nome)`;
+
+// PostgREST returns an embedded row as an object for many-to-one relations but
+// as an array for one-to-many ones; accept both.
+function first<T>(value: T | T[] | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapListing(row: any): Listing {
+  const owner = first<{ nome_utente?: string; nome?: string; cognome?: string }>(row.utenti);
+  const uni = first<{ nome?: string }>(row.universita);
+
+  const ownerName =
+    owner?.nome_utente ||
+    (owner?.nome && owner?.cognome ? `${owner.nome} ${owner.cognome}` : "Unknown");
+
+  const servizi: string[] = Array.isArray(row.servizi)
+    ? row.servizi.map((s: unknown) => String(s).toLowerCase())
+    : [];
+
+  return {
+    id: Number(row.id),
+    title: row.titolo ?? "",
+    zone: uni?.nome ?? "",
+    price: Number(row.prezzo),
+    owner: ownerName,
+    rating: 0, // placeholder
+    photos: 0, // TODO: count stanze_foto
+    furnished: servizi.some((s) => ["arredato", "mobilio", "letto", "armadio"].includes(s)),
+    wifi: servizi.some((s) => s.includes("internet") || s.includes("wifi")),
+    description: row.descrizione ?? "",
+    available: Boolean(row.attiva) && row.stato === "disponibile",
+  };
+}
 
 /**
  * GET /api/listings
@@ -27,106 +84,30 @@ router.get("/listings", async (req: Request, res: Response) => {
   try {
     const query = ListListingsQueryParams.parse(req.query);
 
-    // Build the Supabase query
     let dbQuery = supabaseAdmin
       .from("stanze")
-      .select(`
-        id,
-        titolo,
-        prezzo,
-        descrizione,
-        attiva,
-        stato,
-        servizi,
-        universita_id,
-        proprietario_id,
-        universita:nome,
-        utenti:proprietario_id(nome_utente, nome, cognome)
-      `);
+      .select(query.zone ? LISTING_SELECT_INNER : LISTING_SELECT)
+      .eq("attiva", true)
+      .eq("stato", "disponibile");
 
-    // Apply filters from query parameters
     if (query.zone) {
-      // Assuming we want to filter by university name (zone)
       dbQuery = dbQuery.ilike("universita.nome", `%${query.zone}%`);
     }
     if (query.maxPrice !== undefined) {
-      dbQuery = dbQuery.lt("prezzo", query.maxPrice);
+      dbQuery = dbQuery.lte("prezzo", query.maxPrice);
     }
-    if (query.furnished !== undefined) {
-      // Since furnished is not directly in DB, we'll skip for now or derive from servizi
-      // For now, we'll ignore this filter if not implemented
-      // TODO: Implement furnished filter based on servizi array
-    }
-
-    // Only get active and available listings
-    dbQuery = dbQuery.eq("attiva", true).eq("stato", "disponibile");
 
     const { data, error } = await dbQuery;
+    if (error) throw error;
 
-    if (error) {
-      throw error;
+    let listings = (data ?? []).map(mapListing);
+
+    // `furnished` is derived from the `servizi` array, so filter after mapping.
+    if (query.furnished) {
+      listings = listings.filter((listing) => listing.furnished);
     }
 
-    // Map the database rows to the Listing type
-    const listings: Listing[] = data.map((row) => {
-      // Determine owner string
-      const ownerName = row.utenti?.nome_utente ||
-        (row.utenti?.nome && row.utenti?.cognome ? `${row.utenti.nome} ${row.utenti.cognome}` : "Unknown");
-
-      // Determine if furnished: we'll check if 'arredato' is in servizi (example)
-      const serviziArray = row.servizi ?? [];
-      const furnished = serviziArray.some((servizio) =>
-        ["arredato", "mobilio", "letto", "armadio"].includes(servizio.toLowerCase())
-      );
-
-      // Determine if wifi: check if 'internet' is in servizi
-      const wifi = serviziArray.some((servizio) =>
-        servizio.toLowerCase().includes("internet")
-      );
-
-      // Count photos: we would need a separate query or include count in select
-      // For simplicity, we'll set to 0 and later we can add a photos count
-      // We'll do a separate query for each row? Not efficient.
-      // Instead, we can modify the select to include a count of stanze_foto
-      // Let's adjust the select above to include photos count.
-      // We'll change the select to:
-      //   id, titolo, prezzo, descrizione, attiva, stato, servizi, universita_id, proprietario_id,
-      //   universita:nome,
-      //   utenti:proprietario_id(nome_utente, nome, cognome),
-      //   stanze_foto!left(count)
-      // But for now, we'll set to 0 and note that we need to improve.
-      const photos = 0; // TODO: implement photo count
-
-      return {
-        id: row.id,
-        title: row.titolo,
-        zone: row.universita?.nome ?? "",
-        price: Number(row.prezzo),
-        owner: ownerName,
-        rating: 0, // placeholder
-        photos,
-        furnished,
-        wifi,
-        description: row.descrizione ?? "",
-        available: row.attiva && row.stato === "disponibile",
-      };
-    });
-
-    // Apply zone filter in memory if we didn't do it in DB (we did above, but just in case)
-    const filteredListings = listings.filter((listing) =>
-      !query.zone || listing.zone.toLowerCase().includes(query.zone.toLowerCase())
-    );
-
-    // Apply maxPrice filter in memory (we did in DB, but just in case)
-    const priceFilteredListings = filteredListings.filter(
-      (listing) =>
-        query.maxPrice === undefined || listing.price <= query.maxPrice
-    );
-
-    // Apply furnished filter in memory (if we had implemented it)
-    // For now, skip
-
-    res.json(ListListingsResponse.parse(priceFilteredListings));
+    res.json(ListListingsResponse.parse(listings));
   } catch (error) {
     console.error("Error fetching listings:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -143,19 +124,7 @@ router.get("/listings/:id", async (req: Request, res: Response) => {
 
     const { data, error } = await supabaseAdmin
       .from("stanze")
-      .select(`
-        id,
-        titolo,
-        prezzo,
-        descrizione,
-        attiva,
-        stato,
-        servizi,
-        universita_id,
-        proprietario_id,
-        universita:nome,
-        utenti:proprietario_id(nome_utente, nome, cognome)
-      `)
+      .select(LISTING_SELECT)
       .eq("id", id)
       .eq("attiva", true)
       .eq("stato", "disponibile")
@@ -173,40 +142,12 @@ router.get("/listings/:id", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Listing not found" });
     }
 
-    // Map to Listing type (same as above)
-    const ownerName = data.utenti?.nome_utente ||
-      (data.utenti?.nome && data.utenti?.cognome ? `${data.utenti.nome} ${data.utenti.cognome}` : "Unknown");
+    const listing = mapListing(data);
 
-    const serviziArray = data.servizi ?? [];
-    const furnished = serviziArray.some((servizio) =>
-      ["arredato", "mobilio", "letto", "armadio"].includes(servizio.toLowerCase())
-    );
-
-    const wifi = serviziArray.some((servizio) =>
-      servizio.toLowerCase().includes("internet")
-    );
-
-    // TODO: photo count
-    const photos = 0;
-
-    const listing: Listing = {
-      id: data.id,
-      title: data.titolo,
-      zone: data.universita?.nome ?? "",
-      price: Number(data.prezzo),
-      owner: ownerName,
-      rating: 0,
-      photos,
-      furnished,
-      wifi,
-      description: data.descrizione ?? "",
-      available: data.attiva && data.stato === "disponibile",
-    };
-
-    res.json(GetListingResponse.parse(listing));
+    return res.json(GetListingResponse.parse(listing));
   } catch (error) {
     console.error("Error fetching listing by ID:", error);
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 

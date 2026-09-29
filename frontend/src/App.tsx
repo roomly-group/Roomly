@@ -5,7 +5,11 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { PersonaLanguageProvider } from '@/components/layout/app-shell';
 import { Router } from '@/router';
 
-const queryClient = new QueryClient();
+// Retry once (not the default 3 times with backoff) so a failing API shows the
+// error state quickly instead of leaving the loading skeleton on screen.
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
+});
 
 function App() {
   return (
