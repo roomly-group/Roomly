@@ -243,6 +243,20 @@ router.post("/listings", requireAuth, async (req: Request, res: Response) => {
       throw new Error("Failed to create listing");
     }
 
+    const { data: ownerRecord, error: ownerError } = await supabaseAdmin
+      .from("utenti")
+      .update({ owner: true })
+      .eq("id", authedReq.userId)
+      .select("id")
+      .maybeSingle();
+
+    if (ownerError) {
+      throw ownerError;
+    }
+    if (!ownerRecord) {
+      throw new Error("Failed to promote listing owner");
+    }
+
     // We need to map the created listing to the Listing type for response
     // For simplicity, we'll return a basic Listing object (similar to above but with defaults)
     const listing: Listing = {

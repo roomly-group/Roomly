@@ -23,24 +23,29 @@ function OwnerListingRow({
   status: string;
 }) {
   const { t } = useLanguage();
+  const safeTitle = title ?? '';
+  const safeZone = zone ?? '';
+  const safePrice = price ?? '';
+  const safeStatus = status ?? '';
+
   return (
     <div className="flex items-center gap-3 rounded-xl border border-[#dbe8e0] p-3">
       <div className="hidden h-12 w-16 rounded-lg bg-gradient-to-br from-[#a6dfca] to-[#efc68e] sm:block" />
       <div className="min-w-0 flex-1">
-        <h3 className="truncate text-sm font-black text-[#085041]">{title}</h3>
+        <h3 className="truncate text-sm font-black text-[#085041]">{safeTitle}</h3>
         <p className="mt-0.5 text-xs font-bold text-[#527067]">
-          {zone} · {price}
+          {safeZone} · {safePrice}
           {t('common.perMonth')}
         </p>
       </div>
       <span className="hidden rounded-full bg-[#E1F5EE] px-2.5 py-1 text-[11px] font-black text-[#0F6E56] sm:inline-flex">
         <Check size={12} className="mr-1" />
-        {status}
+        {safeStatus}
       </span>
       <span
         className="rounded-lg p-2 text-[#9ab8ab]"
         title={t('dashboard.editingSoon')}
-        data-testid={`status-owner-listing-${title.replace(/\s/g, '-').toLowerCase()}`}
+        data-testid={`status-owner-listing-${safeTitle.replace(/\s/g, '-').toLowerCase()}`}
       >
         <PenLine size={16} />
       </span>
@@ -111,10 +116,10 @@ export function OwnerDashboard() {
 
   const metrics: Array<{ label: string; value: string | number; icon: typeof House }> = dashboard
     ? [
-        { label: t('dashboard.metricActive'), value: dashboard.activeListings, icon: House },
-        { label: t('dashboard.metricPending'), value: dashboard.pendingRequests, icon: Clock3 },
-        { label: t('dashboard.metricMonth'), value: formatPrice(dashboard.monthlyEarnings), icon: ArrowRight },
-        { label: t('dashboard.metricRating'), value: dashboard.averageRating.toFixed(1), icon: Star },
+        { label: t('dashboard.metricActive'), value: dashboard.activeListings ?? 0, icon: House },
+        { label: t('dashboard.metricPending'), value: dashboard.pendingRequests ?? 0, icon: Clock3 },
+        { label: t('dashboard.metricMonth'), value: formatPrice(dashboard.monthlyEarnings ?? 0), icon: ArrowRight },
+        { label: t('dashboard.metricRating'), value: (dashboard.averageRating ?? 0).toFixed(1), icon: Star },
       ]
     : [];
 
@@ -213,15 +218,17 @@ export function OwnerDashboard() {
                   </div>
                 ) : (
                   <>
-                    {safeListings.map((listing) => (
-                      <OwnerListingRow
-                        key={listing.id}
-                        title={listing.title}
-                        zone={zoneLabel(listing.zone)}
-                        price={`£${listing.price}`}
-                        status={t('dashboard.published')}
-                      />
-                    ))}
+                    {safeListings
+                      .filter((listing): listing is NonNullable<typeof listing> => listing !== null && listing !== undefined)
+                      .map((listing) => (
+                        <OwnerListingRow
+                          key={listing.id}
+                          title={listing.title ?? ''}
+                          zone={zoneLabel(listing.zone ?? '')}
+                          price={`£${listing.price ?? 0}`}
+                          status={t('dashboard.published')}
+                        />
+                      ))}
                   </>
                 )}
               </section>

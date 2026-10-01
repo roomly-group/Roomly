@@ -62,32 +62,28 @@ export function Router() {
           </RequireAuth>
         )} />
         <Route path="/owner/listings/new" component={() => (
-          <RequireAdmin>
-            <RequireOwner>
-              <NewListingPage />
-            </RequireOwner>
-          </RequireAdmin>
+          <RequireAuth>
+            <NewListingPage />
+          </RequireAuth>
         )} />
         <Route path="/owner/messages" component={() => (
-          <RequireAdmin>
+          <RequireAuth>
             <RequireOwner>
               <OwnerMessagesRoute />
             </RequireOwner>
-          </RequireAdmin>
+          </RequireAuth>
         )} />
         <Route path="/owner/profile" component={() => (
-          <RequireAdmin>
+          <RequireAuth>
             <RequireOwner>
               <OwnerProfileRoute />
             </RequireOwner>
-          </RequireAdmin>
+          </RequireAuth>
         )} />
         <Route path="/owner" component={() => (
-          <RequireAdmin>
-            <RequireOwner>
-              <OwnerDashboard />
-            </RequireOwner>
-          </RequireAdmin>
+          <RequireAuth>
+            <OwnerDashboard />
+          </RequireAuth>
         )} />
         <Route path="/waitlist" component={WaitlistPage} />
         <Route path="/waitlist/confirmed" component={WaitlistConfirmedPage} />
