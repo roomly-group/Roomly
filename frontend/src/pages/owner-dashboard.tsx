@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowRight, Check, Clock3, House, MessageCircle, MoreHorizontal, PenLine, Plus, Sparkles, Star } from 'lucide-react';
 import { Link } from 'wouter';
 import { getGetOwnerDashboardQueryKey, useGetOwnerDashboard } from '@workspace/api-client-react';
@@ -8,6 +8,7 @@ import { useZoneLabel } from '@/hooks/use-zone-label';
 import { AppShell } from '@/components/layout/app-shell';
 import { PageIntro } from '@/components/shared/page-intro';
 import { QueryError } from '@/components/shared/query-error';
+import { supabase } from '@/lib/supabase';
 
 function OwnerListingRow({
   title,
@@ -54,12 +55,62 @@ export function OwnerDashboard() {
   });
   const dashboard = data;
   const [listingOptionsOpen, setListingOptionsOpen] = useState(false);
+const [userName, setUserName] = useState<string>('Maya');
+
+useEffect(() => {
+  const getUser = async () => {
+    const session = supabase.auth.session();
+    if (session?.user) {
+      const user = session.user;
+      let name = '';
+      if (user.user_metadata?.full_name) {
+        name = user.user_metadata.full_name;
+      } else if (user.user_metadata?.name) {
+        name = user.user_metadata.name;
+      } else if (user.user_metadata?.email) {
+        const emailMatch = user.user_metadata.email?.match(/^([^@]+)/);
+        name = emailMatch ? emailMatch[1] : '';
+      } else if (user.email) {
+        const emailMatch = user.email?.match(/^([^@]+)/);
+        name = emailMatch ? emailMatch[1] : '';
+      }
+      if (name) {
+        setUserName(name);
+      }
+    }
+  };
+  getUser();
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (session?.user) {
+      const user = session.user;
+      let name = '';
+      if (user.user_metadata?.full_name) {
+        name = user.user_metadata.full_name;
+      } else if (user.user_metadata?.name) {
+        name = user.user_metadata.name;
+      } else if (user.user_metadata?.email) {
+        const emailMatch = user.user_metadata.email?.match(/^([^@]+)/);
+        name = emailMatch ? emailMatch[1] : '';
+      } else if (user.email) {
+        const emailMatch = user.email?.match(/^([^@]+)/);
+        name = emailMatch ? emailMatch[1] : '';
+      }
+      if (name) {
+        setUserName(name);
+      } else {
+        setUserName('Maya');
+      }
+    } else {
+      setUserName('Maya');
+    }
+  });
+  return () => subscription.unsubscribe();
+}, []);
 
   const metrics: Array<{ label: string; value: string | number; icon: typeof House }> = dashboard
     ? [
         { label: t('dashboard.metricActive'), value: dashboard.activeListings, icon: House },
         { label: t('dashboard.metricPending'), value: dashboard.pendingRequests, icon: Clock3 },
-        { label: t('dashboard.metricChats'), value: dashboard.activeChats, icon: MessageCircle },
         { label: t('dashboard.metricMonth'), value: formatPrice(dashboard.monthlyEarnings), icon: ArrowRight },
         { label: t('dashboard.metricRating'), value: dashboard.averageRating.toFixed(1), icon: Star },
       ]
@@ -70,7 +121,7 @@ export function OwnerDashboard() {
       <div className="mx-auto max-w-[1320px] px-5 py-8 lg:px-8 lg:py-12">
         <PageIntro
           eyebrow={t('dashboard.eyebrow')}
-          title={t('dashboard.greeting')}
+          title={t('dashboard.greeting').replace('{name}', userName)}
           description={t('dashboard.subtitle')}
           action={
             <Link
@@ -84,8 +135,8 @@ export function OwnerDashboard() {
         />
 
         {isLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {[1, 2, 3, 4, 5].map((item) => (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[1, 2, 3, 4].map((item) => (
               <div className="skeleton h-32 rounded-2xl" key={item} />
             ))}
           </div>
@@ -93,7 +144,7 @@ export function OwnerDashboard() {
           <QueryError onRetry={() => refetch()} />
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {metrics.map((metric, index) => {
                 const Icon = metric.icon;
                 return (

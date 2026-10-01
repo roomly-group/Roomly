@@ -255,7 +255,7 @@ export const translations = {
     'profile.statJoined': 'Joined',
 
     'dashboard.eyebrow': 'Owner space',
-    'dashboard.greeting': 'Good morning, Maya.',
+    'dashboard.greeting': 'Good morning, {name}.',
     'dashboard.subtitle': 'Here’s how your rooms and conversations are doing.',
     'dashboard.addListing': 'Add a listing',
     'dashboard.metricActive': 'Active listings',
@@ -672,7 +672,7 @@ export const translations = {
     'profile.statJoined': 'Iscritto dal',
 
     'dashboard.eyebrow': 'Area proprietario',
-    'dashboard.greeting': 'Buongiorno, Maya.',
+    'dashboard.greeting': 'Buongiorno, {name}.',
     'dashboard.subtitle': 'Ecco come stanno andando le tue stanze e conversazioni.',
     'dashboard.addListing': 'Aggiungi un annuncio',
     'dashboard.metricActive': 'Annunci attivi',
@@ -1086,7 +1086,7 @@ export const translations = {
     'profile.statJoined': 'Te uniste',
 
     'dashboard.eyebrow': 'Espacio del propietario',
-    'dashboard.greeting': 'Buenos días, Maya.',
+    'dashboard.greeting': 'Buenos días, {name}.',
     'dashboard.subtitle': 'Así van tus habitaciones y conversaciones.',
     'dashboard.addListing': 'Añadir un anuncio',
     'dashboard.metricActive': 'Anuncios activos',
@@ -1501,7 +1501,7 @@ export const translations = {
     'profile.statJoined': 'Membre depuis',
 
     'dashboard.eyebrow': 'Espace propriétaire',
-    'dashboard.greeting': 'Bonjour, Maya.',
+    'dashboard.greeting': 'Bonjour, {name}.',
     'dashboard.subtitle': 'Voici comment vont vos chambres et vos conversations.',
     'dashboard.addListing': 'Ajouter une annonce',
     'dashboard.metricActive': 'Annonces actives',
@@ -1915,7 +1915,7 @@ export const translations = {
     'profile.statJoined': 'Beigetreten',
 
     'dashboard.eyebrow': 'Eigentümerbereich',
-    'dashboard.greeting': 'Guten Morgen, Maya.',
+    'dashboard.greeting': 'Guten Morgen, {name}.',
     'dashboard.subtitle': 'So läuft es gerade mit deinen Zimmern und Unterhaltungen.',
     'dashboard.addListing': 'Inserat hinzufügen',
     'dashboard.metricActive': 'Aktive Inserate',
@@ -2330,7 +2330,7 @@ export const translations = {
     'profile.statJoined': 'Membro desde',
 
     'dashboard.eyebrow': 'Espaço do proprietário',
-    'dashboard.greeting': 'Bom dia, Maya.',
+    'dashboard.greeting': 'Bom dia, {name}.',
     'dashboard.subtitle': 'Eis como estão os teus quartos e conversas.',
     'dashboard.addListing': 'Adicionar anúncio',
     'dashboard.metricActive': 'Anúncios ativos',
