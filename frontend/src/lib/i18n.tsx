@@ -72,6 +72,8 @@ export const translations = {
     'common.tryAgain': 'Try again',
     'common.somethingWrong': "That didn't load properly",
     'common.somethingWrongDesc': "Give it another try. If it keeps happening, we'll be here when you're ready.",
+    'loading': 'Loading',
+    'loadingDescription': 'Checking your access and preparing your dashboard…',
     'common.perMonth': ' / month',
     'common.room': 'room',
     'common.rooms': 'rooms',

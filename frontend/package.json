@@ -46,6 +46,7 @@
     "@tanstack/react-query": "^5.90.21",
     "@vitejs/plugin-react": "^5.0.4",
     "@workspace/api-client-react": "file:./local-libs/api-client-react",
+    "@workspace/api-zod": "file:../backend/local-libs/api-zod",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -74,7 +75,8 @@
   "devDependencies": {
     "@types/node": "^25.3.3",
     "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0"
+    "@types/react-dom": "^19.2.0",
+    "typescript": "^5.6.3"
   },
   "allowScripts": {
     "esbuild@0.28.2": true

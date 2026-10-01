@@ -5,6 +5,7 @@ import { getGetOwnerDashboardQueryKey, useGetOwnerDashboard } from '@workspace/a
 import { useLanguage } from '@/lib/i18n';
 import { formatPrice } from '@/lib/constants';
 import { useZoneLabel } from '@/hooks/use-zone-label';
+import { useListOwnerListings } from '@/hooks/use-list-owner-listings';
 import { AppShell } from '@/components/layout/app-shell';
 import { PageIntro } from '@/components/shared/page-intro';
 import { QueryError } from '@/components/shared/query-error';
@@ -53,59 +54,60 @@ export function OwnerDashboard() {
   const { data, isLoading, isError, refetch } = useGetOwnerDashboard({
     query: { queryKey: getGetOwnerDashboardQueryKey() },
   });
+  const { data: listings, isLoading: listingsLoading, isError: listingsError } = useListOwnerListings();
   const dashboard = data;
   const [listingOptionsOpen, setListingOptionsOpen] = useState(false);
-const [userName, setUserName] = useState<string>('Maya');
+  const [userName, setUserName] = useState<string>('Maya');
+  const safeListings = listings ?? [];
 
-useEffect(() => {
-  const getUser = async () => {
-    const session = supabase.auth.session();
-    if (session?.user) {
-      const user = session.user;
-      let name = '';
-      if (user.user_metadata?.full_name) {
-        name = user.user_metadata.full_name;
-      } else if (user.user_metadata?.name) {
-        name = user.user_metadata.name;
-      } else if (user.user_metadata?.email) {
-        const emailMatch = user.user_metadata.email?.match(/^([^@]+)/);
-        name = emailMatch ? emailMatch[1] : '';
-      } else if (user.email) {
-        const emailMatch = user.email?.match(/^([^@]+)/);
-        name = emailMatch ? emailMatch[1] : '';
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const user = session.user;
+        let name = '';
+        if (user.user_metadata?.full_name) {
+          name = user.user_metadata.full_name;
+        } else if (user.user_metadata?.name) {
+          name = user.user_metadata.name;
+        } else if (user.user_metadata?.email) {
+          const emailMatch = user.user_metadata.email?.match(/^([^@]+)/);
+          name = emailMatch ? emailMatch[1] : '';
+        } else if (user.email) {
+          const emailMatch = user.email?.match(/^([^@]+)/);
+          name = emailMatch ? emailMatch[1] : '';
+        }
+        if (name) {
+          setUserName(name);
+        }
       }
-      if (name) {
-        setUserName(name);
-      }
-    }
-  };
-  getUser();
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-    if (session?.user) {
-      const user = session.user;
-      let name = '';
-      if (user.user_metadata?.full_name) {
-        name = user.user_metadata.full_name;
-      } else if (user.user_metadata?.name) {
-        name = user.user_metadata.name;
-      } else if (user.user_metadata?.email) {
-        const emailMatch = user.user_metadata.email?.match(/^([^@]+)/);
-        name = emailMatch ? emailMatch[1] : '';
-      } else if (user.email) {
-        const emailMatch = user.email?.match(/^([^@]+)/);
-        name = emailMatch ? emailMatch[1] : '';
-      }
-      if (name) {
-        setUserName(name);
+    };
+
+    getUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const user = session.user;
+        let name = '';
+        if (user.user_metadata?.full_name) {
+          name = user.user_metadata.full_name;
+        } else if (user.user_metadata?.name) {
+          name = user.user_metadata.name;
+        } else if (user.user_metadata?.email) {
+          const emailMatch = user.user_metadata.email?.match(/^([^@]+)/);
+          name = emailMatch ? emailMatch[1] : '';
+        } else if (user.email) {
+          const emailMatch = user.email?.match(/^([^@]+)/);
+          name = emailMatch ? emailMatch[1] : '';
+        }
+        setUserName(name || 'Maya');
       } else {
         setUserName('Maya');
       }
-    } else {
-      setUserName('Maya');
-    }
-  });
-  return () => subscription.unsubscribe();
-}, []);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const metrics: Array<{ label: string; value: string | number; icon: typeof House }> = dashboard
     ? [
@@ -188,20 +190,40 @@ useEffect(() => {
                   </p>
                 )}
 
-                <div className="mt-6 space-y-3">
-                  <OwnerListingRow
-                    title={t('dashboard.sampleListing1')}
-                    zone={zoneLabel('Riverside')}
-                    price="£720"
-                    status={t('dashboard.published')}
-                  />
-                  <OwnerListingRow
-                    title={t('dashboard.sampleListing2')}
-                    zone={zoneLabel('Maple Quarter')}
-                    price="£680"
-                    status={t('dashboard.published')}
-                  />
-                </div>
+                {listingsLoading ? (
+                  <div className="mt-6 space-y-3">
+                    {[1, 2].map((item) => (
+                      <div className="skeleton h-12 rounded-xl" key={item} />
+                    ))}
+                  </div>
+                ) : listingsError ? (
+                  <div className="mt-6 space-y-3">
+                    <p className="text-center text-[#527067]">Failed to load listings</p>
+                  </div>
+                ) : safeListings.length === 0 ? (
+                  <div className="mt-6 rounded-2xl border border-dashed border-[#dbe8e0] bg-[#F7FAF8] p-6 text-center">
+                    <p className="text-base font-black text-[#085041]">No rooms published yet</p>
+                    <p className="mt-2 text-sm text-[#527067]">Create your first listing to start receiving enquiries.</p>
+                    <Link
+                      href="/owner/listings/new"
+                      className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#EF9F27] px-4 py-2.5 text-sm font-black text-[#2C2C2A]"
+                    >
+                      <Plus size={17} /> {t('dashboard.addListing')}
+                    </Link>
+                  </div>
+                ) : (
+                  <>
+                    {safeListings.map((listing) => (
+                      <OwnerListingRow
+                        key={listing.id}
+                        title={listing.title}
+                        zone={zoneLabel(listing.zone)}
+                        price={`£${listing.price}`}
+                        status={t('dashboard.published')}
+                      />
+                    ))}
+                  </>
+                )}
               </section>
 
               <section className="rounded-2xl bg-[#085041] p-5 text-[#E1F5EE] sm:p-7">

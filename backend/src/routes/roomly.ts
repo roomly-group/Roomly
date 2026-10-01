@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { requireAuth } from "../middleware/auth";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import {
+  type Listing,
   CreateListingBody,
   GetListingParams,
   ListListingsQueryParams,
@@ -16,6 +17,45 @@ import {
   SendMessageResponse,
   GetOwnerDashboardResponse,
 } from "@workspace/api-zod";
+
+type RoomRow = {
+  id: number;
+  titolo: string | null;
+  prezzo: number | string | null;
+  descrizione?: string | null;
+  attiva?: boolean | null;
+  stato?: string | null;
+  servizi?: string[] | null;
+  universita?: { nome?: string | null } | null;
+  utenti?: { nome_utente?: string | null; nome?: string | null; cognome?: string | null } | null;
+};
+
+const mapRoomRowToListing = (row: RoomRow): Listing => {
+  const ownerName = row.utenti?.nome_utente ??
+    (row.utenti?.nome && row.utenti?.cognome ? `${row.utenti.nome} ${row.utenti.cognome}` : "Unknown");
+
+  const serviziArray = Array.isArray(row.servizi) ? row.servizi : [];
+  const furnished = serviziArray.some((servizio: string) =>
+    ["arredato", "mobilio", "letto", "armadio"].includes(servizio.toLowerCase())
+  );
+  const wifi = serviziArray.some((servizio: string) =>
+    servizio.toLowerCase().includes("internet")
+  );
+
+  return {
+    id: row.id,
+    title: row.titolo ?? "",
+    zone: row.universita?.nome ?? "",
+    price: Number(row.prezzo ?? 0),
+    owner: ownerName,
+    rating: 0,
+    photos: 0,
+    furnished,
+    wifi,
+    description: row.descrizione ?? "",
+    available: Boolean(row.attiva) && row.stato === "disponibile",
+  };
+};
 
 const router: IRouter = Router();
 
@@ -40,7 +80,7 @@ router.get("/listings", async (req: Request, res: Response) => {
         servizi,
         universita_id,
         proprietario_id,
-        universita:nome,
+        universita:universita_id(nome),
         utenti:proprietario_id(nome_utente, nome, cognome)
       `);
 
@@ -67,50 +107,8 @@ router.get("/listings", async (req: Request, res: Response) => {
       throw error;
     }
 
-    // Map the database rows to the Listing type
-    const listings: Listing[] = data.map((row) => {
-      // Determine owner string
-      const ownerName = row.utenti?.nome_utente ||
-        (row.utenti?.nome && row.utenti?.cognome ? `${row.utenti.nome} ${row.utenti.cognome}` : "Unknown");
-
-      // Determine if furnished: we'll check if 'arredato' is in servizi (example)
-      const serviziArray = row.servizi ?? [];
-      const furnished = serviziArray.some((servizio) =>
-        ["arredato", "mobilio", "letto", "armadio"].includes(servizio.toLowerCase())
-      );
-
-      // Determine if wifi: check if 'internet' is in servizi
-      const wifi = serviziArray.some((servizio) =>
-        servizio.toLowerCase().includes("internet")
-      );
-
-      // Count photos: we would need a separate query or include count in select
-      // For simplicity, we'll set to 0 and later we can add a photos count
-      // We'll do a separate query for each row? Not efficient.
-      // Instead, we can modify the select to include a count of stanze_foto
-      // Let's adjust the select above to include photos count.
-      // We'll change the select to:
-      //   id, titolo, prezzo, descrizione, attiva, stato, servizi, universita_id, proprietario_id,
-      //   universita:nome,
-      //   utenti:proprietario_id(nome_utente, nome, cognome),
-      //   stanze_foto!left(count)
-      // But for now, we'll set to 0 and note that we need to improve.
-      const photos = 0; // TODO: implement photo count
-
-      return {
-        id: row.id,
-        title: row.titolo,
-        zone: row.universita?.nome ?? "",
-        price: Number(row.prezzo),
-        owner: ownerName,
-        rating: 0, // placeholder
-        photos,
-        furnished,
-        wifi,
-        description: row.descrizione ?? "",
-        available: row.attiva && row.stato === "disponibile",
-      };
-    });
+    const rows = ((data ?? []) as RoomRow[]);
+    const listings: Listing[] = rows.map((row) => mapRoomRowToListing(row));
 
     // Apply zone filter in memory if we didn't do it in DB (we did above, but just in case)
     const filteredListings = listings.filter((listing) =>
@@ -126,10 +124,10 @@ router.get("/listings", async (req: Request, res: Response) => {
     // Apply furnished filter in memory (if we had implemented it)
     // For now, skip
 
-    res.json(ListListingsResponse.parse(priceFilteredListings));
+    return res.json(ListListingsResponse.parse(priceFilteredListings));
   } catch (error) {
     console.error("Error fetching listings:", error);
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -153,7 +151,7 @@ router.get("/listings/:id", async (req: Request, res: Response) => {
         servizi,
         universita_id,
         proprietario_id,
-        universita:nome,
+        universita:universita_id(nome),
         utenti:proprietario_id(nome_utente, nome, cognome)
       `)
       .eq("id", id)
@@ -173,40 +171,12 @@ router.get("/listings/:id", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Listing not found" });
     }
 
-    // Map to Listing type (same as above)
-    const ownerName = data.utenti?.nome_utente ||
-      (data.utenti?.nome && data.utenti?.cognome ? `${data.utenti.nome} ${data.utenti.cognome}` : "Unknown");
+    const listing: Listing = mapRoomRowToListing(data as RoomRow);
 
-    const serviziArray = data.servizi ?? [];
-    const furnished = serviziArray.some((servizio) =>
-      ["arredato", "mobilio", "letto", "armadio"].includes(servizio.toLowerCase())
-    );
-
-    const wifi = serviziArray.some((servizio) =>
-      servizio.toLowerCase().includes("internet")
-    );
-
-    // TODO: photo count
-    const photos = 0;
-
-    const listing: Listing = {
-      id: data.id,
-      title: data.titolo,
-      zone: data.universita?.nome ?? "",
-      price: Number(data.prezzo),
-      owner: ownerName,
-      rating: 0,
-      photos,
-      furnished,
-      wifi,
-      description: data.descrizione ?? "",
-      available: data.attiva && data.stato === "disponibile",
-    };
-
-    res.json(GetListingResponse.parse(listing));
+    return res.json(GetListingResponse.parse(listing));
   } catch (error) {
     console.error("Error fetching listing by ID:", error);
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -289,10 +259,10 @@ router.post("/listings", requireAuth, async (req: Request, res: Response) => {
       available: newListing.attiva && newListing.stato === "disponibile",
     };
 
-    res.status(201).json(CreateListingResponse.parse(listing));
+    return res.status(201).json(CreateListingResponse.parse(listing));
   } catch (error) {
     console.error("Error creating listing:", error);
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -371,13 +341,53 @@ router.get("/dashboard/owner", requireAuth, async (req: Request, res: Response) 
 
   // We would need to fetch the owner's listings from the database.
   // For now, we return mock data.
-  res.json(GetOwnerDashboardResponse.parse({
+  return res.json(GetOwnerDashboardResponse.parse({
     activeListings: 0,
     pendingRequests: 0,
     activeChats: 0,
     monthlyEarnings: 0,
     averageRating: 0,
   }));
+});
+
+// GET /api/owner/listings
+// Get listings for the current owner
+router.get("/owner/listings", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const authedReq = req as typeof req & { userId: string };
+
+          let dbQuery = supabaseAdmin
+        .from("stanze")
+        .select(`
+          id,
+          titolo,
+          prezzo,
+          descrizione,
+          attiva,
+          stato,
+          servizi,
+          universita_id,
+          proprietario_id,
+          universita:universita_id(nome),
+          utenti:proprietario_id(nome_utente, nome, cognome)
+        `);
+
+      dbQuery = dbQuery.eq("proprietario_id", authedReq.userId);
+      dbQuery = dbQuery.eq("attiva", true);
+      dbQuery = dbQuery.eq("stato", "disponibile");
+
+      const { data, error } = await dbQuery;
+
+    if (error) throw error;
+
+    const rows = ((data ?? []) as RoomRow[]);
+    const listings: Listing[] = rows.map((row) => mapRoomRowToListing(row));
+
+    return res.json(listings);
+  } catch (error) {
+    console.error("Error fetching owner listings:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 export default router;
