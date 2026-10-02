@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowRight, ChevronDown, KeyRound, MapPin, Search, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, KeyRound, ShieldCheck, Sparkles } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import {
   getHealthCheckQueryKey,
@@ -11,6 +11,8 @@ import { useLanguage } from '@/lib/i18n';
 import { AppShell } from '@/components/layout/app-shell';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/shared/button';
+import { LocationSearch } from '@/components/shared/location-search';
+import { useUniversities } from '@/hooks/use-universities';
 import { ListingCard } from '@/components/shared/listing-card';
 import { LoadingCards } from '@/components/shared/loading-cards';
 import { QueryError } from '@/components/shared/query-error';
@@ -28,29 +30,7 @@ function SearchBar({
   const { t } = useLanguage();
   const [zone, setZone] = useState(initialZone);
   const [maxPrice, setMaxPrice] = useState(initialMax);
-  const [universities, setUniversities] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Fetch universities from the backend
-    fetch('/api/universita')
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error('Failed to fetch universities');
-        }
-        return response.json();
-      })
-      .then((data) => {
-        // Assuming the backend returns an array of strings: ["Uni1", "Uni2", ...]
-        setUniversities(data as string[]);
-        setLoading(false);
-      })
-      .catch((error) => {
-        console.error('Error fetching universities:', error);
-        setLoading(false);
-        // Optionally, set a fallback or show error
-      });
-  }, []);
+  const { universities, loading } = useUniversities();
 
   return (
     <form
@@ -61,24 +41,14 @@ function SearchBar({
       }}
       data-testid="form-search"
     >
-      <label className="flex min-h-12 flex-1 items-center gap-2 rounded-xl bg-[#F1EFE8] px-3 text-[#527067]">
-        <MapPin size={18} className="text-[#0F6E56]" />
-        <select
-          value={zone}
-          onChange={(event) => setZone(event.target.value)}
-          className="w-full bg-transparent text-sm font-bold text-[#2C2C2A] outline-none"
-          data-testid="select-zone"
-          disabled={loading}
-        >
-          <option value="">{t('searchBar.anywhere')}</option>
-          {universities.map((uni) => (
-            <option key={uni} value={uni}>
-              {uni}
-            </option>
-          ))}
-        </select>
-        <ChevronDown size={16} />
-      </label>
+      <LocationSearch
+        className="flex-1"
+        value={zone}
+        onChange={setZone}
+        options={universities}
+        loading={loading}
+        data-testid="input-zone"
+      />
 
       <label className="flex min-h-12 w-full flex-1 items-center gap-2 rounded-xl bg-[#F1EFE8] px-3 text-[#527067] sm:max-w-[220px]">
         <span className="text-lg font-black text-[#0F6E56]">£</span>
@@ -154,11 +124,13 @@ export function Home() {
   return (
     <AppShell>
       <div className="mx-auto max-w-[1320px] px-5 pb-16 pt-7 lg:px-8 lg:pt-12">
-        <section className="relative overflow-hidden rounded-[2rem] bg-[#9FE1CB] px-6 py-10 sm:px-10 lg:px-16 lg:py-16">
-          <div className="absolute -right-12 -top-16 h-64 w-64 rounded-full border-[34px] border-[#E1F5EE]/60" />
-          <div className="absolute -bottom-20 right-32 h-48 w-48 rounded-full bg-[#EF9F27]/25" />
+        <section className="relative rounded-[2rem] bg-[#9FE1CB] px-6 py-10 sm:px-10 lg:px-16 lg:py-16">
+          <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[2rem]">
+            <div className="absolute -right-12 -top-16 h-64 w-64 rounded-full border-[34px] border-[#E1F5EE]/60" />
+            <div className="absolute -bottom-20 right-32 h-48 w-48 rounded-full bg-[#EF9F27]/25" />
+          </div>
 
-          <div className="relative max-w-2xl page-enter">
+          <div className="relative z-10 max-w-2xl page-enter">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-[#E1F5EE] px-3 py-1.5 text-xs font-black text-[#085041]">
               <Sparkles size={14} /> {t('home.badge')}
             </div>

@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Check, ChevronLeft, MapPin, SlidersHorizontal } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Check, ChevronLeft, SlidersHorizontal } from 'lucide-react';
 import { Link } from 'wouter';
 import { getListListingsQueryKey, useListListings } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
-import { useZoneLabel } from '@/hooks/use-zone-label';
+import { useUniversities } from '@/hooks/use-universities';
 import { AppShell } from '@/components/layout/app-shell';
 import { Button } from '@/components/shared/button';
+import { LocationSearch } from '@/components/shared/location-search';
 import { PageIntro } from '@/components/shared/page-intro';
 import { ListingCard } from '@/components/shared/listing-card';
 import { LoadingCards } from '@/components/shared/loading-cards';
@@ -14,26 +15,11 @@ import { EmptyState } from '@/components/shared/empty-state';
 
 export function SearchPage() {
   const { t } = useLanguage();
-  const zoneLabel = useZoneLabel();
   const params = new URLSearchParams(window.location.search);
   const [zone, setZone] = useState(params.get('zone') ?? '');
   const [maxPrice, setMaxPrice] = useState('');
   const [furnished, setFurnished] = useState(false);
-  const [universities, setUniversities] = useState<string[]>([]);
-
-  // Zones are the universities stored in the database, not a hardcoded list.
-  useEffect(() => {
-    fetch('/api/universita')
-      .then((response) => (response.ok ? response.json() : []))
-      .then((data) => setUniversities(Array.isArray(data) ? (data as string[]) : []))
-      .catch(() => setUniversities([]));
-  }, []);
-
-  // Keep a zone coming from the URL (?zone=...) selectable even before the list loads.
-  const zoneOptions = useMemo(
-    () => (zone && !universities.includes(zone) ? [zone, ...universities] : universities),
-    [zone, universities],
-  );
+  const { universities, loading: universitiesLoading } = useUniversities();
 
   const request = useMemo(
     () => ({
@@ -79,22 +65,15 @@ export function SearchPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <label className="flex items-center gap-2 rounded-xl border border-[#bedbcd] bg-[#F1EFE8] px-3 py-2 text-sm font-bold text-[#527067]">
-              <MapPin size={15} />
-              <select
-                value={zone}
-                onChange={(event) => setZone(event.target.value)}
-                className="bg-transparent outline-none"
-                data-testid="select-search-zone"
-              >
-                <option value="">{t('searchPage.allAreas')}</option>
-                {zoneOptions.map((item) => (
-                  <option key={item} value={item}>
-                    {zoneLabel(item)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <LocationSearch
+              className="w-full sm:w-72"
+              value={zone}
+              onChange={setZone}
+              options={universities}
+              loading={universitiesLoading}
+              commit="explicit"
+              data-testid="input-search-zone"
+            />
 
             <label className="flex items-center gap-2 rounded-xl border border-[#bedbcd] bg-[#F1EFE8] px-3 py-2 text-sm font-bold text-[#527067]">
               <span className="font-black">£</span>
