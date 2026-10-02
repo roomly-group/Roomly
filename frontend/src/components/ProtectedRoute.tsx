@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate } from 'wouter';
+import { Redirect } from 'wouter';
 import { supabase } from '@/lib/supabase';
 import { getUserRole, UserRole } from '@/lib/auth-role';
 import NotFound from '@/pages/not-found';
@@ -58,7 +58,7 @@ export function ProtectedRoute({ allowedRoles, children, redirect }: ProtectedRo
   }
 
   if (redirectTo) {
-    return <Navigate to={redirectTo} replace />;
+    return <Redirect to={redirectTo} replace />;
   }
 
   const isAllowed = role !== null && allowedRoles.includes(role);
@@ -66,7 +66,7 @@ export function ProtectedRoute({ allowedRoles, children, redirect }: ProtectedRo
   if (!isAllowed) {
     // If redirect provided, go there; else show 404
     if (redirect) {
-      return <Navigate to={redirect} replace />;
+      return <Redirect to={redirect} replace />;
     }
     return <NotFound />;
   }

@@ -28,7 +28,8 @@
     "allowImportingTsExtensions": true,
     "types": ["node", "vite/client"],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@workspace/*": ["../backend/local-libs/*"]
     }
   }
 }
