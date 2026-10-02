@@ -52,6 +52,7 @@ export function ListingCard({
           <div>
             <p className="mb-1 flex items-center gap-1 text-xs font-extrabold text-[#527067]">
               <MapPin size={13} /> {listing.zone}
+              {listing.distanceKm !== undefined && ` · ${listing.distanceKm.toFixed(1)} km`}
             </p>
             <h3 className="line-clamp-1 text-lg font-black text-[#085041]">
               {listing.title}

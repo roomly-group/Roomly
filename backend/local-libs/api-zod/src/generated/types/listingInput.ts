@@ -9,8 +9,13 @@
 export interface ListingInput {
   /** @minLength 1 */
   title: string;
-  /** @minLength 1 */
-  zone: string;
+  /** Opzionale: se mancano le coordinate il backend usa il nome dell'università. */
+  zone?: string;
+  address?: string;
+  city?: string;
+  postcode?: string;
+  latitude?: number;
+  longitude?: number;
   /** @minimum 1 */
   price: number;
   /** @minLength 1 */

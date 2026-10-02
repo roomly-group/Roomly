@@ -21,13 +21,20 @@ export interface Listing {
   wifi: boolean;
   description: string;
   available: boolean;
+  /** Distanza in km dall'università cercata (solo nella ricerca per università). */
+  distanceKm?: number;
 }
 
 export interface ListingInput {
   /** @minLength 1 */
   title: string;
-  /** @minLength 1 */
-  zone: string;
+  /** Opzionale: se mancano le coordinate il backend usa il nome dell'università. */
+  zone?: string;
+  address?: string;
+  city?: string;
+  postcode?: string;
+  latitude?: number;
+  longitude?: number;
   /** @minimum 1 */
   price: number;
   /** @minLength 1 */

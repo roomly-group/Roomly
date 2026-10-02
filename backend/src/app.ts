@@ -61,7 +61,7 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'", "https://challenges.cloudflare.com"], // Allow inline scripts for now (can be tightened)
       styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for Tailwind/Vite
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "https://*.supabase.co", "https://challenges.cloudflare.com"], // Allow Supabase + Turnstile connections
+      connectSrc: ["'self'", "https://api.geoapify.com", "https://*.supabase.co", "https://challenges.cloudflare.com"], // Allow Supabase + Turnstile connections
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],

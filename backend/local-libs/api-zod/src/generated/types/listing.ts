@@ -18,4 +18,6 @@ export interface Listing {
   wifi: boolean;
   description: string;
   available: boolean;
+  /** Distanza in km dall'università cercata (solo nella ricerca per università). */
+  distanceKm?: number;
 }

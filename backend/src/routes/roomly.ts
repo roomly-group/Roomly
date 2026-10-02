@@ -2,6 +2,13 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { requireAuth } from "../middleware/auth";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import {
+  SEARCH_RADIUS_KM,
+  boundingBox,
+  haversineKm,
+  nearestUniversity,
+  type UniversityPoint,
+} from "../lib/geo.js";
+import {
   type Listing,
   CreateListingBody,
   GetListingParams,
@@ -26,11 +33,14 @@ type RoomRow = {
   attiva?: boolean | null;
   stato?: string | null;
   servizi?: string[] | null;
+  universita_id?: string | number | null;
+  latitudine?: number | null;
+  longitudine?: number | null;
   universita?: { nome?: string | null } | null;
   utenti?: { nome_utente?: string | null; nome?: string | null; cognome?: string | null } | null;
 };
 
-const mapRoomRowToListing = (row: RoomRow): Listing => {
+const mapRoomRowToListing = (row: RoomRow, distanceKm?: number): Listing => {
   const ownerName = row.utenti?.nome_utente ??
     (row.utenti?.nome && row.utenti?.cognome ? `${row.utenti.nome} ${row.utenti.cognome}` : "Unknown");
 
@@ -54,8 +64,25 @@ const mapRoomRowToListing = (row: RoomRow): Listing => {
     wifi,
     description: row.descrizione ?? "",
     available: Boolean(row.attiva) && row.stato === "disponibile",
+    ...(distanceKm !== undefined ? { distanceKm } : {}),
   };
 };
+
+const ROOM_SELECT = `
+  id,
+  titolo,
+  prezzo,
+  descrizione,
+  attiva,
+  stato,
+  servizi,
+  universita_id,
+  proprietario_id,
+  latitudine,
+  longitudine,
+  universita:universita_id(nome),
+  utenti:proprietario_id(nome_utente, nome, cognome)
+`;
 
 const router: IRouter = Router();
 
@@ -67,64 +94,90 @@ router.get("/listings", async (req: Request, res: Response) => {
   try {
     const query = ListListingsQueryParams.parse(req.query);
 
-    // Build the Supabase query
-    let dbQuery = supabaseAdmin
-      .from("stanze")
-      .select(`
-        id,
-        titolo,
-        prezzo,
-        descrizione,
-        attiva,
-        stato,
-        servizi,
-        universita_id,
-        proprietario_id,
-        universita:universita_id(nome),
-        utenti:proprietario_id(nome_utente, nome, cognome)
-      `);
+    let dbQuery = supabaseAdmin.from("stanze").select(ROOM_SELECT);
 
-    // Apply filters from query parameters
+    // Ricerca per università: se conosciamo le sue coordinate cerchiamo per
+    // vicinanza (bounding box in SQL, distanza reale in memoria), altrimenti
+    // ripieghiamo sul vecchio confronto per nome.
+    let university: UniversityPoint | null = null;
     if (query.zone) {
-      // Assuming we want to filter by university name (zone)
-      dbQuery = dbQuery.ilike("universita.nome", `%${query.zone}%`);
-    }
-    if (query.maxPrice !== undefined) {
-      dbQuery = dbQuery.lt("prezzo", query.maxPrice);
-    }
-    if (query.furnished !== undefined) {
-      // Since furnished is not directly in DB, we'll skip for now or derive from servizi
-      // For now, we'll ignore this filter if not implemented
-      // TODO: Implement furnished filter based on servizi array
+      const { data: matches, error: uniError } = await supabaseAdmin
+        .from("universita")
+        .select("id, nome, latitudine, longitudine")
+        .ilike("nome", `%${query.zone}%`)
+        .limit(10);
+      if (uniError) throw uniError;
+      const wanted = query.zone.trim().toLowerCase();
+      university =
+        (matches ?? []).find((u) => u.nome?.toLowerCase() === wanted) ?? matches?.[0] ?? null;
     }
 
-    // Only get active and available listings
+    const hasUniversityCoords =
+      university?.latitudine != null && university?.longitudine != null;
+
+    if (university && hasUniversityCoords) {
+      const box = boundingBox(university.latitudine!, university.longitudine!, SEARCH_RADIUS_KM);
+      // Stanze nel rettangolo OPPURE già associate a questa università
+      // (annunci vecchi senza coordinate).
+      dbQuery = dbQuery.or(
+        `universita_id.eq.${university.id},and(latitudine.gte.${box.minLat},latitudine.lte.${box.maxLat},longitudine.gte.${box.minLon},longitudine.lte.${box.maxLon})`,
+      );
+    }
+
+    if (query.maxPrice !== undefined) {
+      dbQuery = dbQuery.lte("prezzo", query.maxPrice);
+    }
+    // TODO: filtro `furnished` (non è una colonna: si ricava da `servizi`).
+
     dbQuery = dbQuery.eq("attiva", true).eq("stato", "disponibile");
 
     const { data, error } = await dbQuery;
+    if (error) throw error;
 
-    if (error) {
-      throw error;
+    const rows = (data ?? []) as unknown as RoomRow[];
+    let listings: Listing[];
+
+    if (university && hasUniversityCoords) {
+      const ranked: Array<{ listing: Listing; distance: number | null }> = [];
+      for (const row of rows) {
+        const hasCoords = row.latitudine != null && row.longitudine != null;
+        const distance = hasCoords
+          ? haversineKm(
+              university.latitudine!,
+              university.longitudine!,
+              Number(row.latitudine),
+              Number(row.longitudine),
+            )
+          : null;
+        const linked = String(row.universita_id ?? "") === String(university.id);
+        // Il rettangolo è più largo del cerchio: qui applichiamo il raggio vero.
+        if (distance !== null ? distance > SEARCH_RADIUS_KM && !linked : !linked) continue;
+        ranked.push({
+          listing: mapRoomRowToListing(
+            row,
+            distance !== null ? Math.round(distance * 10) / 10 : undefined,
+          ),
+          distance,
+        });
+      }
+      // Più vicine prima; quelle senza coordinate in fondo, poi per prezzo.
+      ranked.sort((a, b) => {
+        if (a.distance === null && b.distance === null) return a.listing.price - b.listing.price;
+        if (a.distance === null) return 1;
+        if (b.distance === null) return -1;
+        return a.distance - b.distance;
+      });
+      listings = ranked.map((item) => item.listing);
+    } else {
+      listings = rows
+        .map((row) => mapRoomRowToListing(row))
+        .filter(
+          (listing) =>
+            !query.zone || listing.zone.toLowerCase().includes(query.zone.toLowerCase()),
+        );
     }
 
-    const rows = ((data ?? []) as RoomRow[]);
-    const listings: Listing[] = rows.map((row) => mapRoomRowToListing(row));
-
-    // Apply zone filter in memory if we didn't do it in DB (we did above, but just in case)
-    const filteredListings = listings.filter((listing) =>
-      !query.zone || listing.zone.toLowerCase().includes(query.zone.toLowerCase())
-    );
-
-    // Apply maxPrice filter in memory (we did in DB, but just in case)
-    const priceFilteredListings = filteredListings.filter(
-      (listing) =>
-        query.maxPrice === undefined || listing.price <= query.maxPrice
-    );
-
-    // Apply furnished filter in memory (if we had implemented it)
-    // For now, skip
-
-    return res.json(ListListingsResponse.parse(priceFilteredListings));
+    return res.json(ListListingsResponse.parse(listings));
   } catch (error) {
     console.error("Error fetching listings:", error);
     return res.status(500).json({ error: "Internal server error" });
@@ -186,54 +239,113 @@ router.get("/listings/:id", async (req: Request, res: Response) => {
  */
 router.post("/listings", requireAuth, async (req: Request, res: Response) => {
   try {
-    const input = CreateListingBody.parse(req.body);
+    const parsed = CreateListingBody.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Dati non validi", details: parsed.error.issues });
+    }
+    const input = parsed.data;
     const authedReq = req as typeof req & { userId: string; userEmail?: string };
 
-    // We need to insert into the stanze table
-    // But we don't have a direct mapping from input to all columns.
-    // We'll need to map the input fields to the database columns.
-    // For now, we'll insert a minimal set and note that more work is needed.
-    // This is a draft implementation.
+    // Assegniamo l'università più vicina (entro SEARCH_RADIUS_KM) in base alle
+    // coordinate dell'indirizzo scelto. In ricerca la stanza comparirà comunque
+    // per tutte le università nel raggio, non solo per questa.
+    const hasCoords =
+      input.latitude !== undefined &&
+      input.longitude !== undefined &&
+      !(input.latitude === 0 && input.longitude === 0);
 
-    // Determine the universita_id from the zone? Not provided in input.
-    // The input has a 'zone' field, which we expect to be a university name.
-    // We need to look up the universita id by name.
-    let universitaId: string | null = null;
-    if (input.zone) {
+    if (!hasCoords && !input.zone) {
+      return res.status(400).json({ error: "Seleziona un indirizzo dai suggerimenti" });
+    }
+
+    let universitaId: string | number | null = null;
+    let zoneName = input.zone ?? "";
+
+    if (hasCoords) {
+      const { data: universities, error: uniError } = await supabaseAdmin
+        .from("universita")
+        .select("id, nome, latitudine, longitudine");
+      if (uniError) throw uniError;
+
+      const match = nearestUniversity(
+        input.latitude!,
+        input.longitude!,
+        (universities ?? []) as UniversityPoint[],
+      );
+      if (match) {
+        universitaId = match.university.id;
+        zoneName = match.university.nome;
+      }
+    }
+
+    // Fallback: zona indicata per nome (client vecchi / indirizzo senza coordinate).
+    if (universitaId === null && input.zone) {
       const { data: uniData, error: uniError } = await supabaseAdmin
         .from("universita")
         .select("id")
         .eq("nome", input.zone)
-        .single();
+        .maybeSingle();
+      if (uniError) throw uniError;
+      if (uniData) universitaId = uniData.id;
+    }
 
-      if (uniError && uniError.code !== "PGRST116") {
-        throw uniError;
-      }
-      if (uniData) {
-        universitaId = uniData.id;
+    // Insert the new listing (se le colonne geo non esistono ancora, riprova senza)
+    const baseRow = {
+      titolo: input.title,
+      descrizione: input.description,
+      prezzo: input.price,
+      citta: input.city ?? null,
+      universita_id: universitaId,
+      proprietario_id: authedReq.userId,
+      servizi: [
+        ...(input.furnished ? ["arredato"] : []),
+        ...(input.wifi ? ["internet"] : []),
+      ],
+      attiva: true,
+      stato: "disponibile",
+    };
+    const geoRow = {
+      indirizzo: input.address ?? null,
+      cap: input.postcode ?? null,
+      latitudine: hasCoords ? input.latitude : null,
+      longitudine: hasCoords ? input.longitude : null,
+    };
+    // `tipo` è NOT NULL su alcuni database: proviamo i valori più comuni,
+    // e se la colonna ha un vincolo diverso lasciamo il default del DB.
+    const tipoCandidates: Array<string | undefined> = [
+      process.env.ROOM_TIPO_DEFAULT,
+      "singola",
+      "stanza_singola",
+      "stanza",
+      undefined,
+    ].filter((v, i, arr) => arr.indexOf(v) === i);
+
+    let newListing: any = null;
+    let insertError: any = null;
+    outer: for (const withGeo of [true, false]) {
+      for (const tipo of tipoCandidates) {
+        const row = { ...baseRow, ...(withGeo ? geoRow : {}), ...(tipo ? { tipo } : {}) };
+        const result = await supabaseAdmin.from("stanze").insert(row).select().single();
+        if (!result.error) {
+          newListing = result.data;
+          insertError = null;
+          break outer;
+        }
+        insertError = result.error;
+        // Colonna geo mancante: riprova senza geo. Valore `tipo` rifiutato (22P02/23514/23502): prossimo candidato.
+        if (result.error.code === "PGRST204") continue outer;
+        if (!["22P02", "23514", "23502"].includes(result.error.code)) break outer;
       }
     }
 
-    // Insert the new listing
-    const { data: newListing, error: insertError } = await supabaseAdmin
-      .from("stanze")
-      .insert({
-        titolo: input.title,
-        descrizione: input.description,
-        prezzo: input.price,
-        // zone is not a column; we have universita_id and citta
-        // We'll set citta to null for now, or we could get it from the universita record.
-        citta: null, // TODO: get citta from universita if needed
-        universita_id: universitaId,
-        proprietario_id: authedReq.userId, // assuming userId matches the utenti id
-        // servizi: we need to set based on furnished and wifi? Not directly.
-        // We'll set servizi as an empty array for now.
-        servizi: [],
-        attiva: true,
-        stato: "disponibile",
-      })
-      .select()
-      .single();
+    if (insertError) {
+      console.error("Insert with geo columns failed, retrying without:", insertError);
+      ({ data: newListing, error: insertError } = await supabaseAdmin
+        .from("stanze")
+        .insert(baseRow)
+        .select()
+        .single());
+    }
 
     if (insertError) {
       throw insertError;
@@ -243,26 +355,18 @@ router.post("/listings", requireAuth, async (req: Request, res: Response) => {
       throw new Error("Failed to create listing");
     }
 
-    const { data: ownerRecord, error: ownerError } = await supabaseAdmin
+    const { error: ownerError } = await supabaseAdmin
       .from("utenti")
       .update({ owner: true })
-      .eq("id", authedReq.userId)
-      .select("id")
-      .maybeSingle();
-
-    if (ownerError) {
-      throw ownerError;
-    }
-    if (!ownerRecord) {
-      throw new Error("Failed to promote listing owner");
-    }
+      .eq("id", authedReq.userId);
+    if (ownerError) console.error("Failed to promote listing owner:", ownerError);
 
     // We need to map the created listing to the Listing type for response
     // For simplicity, we'll return a basic Listing object (similar to above but with defaults)
     const listing: Listing = {
       id: newListing.id,
       title: newListing.titolo,
-      zone: input.zone, // we don't have the university name yet, but we can fetch it
+      zone: zoneName,
       price: Number(newListing.prezzo),
       owner: authedReq.userId, // TODO: get actual name
       rating: 0,

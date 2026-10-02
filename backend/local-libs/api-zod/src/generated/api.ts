@@ -41,7 +41,8 @@ export const ListListingsResponseItem = zod.object({
   "furnished": zod.boolean(),
   "wifi": zod.boolean(),
   "description": zod.string(),
-  "available": zod.boolean()
+  "available": zod.boolean(),
+  "distanceKm": zod.number().optional()
 })
 export const ListListingsResponse = zod.array(ListListingsResponseItem)
 
@@ -59,7 +60,12 @@ export const createListingBodyPhotosMin = 0;
 
 export const CreateListingBody = zod.object({
   "title": zod.string().min(1),
-  "zone": zod.string().min(1),
+  "zone": zod.string().optional(),
+  "address": zod.string().optional(),
+  "city": zod.string().optional(),
+  "postcode": zod.string().optional(),
+  "latitude": zod.number().min(-90).max(90).optional(),
+  "longitude": zod.number().min(-180).max(180).optional(),
   "price": zod.number().min(1),
   "description": zod.string().min(1),
   "furnished": zod.boolean().optional(),
