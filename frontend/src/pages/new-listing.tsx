@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, ChevronLeft, CircleAlert, CircleCheck, ImagePlus, ShieldCheck } from 'lucide-react';
+import { ChevronLeft, CircleAlert, CircleCheck, ImagePlus, ShieldCheck } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useCreateListing } from '@workspace/api-client-react';
 import type { ListingInput } from '@workspace/api-client-react';
@@ -7,8 +7,16 @@ import { useLanguage } from '@/lib/i18n';
 import { zones } from '@/lib/constants';
 import { useZoneLabel } from '@/hooks/use-zone-label';
 import { AppShell } from '@/components/layout/app-shell';
-import { Button } from '@/components/shared/button';
 import { PageIntro } from '@/components/shared/page-intro';
+import AddressAutocomplete from '@/components/AddressAutocomplete';
+
+type ListingForm = ListingInput & {
+  address: string;
+  city: string;
+  postcode: string;
+  latitude: number;
+  longitude: number;
+};
 
 function Field({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
   return (
@@ -55,7 +63,7 @@ export function NewListingPage() {
   const zoneLabel = useZoneLabel();
   const [, setLocation] = useLocation();
   const createListing = useCreateListing();
-  const [form, setForm] = useState<ListingInput>({
+  const [form, setForm] = useState<ListingForm>({
     title: '',
     zone: '',
     price: 0,
@@ -63,19 +71,49 @@ export function NewListingPage() {
     furnished: true,
     wifi: true,
     photos: 0,
+    address: '',
+    city: '',
+    postcode: '',
+    latitude: 0,
+    longitude: 0,
   });
 
-  const update = (key: keyof ListingInput, value: string | boolean) =>
+  const update = <K extends keyof ListingForm>(key: K, value: ListingForm[K] | string) =>
     setForm((current) => ({
       ...current,
-      [key]: key === 'price' || key === 'photos' ? Number(value) : value,
+      [key]:
+        key === 'price' || key === 'photos' || key === 'latitude' || key === 'longitude'
+          ? Number(value)
+          : (value as ListingForm[K]),
     }));
+
+  const handleAddressSelect = (feature: any) => {
+    if (!feature) return;
+    const { street, housenumber, city, postcode, lat, lon } = feature.properties || {};
+    const address = `${street} ${housenumber}`.trim();
+    update('address', address);
+    update('city', city || '');
+    update('postcode', postcode || '');
+    update('latitude', lat ? Number(lat) : 0);
+    update('longitude', lon ? Number(lon) : 0);
+  };
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!form.title.trim() || !form.zone.trim() || !form.description.trim() || !form.price) return;
+
+    const payload: ListingInput = {
+      title: form.title.trim(),
+      zone: form.zone,
+      price: Number(form.price),
+      description: form.description.trim(),
+      furnished: form.furnished,
+      wifi: form.wifi,
+      photos: form.photos ?? 0,
+    };
+
     createListing.mutate(
-      { data: form },
+      { data: payload },
       { onSuccess: (listing) => setLocation(`/listings/${listing.id}`) },
     );
   };
@@ -107,6 +145,10 @@ export function NewListingPage() {
                 className="form-input"
                 data-testid="input-listing-title"
               />
+            </Field>
+
+            <Field label={t('newListing.addressLabel')} hint={t('newListing.addressHint')}>
+              <AddressAutocomplete onPlaceSelect={handleAddressSelect} />
             </Field>
 
             <Field label={t('newListing.areaLabel')} hint={t('newListing.areaHint')}>

@@ -73,6 +73,18 @@ export function Navbar() {
   const isApp = !isWaitlistConfirmed && !isGuest && !isStatic;
   const owner = location.startsWith('/owner');
 
+  // Define href variables for consistent usage
+  const HOME = '/home';
+  const REGISTER = '/register';
+  const MESSAGES = '/messages';
+  const PROFILE = '/profile';
+  const OWNER_OVERVIEW = '/owner';
+  const OWNER_MESSAGES = '/owner/messages';
+  const OWNER_PROFILE = '/owner/profile';
+
+  // Admin switch href
+  const adminSwitchHref = owner ? HOME : OWNER_OVERVIEW;
+
   useEffect(() => {
     if (!isWaitlistConfirmed) return;
     let cancelled = false;
@@ -93,7 +105,7 @@ export function Navbar() {
   }, [isWaitlistConfirmed]);
 
   const logo = (
-    <Link href="/home" className="flex items-center gap-2.5" data-testid="link-logo">
+    <Link href={HOME} className="flex items-center gap-2.5" data-testid="link-logo">
       <img
         src={roomlyMark}
         alt={isApp ? '' : 'Roomly'}
@@ -114,14 +126,14 @@ export function Navbar() {
   if (isApp) {
     const allLinks = owner
       ? [
-          { href: '/owner', key: 'overview', label: t('nav.overview'), icon: LayoutDashboard },
-          { href: '/owner/messages', key: 'messages', label: t('nav.messages'), icon: MessageCircle },
-          { href: '/owner/profile', key: 'my-profile', label: t('nav.myProfile'), icon: UserRound },
+          { href: OWNER_OVERVIEW, key: 'overview', label: t('nav.overview'), icon: LayoutDashboard },
+          { href: OWNER_MESSAGES, key: 'messages', label: t('nav.messages'), icon: MessageCircle },
+          { href: OWNER_PROFILE, key: 'my-profile', label: t('nav.myProfile'), icon: UserRound },
         ]
       : [
-          { href: '/home', key: 'find-a-room', label: t('nav.findRoom'), icon: Search },
-          { href: '/messages', key: 'messages', label: t('nav.messages'), icon: MessageCircle },
-          { href: '/profile', key: 'my-profile', label: t('nav.myProfile'), icon: UserRound },
+          { href: HOME, key: 'find-a-room', label: t('nav.findRoom'), icon: Search },
+          { href: MESSAGES, key: 'messages', label: t('nav.messages'), icon: MessageCircle },
+          { href: PROFILE, key: 'my-profile', label: t('nav.myProfile'), icon: UserRound },
         ];
 
     // "Trova una stanza" / "Messaggi" (and their owner equivalents) are
@@ -161,7 +173,7 @@ export function Navbar() {
           <div className="flex items-center gap-2">
             {isAdmin && (
               <Link
-                href={owner ? '/' : '/owner'}
+                href={owner ? '/home' : '/owner'}
                 className="hidden rounded-xl px-3 py-2 text-sm font-extrabold text-[#0F6E56] hover:bg-[#E1F5EE] sm:inline-flex"
                 data-testid="link-switch-role"
               >
@@ -176,7 +188,7 @@ export function Navbar() {
             >
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
-            <ProfileMenu profileHref={owner ? '/owner/profile' : '/profile'} />
+            <ProfileMenu profileHref={owner ? OWNER_PROFILE : PROFILE} />
           </div>
         </div>
 
@@ -196,7 +208,7 @@ export function Navbar() {
             ))}
             {isAdmin && (
               <Link
-                href={owner ? '/' : '/owner'}
+                href={adminSwitchHref}
                 onClick={() => setMobileOpen(false)}
                 className="mt-1 flex items-center gap-3 rounded-xl px-3 py-3 font-extrabold text-[#0F6E56]"
                 data-testid="link-mobile-switch-role"
@@ -236,7 +248,7 @@ export function Navbar() {
     return (
       <div className="flex items-center justify-between gap-3">
         {logo}
-        <Link href="/" className="text-sm font-extrabold text-[#085041] hover:text-[#0F6E56]">
+        <Link href={HOME} className="text-sm font-extrabold text-[#085041] hover:text-[#0F6E56]">
           {t('searchPage.backHome')}
         </Link>
       </div>
@@ -250,7 +262,7 @@ export function Navbar() {
       <div className="flex items-center gap-3">
         <LanguagePicker />
         <Link
-          href="/register"
+          href={REGISTER}
           className="hidden text-sm font-extrabold text-[#085041] hover:text-[#0F6E56] sm:block"
           data-testid="link-nav-register"
         >
