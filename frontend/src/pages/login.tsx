@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { clearRoleCache } from '@/lib/role-cache';
 import { Link, useLocation } from 'wouter';
 import { KeyRound, Mail, Lock, EyeOff, Eye } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
@@ -77,6 +78,7 @@ export function LoginPage() {
       // Set the session in Supabase client for immediate use (for frontend auth checks)
       // This is only kept in memory, not persisted to localStorage
       await supabase.auth.setSession(session);
+      clearRoleCache();
 
       setLocation(await postAuthRoute(user));
     } catch (err) {

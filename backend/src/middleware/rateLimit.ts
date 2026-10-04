@@ -95,3 +95,27 @@ export const messageLimiter = rateLimit({
     });
   },
 });
+
+
+/**
+ * Rate limiter for chat READS (inbox + message list, incl. the polling).
+ * Allows 120 requests per minute per authenticated user (falls back to IP).
+ * Normal use is ~15/min per open chat + ~6/min for the inbox; 120/min leaves
+ * room for a few tabs but stops someone hammering reload to load the database.
+ * Must be mounted after `requireAuth` so `userId` is available.
+ */
+export const chatReadLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const userId = (req as Request & { userId?: string }).userId;
+    return userId ? `chat-read:${userId}` : extractIP(req);
+  },
+  handler: (_req: Request, res: Response) => {
+    res.status(429).json({
+      error: 'Too many requests, please slow down.',
+    });
+  },
+});

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { clearRoleCache } from '@/lib/role-cache';
 import { Link, useLocation } from 'wouter';
 import { Sparkles, Mail, Lock, User, EyeOff, Eye, Calendar } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
@@ -124,6 +125,7 @@ export function RegisterPage() {
         // This is only kept in memory, not persisted to localStorage
         const { error: setSessionError } = await supabase.auth.setSession(session);
         if (setSessionError) throw setSessionError;
+        clearRoleCache();
 
         setLocation(await postAuthRoute(body.user));
         return;

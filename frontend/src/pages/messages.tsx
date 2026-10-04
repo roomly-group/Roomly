@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeft, Mail, MessageCircle, MoreHorizontal, Send } from 'lucide-react';
 import { Link, useParams } from 'wouter';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  customFetch,
   getListConversationsQueryKey,
   getListMessagesQueryKey,
   useListConversations,
-  useListMessages,
   useSendMessage,
 } from '@workspace/api-client-react';
 import type { Conversation, Message } from '@workspace/api-client-react';
@@ -21,6 +21,23 @@ import { EmptyState } from '@/components/shared/empty-state';
 // while the browser tab is in the background.
 const MESSAGES_POLL_MS = 4000;
 const CONVERSATIONS_POLL_MS = 10000;
+// Quanti messaggi arrivano per richiesta (uguale a MESSAGES_PAGE nel backend).
+const MESSAGES_PAGE = 100;
+
+// Ordine unico e stabile: i messaggi confermati per id (l'ordine in cui il
+// database li ha salvati), senza doppioni; quelli ancora "in volo" (id
+// negativo) sempre in fondo, nell'ordine in cui sono stati inviati.
+function sortMessages(list: Message[]): Message[] {
+  const byId = new Map<number, Message>();
+  for (const message of list) byId.set(message.id, message);
+  const all = [...byId.values()];
+  const confirmed = all.filter((m) => m.id > 0).sort((a, b) => a.id - b.id);
+  const pending = all.filter((m) => m.id < 0).sort((a, b) => b.id - a.id);
+  return [...confirmed, ...pending];
+}
+
+// Quanti degli ultimi messaggi confermati rileggere a ogni poll.
+const POLL_OVERLAP = 5;
 
 function TimeAgo({ value }: { value: string }) {
   const { t } = useLanguage();
@@ -117,12 +134,48 @@ function ConversationPanel({
   owner: boolean;
 }) {
   const { t } = useLanguage();
-  const { data, isLoading, isError, refetch } = useListMessages(conversationId, {
-    query: { queryKey: getListMessagesQueryKey(conversationId), refetchInterval: MESSAGES_POLL_MS },
+  const client = useQueryClient();
+  const messagesKey = getListMessagesQueryKey(conversationId);
+  // Polling incrementale: dopo il primo caricamento chiede solo i messaggi con
+  // id maggiore dell'ultimo già in cache (?after=) e li accoda. Gli id negativi
+  // sono messaggi ottimistici non ancora confermati dal server.
+  const { data, isLoading, isError, refetch } = useQuery<Message[]>({
+    queryKey: messagesKey,
+    refetchInterval: MESSAGES_POLL_MS,
+    queryFn: async ({ signal }) => {
+      const previous = client.getQueryData<Message[]>(messagesKey);
+      const url = `/api/conversations/${conversationId}/messages`;
+      if (!previous) return sortMessages(await customFetch<Message[]>(url, { signal }));
+
+      // Con invii simultanei un messaggio con id più basso può diventare visibile
+      // dopo uno più alto: se chiedessimo solo "id > ultimo" lo perderemmo per
+      // sempre. Rileggiamo quindi gli ultimi POLL_OVERLAP messaggi (pochi record)
+      // e deduplichiamo per id.
+      const confirmedIds = previous
+        .filter((m) => m.id > 0)
+        .map((m) => m.id)
+        .sort((a, b) => b - a);
+      const after = confirmedIds.length >= POLL_OVERLAP ? confirmedIds[POLL_OVERLAP - 1] - 1 : 0;
+      const fetched = await customFetch<Message[]>(`${url}?after=${after}`, { signal });
+
+      // Rileggo la cache DOPO la risposta: nel frattempo l'utente può aver
+      // inviato un messaggio ottimistico che non va perso.
+      const current = client.getQueryData<Message[]>(messagesKey) ?? previous;
+      const known = new Set(current.map((m) => m.id));
+      const fresh = fetched.filter((m) => !known.has(m.id));
+
+      // Se tra i nuovi c'è la versione vera di un mio messaggio ancora "in volo",
+      // tolgo quella provvisoria (altrimenti per un attimo comparirebbe due volte).
+      const pending = current.filter((m) => m.id < 0);
+      for (const real of fresh) {
+        const index = pending.findIndex((p) => p.sender === real.sender && p.body === real.body);
+        if (index !== -1) pending.splice(index, 1);
+      }
+      return sortMessages([...current.filter((m) => m.id > 0), ...fresh, ...pending]);
+    },
   });
   const messages = data ?? [];
   const sendMessage = useSendMessage();
-  const client = useQueryClient();
   const [body, setBody] = useState('');
   const [copied, setCopied] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -136,29 +189,120 @@ function ConversationPanel({
     if (data) void client.invalidateQueries({ queryKey: getListConversationsQueryKey() });
   }, [client, conversationId, data?.length]);
 
-  // Keep the newest message in view.
+  // Messaggi più vecchi: si caricano a blocchi di 100 quando si arriva in cima.
+  const [canLoadOlder, setCanLoadOlder] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const firstPageSeen = useRef(false);
+  const stickToBottom = useRef(true);
+  const restoreScroll = useRef<{ height: number; top: number } | null>(null);
+
+  // Cambio chat: si riparte da zero.
+  useEffect(() => {
+    firstPageSeen.current = false;
+    stickToBottom.current = true;
+    setCanLoadOlder(false);
+    setLoadingOlder(false);
+  }, [conversationId]);
+
+  // Prima pagina arrivata: se è piena (100) probabilmente ce ne sono altre sopra.
+  useEffect(() => {
+    if (data && !firstPageSeen.current) {
+      firstPageSeen.current = true;
+      setCanLoadOlder(data.filter((m) => m.id > 0).length >= MESSAGES_PAGE);
+    }
+  }, [data]);
+
+  const loadOlder = useCallback(async () => {
+    const current = client.getQueryData<Message[]>(messagesKey);
+    const el = scrollRef.current;
+    if (!current || !el || loadingOlder || !canLoadOlder) return;
+    const oldest = current.reduce<number | null>((min, m) => (m.id > 0 && (min === null || m.id < min) ? m.id : min), null);
+    if (oldest === null) return;
+
+    setLoadingOlder(true);
+    try {
+      const older = await customFetch<Message[]>(
+        `/api/conversations/${conversationId}/messages?before=${oldest}`,
+      );
+      setCanLoadOlder(older.length >= MESSAGES_PAGE);
+      if (older.length) {
+        // Ricordo dov'ero: dopo il render riporto lo scroll sullo stesso messaggio.
+        restoreScroll.current = { height: el.scrollHeight, top: el.scrollTop };
+        client.setQueryData<Message[]>(messagesKey, (old) => {
+          return sortMessages([...older, ...(old ?? [])]);
+        });
+      }
+    } catch {
+      // Errore di rete o rate limit: si riproverà alla prossima volta che si sale.
+    } finally {
+      setLoadingOlder(false);
+    }
+  }, [canLoadOlder, client, conversationId, loadingOlder, messagesKey]);
+
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    if (el.scrollTop < 80) void loadOlder();
+  };
+
+  // Dopo aver aggiunto messaggi in cima, mantiene la posizione di lettura.
+  const firstId = messages[0]?.id;
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    const saved = restoreScroll.current;
+    if (el && saved) {
+      el.scrollTop = el.scrollHeight - saved.height + saved.top;
+      restoreScroll.current = null;
+    }
+  }, [firstId]);
+
+  // Nuovo messaggio in fondo: scende solo se eri già in fondo o l'hai scritto tu
+  // (altrimenti ti strapperebbe via mentre rileggi la cronologia).
+  const lastMessage = messages[messages.length - 1];
   useEffect(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [conversationId, messages.length]);
+    if (!el) return;
+    if (stickToBottom.current || lastMessage?.sender === viewerRole) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [conversationId, lastMessage?.id, viewerRole]);
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!body.trim() || sendMessage.isPending) return;
     const draft = body.trim();
-    sendMessage.mutate(
-      { id: conversationId, data: { body: draft } },
-      {
-        onSuccess: (message) => {
-          client.setQueryData<Message[]>(getListMessagesQueryKey(conversationId), (old) => [
-            ...(old ?? []),
-            message,
-          ]);
-          setBody('');
-          void client.invalidateQueries({ queryKey: getListConversationsQueryKey() });
-        },
-      },
-    );
+    if (!draft) return;
+
+    // Optimistic UI: il messaggio compare subito, con id negativo temporaneo.
+    const tempId = -Date.now();
+    const optimistic: Message = {
+      id: tempId,
+      conversationId,
+      body: draft,
+      sender: viewerRole,
+      sentAt: new Date().toISOString(),
+    };
+    client.setQueryData<Message[]>(messagesKey, (old) => sortMessages([...(old ?? []), optimistic]));
+    setBody('');
+
+    // mutateAsync (e non mutate): con più invii ravvicinati le callback di
+    // mutate() partirebbero solo per l'ultimo, lasciando i provvisori in lista.
+    sendMessage
+      .mutateAsync({ id: conversationId, data: { body: draft } })
+      .then((message) => {
+        // Il messaggio vero prende il posto del provvisorio e va nella posizione
+        // data dal suo id (non in fondo): il polling potrebbe aver già portato
+        // un messaggio dell'altro salvato dopo il mio.
+        client.setQueryData<Message[]>(messagesKey, (old) =>
+          sortMessages([...(old ?? []).filter((m) => m.id !== tempId), message]),
+        );
+        void client.invalidateQueries({ queryKey: getListConversationsQueryKey() });
+      })
+      .catch(() => {
+        // Invio fallito: tolgo il messaggio provvisorio e ridò il testo da riprovare.
+        client.setQueryData<Message[]>(messagesKey, (old) => (old ?? []).filter((m) => m.id !== tempId));
+        setBody((current) => current || draft);
+      });
   };
 
   const copyListing = () => {
@@ -210,7 +354,8 @@ function ConversationPanel({
         </p>
       )}
 
-      <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5">
+      <div ref={scrollRef} onScroll={handleScroll} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5">
+        {loadingOlder && <div className="skeleton mx-auto h-4 w-24 rounded-full" />}
         {isLoading ? (
           <>
             {[1, 2, 3].map((item) => (
@@ -253,7 +398,7 @@ function ConversationPanel({
           <Button
             type="submit"
             className="h-10 w-10 shrink-0 rounded-lg p-0"
-            disabled={!body.trim() || sendMessage.isPending}
+            disabled={!body.trim()}
             data-testid="button-send-message"
           >
             <Send size={16} />

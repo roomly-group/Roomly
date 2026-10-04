@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Response } from "express";
 import { z } from "zod";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
-import { messageLimiter } from "../middleware/rateLimit.js";
+import { chatReadLimiter, messageLimiter } from "../middleware/rateLimit.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import {
   ListConversationsResponse,
@@ -13,9 +13,12 @@ import {
 const router: IRouter = Router();
 
 const PREVIEW_LENGTH = 120;
-const MESSAGES_PAGE = 300;
+// Massimo messaggi per richiesta: il client non può chiederne di più.
+const MESSAGES_PAGE = 100;
 
 const IdParam = z.coerce.number().int().positive();
+const AfterParam = z.coerce.number().int().nonnegative().optional();
+const BeforeParam = z.coerce.number().int().positive().optional();
 const StartConversationBody = z.object({
   listingId: z.number().int().positive(),
   body: z.string().trim().min(1).max(2000),
@@ -38,6 +41,7 @@ type MessageRow = {
   mittente_id: string;
   testo: string;
   created_at: string;
+  letto?: boolean;
 };
 
 // Tabelle: conversazioni (1 per stanza+studente), conversazioni_utenti
@@ -79,38 +83,43 @@ const toConversation = (row: ConversationRow, userId: string, unreadCount: numbe
   };
 };
 
-const toMessage = (row: MessageRow, conversation: ConversationRow) => ({
+const toMessage = (row: MessageRow, ownerId: string | undefined) => ({
   id: row.id,
   conversationId: row.conversazione_id,
   body: row.testo,
   // Ruolo di chi ha scritto nella conversazione: la UI lo confronta col ruolo
   // con cui l'utente sta guardando la chat (studente / proprietario).
-  sender: row.mittente_id === ownerIdOf(conversation) ? "owner" : "student",
+  sender: row.mittente_id === ownerId ? "owner" : "student",
   sentAt: row.created_at,
 });
 
-// Carica la conversazione solo se l'utente ne è partecipante.
+// Verifica che l'utente sia partecipante e restituisce l'id del proprietario
+// della stanza (serve solo a etichettare "owner"/"student" nei messaggi).
+// Le due query sono indipendenti, quindi partono in parallelo; la select è
+// minima (niente join su partecipanti e messaggi, che qui non servono).
 async function loadConversationFor(id: number, userId: string) {
-  const { data: membership, error: memberError } = await supabaseAdmin
-    .from("conversazioni_utenti")
-    .select("conversazione_id")
-    .eq("conversazione_id", id)
-    .eq("utente_id", userId)
-    .maybeSingle();
-  if (memberError) throw memberError;
+  const [membershipResult, conversationResult] = await Promise.all([
+    supabaseAdmin
+      .from("conversazioni_utenti")
+      .select("conversazione_id")
+      .eq("conversazione_id", id)
+      .eq("utente_id", userId)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("conversazioni")
+      .select("id, stanza:stanza_id(proprietario_id)")
+      .eq("id", id)
+      .maybeSingle(),
+  ]);
+  if (membershipResult.error) throw membershipResult.error;
+  if (conversationResult.error) throw conversationResult.error;
   // Stessa risposta di "non esiste": non riveliamo l'esistenza di chat altrui.
-  if (!membership) return { status: 404 as const };
+  if (!membershipResult.data || !conversationResult.data) return { status: 404 as const };
 
-  const { data, error } = await supabaseAdmin
-    .from("conversazioni")
-    .select(CONVERSATION_SELECT)
-    .eq("id", id)
-    .order("created_at", { referencedTable: "messaggi", ascending: false })
-    .limit(1, { referencedTable: "messaggi" })
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) return { status: 404 as const };
-  return { status: 200 as const, conversation: data as unknown as ConversationRow };
+  const stanza = (conversationResult.data as unknown as {
+    stanza?: { proprietario_id?: string } | null;
+  }).stanza;
+  return { status: 200 as const, ownerId: stanza?.proprietario_id };
 }
 
 // Salva il messaggio e aggiorna l'orario della conversazione (per l'ordinamento).
@@ -141,7 +150,7 @@ function serverError(res: Response, label: string, error: unknown) {
  * GET /api/conversations
  * Tutte le chat in cui l'utente è studente o proprietario, più recenti prima.
  */
-router.get("/conversations", requireAuth, async (req, res) => {
+router.get("/conversations", requireAuth, chatReadLimiter, async (req, res) => {
   const { userId } = req as AuthenticatedRequest;
   try {
     const { data: memberships, error: memberError } = await supabaseAdmin
@@ -213,43 +222,45 @@ router.post("/conversations", requireAuth, messageLimiter, async (req, res) => {
     }
 
     // Chat già esistente per questa stanza e questo studente?
-    const { data: mine, error: mineError } = await supabaseAdmin
-      .from("conversazioni_utenti")
-      .select("conversazione_id")
-      .eq("utente_id", userId);
-    if (mineError) throw mineError;
-    const myIds = (mine ?? []).map((m) => m.conversazione_id as number);
-
-    let conversationId: number | null = null;
-    if (myIds.length) {
-      const { data: existing, error: findError } = await supabaseAdmin
+    // (Il vincolo unico (stanza_id, studente_id) nel DB garantisce che sia una sola.)
+    const findExisting = async (): Promise<number | null> => {
+      const { data, error } = await supabaseAdmin
         .from("conversazioni")
         .select("id")
         .eq("stanza_id", listingId)
-        .in("id", myIds)
-        .limit(1)
+        .eq("studente_id", userId)
         .maybeSingle();
-      if (findError) throw findError;
-      conversationId = existing?.id ?? null;
-    }
+      if (error) throw error;
+      return (data?.id as number | undefined) ?? null;
+    };
+
+    let conversationId = await findExisting();
 
     if (conversationId === null) {
       const { data: created, error: createError } = await supabaseAdmin
         .from("conversazioni")
-        .insert({ stanza_id: listingId })
+        .insert({ stanza_id: listingId, studente_id: userId })
         .select("id")
         .single();
-      if (createError) throw createError;
-      conversationId = created.id as number;
 
-      const { error: membersError } = await supabaseAdmin.from("conversazioni_utenti").insert([
-        { conversazione_id: conversationId, utente_id: userId },
-        { conversazione_id: conversationId, utente_id: room.proprietario_id },
-      ]);
-      if (membersError) {
-        // Non lasciamo una conversazione senza partecipanti.
-        await supabaseAdmin.from("conversazioni").delete().eq("id", conversationId);
-        throw membersError;
+      if (createError) {
+        // 23505 = violazione di unicità: due richieste hanno provato a creare la
+        // stessa chat insieme (doppio click). Usiamo quella creata dall'altra.
+        if ((createError as { code?: string }).code !== "23505") throw createError;
+        conversationId = await findExisting();
+        if (conversationId === null) throw createError;
+      } else {
+        conversationId = created.id as number;
+
+        const { error: membersError } = await supabaseAdmin.from("conversazioni_utenti").insert([
+          { conversazione_id: conversationId, utente_id: userId },
+          { conversazione_id: conversationId, utente_id: room.proprietario_id },
+        ]);
+        if (membersError) {
+          // Non lasciamo una conversazione senza partecipanti.
+          await supabaseAdmin.from("conversazioni").delete().eq("id", conversationId);
+          throw membersError;
+        }
       }
     }
 
@@ -262,39 +273,68 @@ router.post("/conversations", requireAuth, messageLimiter, async (req, res) => {
 
 /**
  * GET /api/conversations/:id/messages
- * Messaggi della chat (i più vecchi prima). Segna la chat come letta per chi la apre.
+ * Messaggi della chat (i più vecchi prima).
+ * - Senza parametri: ultimi MESSAGES_PAGE (100) messaggi.
+ * - ?before=<id>: i 100 messaggi precedenti a quell'id (scroll verso l'alto).
+ * - ?after=<id>: solo i messaggi con id maggiore (polling incrementale; il
+ *   client usa una piccola sovrapposizione e deduplica, perché con invii
+ *   simultanei un id più basso può diventare visibile dopo uno più alto).
+ * Segna come letti i messaggi dell'altra persona, ma solo se ce ne sono di nuovi.
  */
-router.get("/conversations/:id/messages", requireAuth, async (req, res) => {
+router.get("/conversations/:id/messages", requireAuth, chatReadLimiter, async (req, res) => {
   const { userId } = req as AuthenticatedRequest;
   const id = IdParam.safeParse(req.params.id);
   if (!id.success) return res.status(400).json({ error: "Invalid conversation id" });
+  const after = AfterParam.safeParse(req.query.after);
+  if (!after.success) return res.status(400).json({ error: "Invalid after id" });
+  const before = BeforeParam.safeParse(req.query.before);
+  if (!before.success) return res.status(400).json({ error: "Invalid before id" });
+  if (after.data !== undefined && before.data !== undefined) {
+    return res.status(400).json({ error: "Use either after or before, not both" });
+  }
 
   try {
     const found = await loadConversationFor(id.data, userId);
     if (found.status !== 200) return res.status(404).json({ error: "Conversation not found" });
-    const { conversation } = found;
 
-    // Prendiamo gli ultimi N messaggi e li rimettiamo in ordine cronologico.
-    const { data, error } = await supabaseAdmin
+    const base = supabaseAdmin
       .from("messaggi")
-      .select("id, conversazione_id, mittente_id, testo, created_at")
-      .eq("conversazione_id", id.data)
-      .order("id", { ascending: false })
-      .limit(MESSAGES_PAGE);
-    if (error) throw error;
+      .select("id, conversazione_id, mittente_id, testo, created_at, letto")
+      .eq("conversazione_id", id.data);
 
-    const rows = ((data ?? []) as MessageRow[]).reverse();
+    let rows: MessageRow[];
+    if (after.data !== undefined) {
+      const { data, error } = await base
+        .gt("id", after.data)
+        .order("id", { ascending: true })
+        .limit(MESSAGES_PAGE);
+      if (error) throw error;
+      rows = (data ?? []) as MessageRow[];
+    } else {
+      // Ultimi N messaggi (o i N prima di ?before), rimessi in ordine cronologico.
+      const { data, error } = await (before.data !== undefined ? base.lt("id", before.data) : base)
+        .order("id", { ascending: false })
+        .limit(MESSAGES_PAGE);
+      if (error) throw error;
+      rows = ((data ?? []) as MessageRow[]).reverse();
+    }
 
-    // Segna come letti i messaggi dell'altra persona.
-    const { error: readError } = await supabaseAdmin
-      .from("messaggi")
-      .update({ letto: true })
-      .eq("conversazione_id", id.data)
-      .neq("mittente_id", userId)
-      .eq("letto", false);
-    if (readError) console.error("Failed to mark messages as read:", readError);
+    // UPDATE solo se c'è qualcosa da segnare: nel polling a vuoto non si scrive niente.
+    // Il client rilegge anche gli ultimi messaggi già visti (finestra di
+    // sovrapposizione): conta solo quelli dell'altro ancora non letti.
+    const hasIncoming = rows.some((row) => row.mittente_id !== userId && row.letto === false);
+    // Pagine più vecchie (?before): sono già state lette, non si scrive niente.
+    if (before.data === undefined && (after.data === undefined || hasIncoming)) {
+      const { error: readError } = await supabaseAdmin
+        .from("messaggi")
+        .update({ letto: true })
+        .eq("conversazione_id", id.data)
+        .neq("mittente_id", userId)
+        .eq("letto", false);
+      if (readError) console.error("Failed to mark messages as read:", readError);
+    }
 
-    return res.json(ListMessagesResponse.parse(rows.map((row) => toMessage(row, conversation))));
+    return res.json(ListMessagesResponse.parse(rows.map((row) => toMessage(row, found.ownerId))));
   } catch (error) {
     return serverError(res, "Error listing messages:", error);
   }
@@ -318,10 +358,9 @@ router.post("/conversations/:id/messages", requireAuth, messageLimiter, async (r
   try {
     const found = await loadConversationFor(id.data, userId);
     if (found.status !== 200) return res.status(404).json({ error: "Conversation not found" });
-    const { conversation } = found;
 
     const message = await insertMessage(id.data, userId, body);
-    return res.status(201).json(SendMessageResponse.parse(toMessage(message, conversation)));
+    return res.status(201).json(SendMessageResponse.parse(toMessage(message, found.ownerId)));
   } catch (error) {
     return serverError(res, "Error sending message:", error);
   }

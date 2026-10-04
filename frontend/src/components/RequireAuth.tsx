@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Redirect } from 'wouter';
 import { supabase } from '@/lib/supabase';
+import { peekRoleCache } from '@/lib/role-cache';
 import NotFound from '@/pages/not-found';
 import { useLanguage } from '@/lib/i18n';
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {
-  const [loading, setLoading] = useState(true);
-  const [authenticated, setAuthenticated] = useState(false);
+  // Se il ruolo è già in cache l'utente è autenticato: niente schermata di caricamento.
+  const known = peekRoleCache() !== null;
+  const [loading, setLoading] = useState(!known);
+  const [authenticated, setAuthenticated] = useState(known);
   const { t } = useLanguage();
 
   useEffect(() => {
+    if (known) return;
     async function checkAuth() {
       try {
         const { data } = await supabase.auth.getSession();
@@ -23,7 +27,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
     }
 
     checkAuth();
-  }, []);
+  }, [known]);
 
   if (loading) {
     return (

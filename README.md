@@ -102,8 +102,19 @@ Le chat sono salvate su Supabase nelle tabelle esistenti `conversazioni`,
 `conversazioni_utenti` e `messaggi` (`backend/migrations/003_chat.sql` aggiunge
 solo vincoli, indici e RLS: da eseguire una volta nel SQL Editor). Le
 rotte sono in `backend/src/routes/chat.ts`; solo i due partecipanti possono
-leggere/scrivere e c'è un rate limit di 30 messaggi/minuto per utente. Il
-frontend aggiorna i messaggi con polling (4 s la chat aperta, 10 s l'inbox).
+leggere/scrivere e c'è un rate limit di 30 messaggi/minuto per utente (invio) e
+120 richieste/minuto per utente (letture). Il frontend aggiorna i messaggi con
+polling incrementale (`?after=<id>`: 4 s la chat aperta, 10 s l'inbox).
+
+Paginazione: all'apertura si caricano gli ultimi 100 messaggi; salendo con lo
+scroll il client chiede i 100 precedenti (`?before=<id>`). Il server non
+restituisce mai più di 100 messaggi per richiesta.
+
+`backend/migrations/004_chat_hardening.sql` (da eseguire **prima** di mettere
+online questo backend) aggiunge `conversazioni.studente_id`, unisce eventuali
+chat duplicate e crea i vincoli unici `(stanza_id, studente_id)` e
+`(conversazione_id, utente_id)`. In fondo al file ci sono le query per
+controllare che la RLS sia attiva e che non ci siano policy aperte.
 
 ### 3.4 Stato in memoria
 

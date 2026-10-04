@@ -31,67 +31,57 @@ export function Router() {
         <Route path="/" component={WaitlistPage} />
         <Route path="/login" component={LoginPage} />
         <Route path="/register" component={RegisterPage} />
-        <Route path="/home" component={() => (
+        <Route path="/home">
           <RequireAdmin allowOwner>
             <Home />
           </RequireAdmin>
-        )} />
-        <Route path="/search" component={() => (
+        </Route>
+        <Route path="/search">
           <RequireAdmin allowOwner>
             <SearchPage />
           </RequireAdmin>
-        )} />
-        <Route path="/listings/:id" component={() => (
+        </Route>
+        <Route path="/listings/:id">
           <RequireAdmin allowOwner>
             <ListingDetail />
           </RequireAdmin>
-        )} />
-        <Route path="/messages/:id" component={() => (
+        </Route>
+        <Route path="/messages/:id?">
           <RequireAdmin allowOwner>
             <StudentMessagesRoute />
           </RequireAdmin>
-        )} />
-        <Route path="/messages" component={() => (
-          <RequireAdmin allowOwner>
-            <StudentMessagesRoute />
-          </RequireAdmin>
-        )} />
-        <Route path="/profile" component={() => (
+        </Route>
+        <Route path="/profile">
           <RequireAuth>
             <StudentProfileRoute />
           </RequireAuth>
-        )} />
-        <Route path="/owner/listings/new" component={() => (
+        </Route>
+        <Route path="/owner/listings/new">
           <RequireAuth>
             <RequireOwner>
               <NewListingPage />
             </RequireOwner>
           </RequireAuth>
-        )} />
-        <Route path="/owner/messages/:id" component={() => (
+        </Route>
+        <Route path="/owner/messages/:id?">
           <RequireAuth>
             <OwnerMessagesRoute />
           </RequireAuth>
-        )} />
-        <Route path="/owner/messages" component={() => (
-          <RequireAuth>
-            <OwnerMessagesRoute />
-          </RequireAuth>
-        )} />
-        <Route path="/owner/profile" component={() => (
+        </Route>
+        <Route path="/owner/profile">
           <RequireAuth>
             <RequireOwner>
               <OwnerProfileRoute />
             </RequireOwner>
           </RequireAuth>
-        )} />
-        <Route path="/owner" component={() => (
+        </Route>
+        <Route path="/owner">
           <RequireAuth>
             <RequireOwner>
               <OwnerDashboard />
             </RequireOwner>
           </RequireAuth>
-        )} />
+        </Route>
         <Route path="/waitlist" component={WaitlistPage} />
         <Route path="/waitlist/confirmed" component={WaitlistConfirmedPage} />
         <Route path="/chi-siamo" component={ChiSiamoPage} />

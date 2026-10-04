@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { clearRoleCache } from '@/lib/role-cache';
 import { Link, useLocation } from 'wouter';
 import { ArrowRight, LogOut, Mail, UserRound } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -73,6 +74,7 @@ export function ProfileMenu({
 
   async function handleLogout() {
     await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+    clearRoleCache();
     setLocation(logoutRedirect);
   }
 
