@@ -14,7 +14,7 @@ import { useLanguage } from '@/lib/i18n';
 import { LanguagePicker } from '@/components/language-selector';
 import { ProfileMenu } from '@/components/layout/profile-menu';
 import { supabase } from '@/lib/supabase';
-import { getUserRole } from '@/lib/auth-role';
+import { getRoleInfo } from '@/lib/auth-role';
 
 const STATIC_PATHS = ['/chi-siamo', '/contatti', '/privacy', '/termini', '/cookie'];
 
@@ -22,10 +22,10 @@ const STATIC_PATHS = ['/chi-siamo', '/contatti', '/privacy', '/termini', '/cooki
 // authenticated users (role: 'user') never see them.
 const ADMIN_ONLY_NAV_KEYS = ['find-a-room', 'messages'];
 
-// Resolves whether the current session belongs to an admin. Defaults to
-// false until resolved, so restricted nav items never flash on screen.
-function useIsAdmin() {
-  const [isAdmin, setIsAdmin] = useState(false);
+// Resolves the role flags of the current session. Both default to false until
+// resolved, so restricted nav items never flash on screen.
+function useRoleFlags() {
+  const [flags, setFlags] = useState({ isAdmin: false, isOwner: false });
 
   useEffect(() => {
     let cancelled = false;
@@ -34,10 +34,10 @@ function useIsAdmin() {
       try {
         const { data } = await supabase.auth.getSession();
         const user = data?.session?.user;
-        const role = await getUserRole(user);
-        if (!cancelled) setIsAdmin(role === 'admin');
+        const info = await getRoleInfo(user);
+        if (!cancelled) setFlags({ isAdmin: info.role === 'admin', isOwner: info.owner });
       } catch {
-        if (!cancelled) setIsAdmin(false);
+        if (!cancelled) setFlags({ isAdmin: false, isOwner: false });
       }
     }
 
@@ -47,7 +47,7 @@ function useIsAdmin() {
     };
   }, []);
 
-  return isAdmin;
+  return flags;
 }
 
 // The ONE navbar for the whole app. It reads the current route and renders
@@ -63,7 +63,7 @@ export function Navbar() {
   const [location] = useLocation();
   const { t } = useLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const isAdmin = useIsAdmin();
+  const { isAdmin, isOwner } = useRoleFlags();
   const [position, setPosition] = useState<number | null>(null);
   const [positionLoading, setPositionLoading] = useState(true);
 
@@ -138,9 +138,17 @@ export function Navbar() {
 
     // "Trova una stanza" / "Messaggi" (and their owner equivalents) are
     // admin-only; plain authenticated users only ever see "Il mio profilo".
+    // Verified owners always keep "Messaggi" (in both sections).
     const links = allLinks.filter(
-      (link) => isAdmin || !ADMIN_ONLY_NAV_KEYS.includes(link.key),
+      (link) =>
+        isAdmin ||
+        !ADMIN_ONLY_NAV_KEYS.includes(link.key) ||
+        (isOwner && link.key === 'messages'),
     );
+
+    // Student side: owners get a "Dashboard" button, everyone else "List a room".
+    const ownerButtonLabel = isOwner ? t('nav.dashboard') : t('nav.listRoom');
+    const showSwitch = isOwner;
 
     return (
       <header className="sticky top-0 z-30 border-b border-[#dbe8e0] bg-[#F1EFE8]/95 backdrop-blur">
@@ -171,13 +179,13 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center gap-2">
-            {isAdmin && (
+            {showSwitch && (
               <Link
                 href={owner ? '/home' : '/owner'}
                 className="hidden rounded-xl px-3 py-2 text-sm font-extrabold text-[#0F6E56] hover:bg-[#E1F5EE] sm:inline-flex"
                 data-testid="link-switch-role"
               >
-                {owner ? t('nav.lookingForRoom') : t('nav.listRoom')}
+                {owner ? t('nav.lookingForRoom') : ownerButtonLabel}
               </Link>
             )}
             <button
@@ -206,7 +214,7 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
-            {isAdmin && (
+            {showSwitch && (
               <Link
                 href={adminSwitchHref}
                 onClick={() => setMobileOpen(false)}
@@ -214,7 +222,7 @@ export function Navbar() {
                 data-testid="link-mobile-switch-role"
               >
                 <MoveUpRight size={18} />
-                {owner ? t('nav.backToHunting') : t('nav.listRoom')}
+                {owner ? t('nav.lookingForRoom') : ownerButtonLabel}
               </Link>
             )}
           </div>

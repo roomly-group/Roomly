@@ -13,15 +13,9 @@ import {
   CreateListingBody,
   GetListingParams,
   ListListingsQueryParams,
-  ListMessagesParams,
-  SendMessageBody,
-  SendMessageParams,
   CreateListingResponse,
   GetListingResponse,
   ListListingsResponse,
-  ListConversationsResponse,
-  ListMessagesResponse,
-  SendMessageResponse,
   GetOwnerDashboardResponse,
 } from "@workspace/api-zod";
 
@@ -239,13 +233,26 @@ router.get("/listings/:id", async (req: Request, res: Response) => {
  */
 router.post("/listings", requireAuth, async (req: Request, res: Response) => {
   try {
+    const authedReq = req as typeof req & { userId: string; userEmail?: string };
+    const { data: ownerRecord, error: ownerCheckError } = await supabaseAdmin
+      .from("utenti")
+      .select("owner")
+      .eq("id", authedReq.userId)
+      .maybeSingle();
+
+    if (ownerCheckError) {
+      console.error("Failed to verify listing owner:", ownerCheckError);
+      return res.status(500).json({ error: "Unable to verify owner status" });
+    }
+    if (ownerRecord?.owner !== true) {
+      return res.status(403).json({ error: "Only verified owners can create listings" });
+    }
+
     const parsed = CreateListingBody.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: "Dati non validi", details: parsed.error.issues });
     }
     const input = parsed.data;
-    const authedReq = req as typeof req & { userId: string; userEmail?: string };
-
     // Assegniamo l'università più vicina (entro SEARCH_RADIUS_KM) in base alle
     // coordinate dell'indirizzo scelto. In ricerca la stanza comparirà comunque
     // per tutte le università nel raggio, non solo per questa.
@@ -355,12 +362,6 @@ router.post("/listings", requireAuth, async (req: Request, res: Response) => {
       throw new Error("Failed to create listing");
     }
 
-    const { error: ownerError } = await supabaseAdmin
-      .from("utenti")
-      .update({ owner: true })
-      .eq("id", authedReq.userId);
-    if (ownerError) console.error("Failed to promote listing owner:", ownerError);
-
     // We need to map the created listing to the Listing type for response
     // For simplicity, we'll return a basic Listing object (similar to above but with defaults)
     const listing: Listing = {
@@ -384,73 +385,7 @@ router.post("/listings", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-// The following endpoints (conversations, messages, etc.) are left with mock data for now
-// to avoid breaking other parts of the app. They should be updated in a future iteration.
-
-// Mock conversations and messages data (to be replaced with real data later)
-const conversations = [
-  { id: 1, participant: "user-marco", listingTitle: "Stanza San Lorenzo", preview: "Possiamo fissare una visita?", unread: true, updatedAt: "Oggi, 10:42" },
-  { id: 2, participant: "user-anna", listingTitle: "Stanza Fuorigrotta", preview: "Grazie per le informazioni!", unread: false, updatedAt: "Ieri" },
-];
-
-const messages = new Map<number, Array<{ id: number; conversationId: number; body: string; sender: string; sentAt: string }>>([
-  [1, [
-    { id: 1, conversationId: 1, body: "Ciao Marco, sono interessato alla stanza.", sender: "user-student", sentAt: "10:39" },
-    { id: 2, conversationId: 1, body: "Ciao! Possiamo fissare una visita questa settimana.", sender: "user-marco", sentAt: "10:42" },
-  ]],
-  [2, [
-    { id: 3, conversationId: 2, body: "È ancora disponibile?", sender: "user-student", sentAt: "Ieri" },
-    { id: 4, conversationId: 2, body: "Sì, certo. Ti mando tutti i dettagli.", sender: "user-anna", sentAt: "Ieri" },
-  ]],
-]);
-
-router.get("/conversations", requireAuth, async (req: Request, res: Response) => {
-  const authedReq = req as typeof req & { userId: string; userEmail?: string };
-  const userConversations = conversations.filter(conv => conv.participant === authedReq.userId);
-  res.json(ListConversationsResponse.parse(userConversations));
-});
-
-router.get("/conversations/:id/messages", requireAuth, async (req: Request, res: Response) => {
-  const { id } = ListMessagesParams.parse({ id: Number(req.params.id) });
-  const authedReq = req as typeof req & { userId: string; userEmail?: string };
-
-  const conversation = conversations.find(c => c.id === id);
-  if (!conversation) {
-    return res.status(404).json({ error: "Conversation not found" });
-  }
-
-  if (conversation.participant !== authedReq.userId) {
-    return res.status(403).json({ error: "Forbidden: You are not a participant in this conversation" });
-  }
-
-  return res.json(ListMessagesResponse.parse(messages.get(id) ?? []));
-});
-
-router.post("/conversations/:id/messages", requireAuth, async (req: Request, res: Response) => {
-  const { id } = SendMessageParams.parse({ id: Number(req.params.id) });
-  const input = SendMessageBody.parse(req.body);
-  const authedReq = req as typeof req & { userId: string; userEmail?: string };
-
-  const conversation = conversations.find(c => c.id === id);
-  if (!conversation) {
-    return res.status(404).json({ error: "Conversation not found" });
-  }
-
-  if (conversation.participant === authedReq.userId) {
-    return res.status(403).json({ error: "Forbidden: Owners cannot send messages to their own conversations" });
-  }
-
-  const existing = messages.get(id) ?? [];
-  const message = {
-    id: Date.now(),
-    conversationId: id,
-    body: input.body,
-    sender: authedReq.userId,
-    sentAt: new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }),
-  };
-  messages.set(id, [...existing, message]);
-  return res.status(201).json(SendMessageResponse.parse(message));
-});
+// Conversations and messages live in ./chat.ts
 
 router.get("/dashboard/owner", requireAuth, async (req: Request, res: Response) => {
   // This endpoint also uses mock data; we'll leave it as is for now.

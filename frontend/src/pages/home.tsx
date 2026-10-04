@@ -86,7 +86,7 @@ export function Home() {
     query: { queryKey: getHealthCheckQueryKey(), staleTime: 60000 },
   });
   const listings = data ?? [];
-  const [role, setRole] = useState<'student' | 'owner'>('student');
+  const [isOwner, setIsOwner] = useState(false);
   const onSearch = (nextZone: string) =>
     setLocation(`/search${nextZone ? `?zone=${encodeURIComponent(nextZone)}` : ''}`);
 
@@ -109,8 +109,9 @@ export function Home() {
           setLocation('/waitlist/confirmed');
           return;
         }
-        const { role } = await response.json();
-        if (role !== 'admin') {
+        const { role, owner } = (await response.json()) as { role?: string; owner?: boolean };
+        setIsOwner(owner === true);
+        if (role !== 'admin' && owner !== true) {
           setLocation('/waitlist/confirmed');
         }
       } catch (err) {
@@ -230,13 +231,15 @@ export function Home() {
             <p className="mt-4 max-w-md text-sm leading-6 text-[#624c2e]">
               {t('home.ownersText')}
             </p>
-            <Link
-              href="/owner/listings/new"
-              className="mt-7 inline-flex items-center gap-2 rounded-xl bg-[#085041] px-4 py-3 text-sm font-black text-[#E1F5EE] transition hover:bg-[#0F6E56]"
-              data-testid="link-owner-cta"
-            >
-              {t('home.ownersCta')} <ArrowRight size={16} />
-            </Link>
+            {isOwner && (
+              <Link
+                href="/owner"
+                className="mt-7 inline-flex items-center gap-2 rounded-xl bg-[#085041] px-4 py-3 text-sm font-black text-[#E1F5EE] transition hover:bg-[#0F6E56]"
+                data-testid="link-owner-cta"
+              >
+                {t('home.ownersCta')} <ArrowRight size={16} />
+              </Link>
+            )}
           </div>
 
           <div className="grid gap-5 rounded-2xl bg-[#085041] p-7 text-[#E1F5EE] sm:grid-cols-2 sm:p-9">
@@ -263,14 +266,15 @@ export function Home() {
                 )}
                 <p className="mt-1 text-sm text-[#9FE1CB]">{t('home.statText')}</p>
               </div>
-              <button
-                onClick={() => setRole(role === 'student' ? 'owner' : 'student')}
-                className="mt-6 flex items-center gap-2 text-left text-sm font-black text-[#E1F5EE] hover:text-[#EF9F27]"
-                data-testid="button-switch-role-home"
-              >
-                {role === 'student' ? t('home.switchToOwner') : t('home.switchToStudent')}
-                <ArrowRight size={15} />
-              </button>
+              {isOwner && (
+                <Link
+                  href="/search"
+                  className="mt-6 flex items-center gap-2 text-left text-sm font-black text-[#E1F5EE] hover:text-[#EF9F27]"
+                  data-testid="link-other-listings-home"
+                >
+                  {t('nav.lookingForRoom')} <ArrowRight size={15} />
+                </Link>
+              )}
             </div>
           </div>
         </section>

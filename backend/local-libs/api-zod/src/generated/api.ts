@@ -119,9 +119,23 @@ export const ListConversationsResponseItem = zod.object({
   "listingTitle": zod.string(),
   "preview": zod.string(),
   "unread": zod.boolean(),
-  "updatedAt": zod.string()
+  "updatedAt": zod.string(),
+  "role": zod.enum(['student', 'owner']).optional()
 })
 export const ListConversationsResponse = zod.array(ListConversationsResponseItem)
+
+
+/**
+ * @summary Start a conversation with a listing's owner
+ */
+export const StartConversationBody = zod.object({
+  "listingId": zod.number(),
+  "body": zod.string().min(1)
+})
+
+export const StartConversationResponse = zod.object({
+  "conversationId": zod.number()
+})
 
 
 /**

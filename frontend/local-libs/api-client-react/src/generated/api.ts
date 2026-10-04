@@ -27,7 +27,9 @@ import type {
   ListingInput,
   Message,
   MessageInput,
-  OwnerDashboard
+  OwnerDashboard,
+  StartConversationInput,
+  StartConversationResponse
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -591,6 +593,61 @@ export const useSendMessage = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getSendMessageMutationOptions(options));
+    }
+
+export const getStartConversationUrl = () => {
+  return `/api/conversations`
+}
+
+/**
+ * @summary Start a conversation with a listing's owner
+ */
+export const startConversation = async (startConversationInput: StartConversationInput, options?: Parameters<typeof customFetch>[1]): Promise<StartConversationResponse> => {
+
+  return customFetch<StartConversationResponse>(getStartConversationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(startConversationInput)
+  }
+);}
+
+export const getStartConversationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startConversation>>, TError,{data: BodyType<StartConversationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startConversation>>, TError,{data: BodyType<StartConversationInput>}, TContext> => {
+
+const mutationKey = ['startConversation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startConversation>>, {data: BodyType<StartConversationInput>}> = (props: {data: BodyType<StartConversationInput>}) => {
+          const {data} = props ?? {};
+
+          return  startConversation(data,requestOptions)
+        }
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartConversationMutationResult = NonNullable<Awaited<ReturnType<typeof startConversation>>>
+    export type StartConversationMutationBody = BodyType<StartConversationInput>
+    export type StartConversationMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Start a conversation with a listing's owner
+ */
+export const useStartConversation = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startConversation>>, TError,{data: BodyType<StartConversationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startConversation>>,
+        TError,
+        {data: BodyType<StartConversationInput>},
+        TContext
+      > => {
+      return useMutation(getStartConversationMutationOptions(options));
     }
 
 export const getGetOwnerDashboardUrl = () => {

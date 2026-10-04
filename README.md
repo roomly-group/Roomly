@@ -83,9 +83,10 @@ avvia Express. La configurazione dei middleware è in `backend/src/app.ts`.
 | `GET` | `/api/listings` | Lista annunci; filtri `zone`, `maxPrice`, `furnished` |
 | `POST` | `/api/listings` | Crea un annuncio e risponde `201` |
 | `GET` | `/api/listings/:id` | Dettaglio annuncio oppure `404` |
-| `GET` | `/api/conversations` | Lista conversazioni demo |
-| `GET` | `/api/conversations/:id/messages` | Messaggi di una conversazione |
-| `POST` | `/api/conversations/:id/messages` | Aggiunge un messaggio dello studente |
+| `GET` | `/api/conversations` | Chat dell'utente (come studente o proprietario), più recenti prima |
+| `POST` | `/api/conversations` | Avvia/riapre la chat con il proprietario di un annuncio (`{ listingId, body }`) |
+| `GET` | `/api/conversations/:id/messages` | Messaggi di una chat; la segna come letta |
+| `POST` | `/api/conversations/:id/messages` | Invia un messaggio (studente o proprietario) |
 | `GET` | `/api/dashboard/owner` | Metriche demo del proprietario |
 
 ### 3.3 Contratto e validazione
@@ -94,6 +95,15 @@ Gli input e le risposte positive vengono verificati con gli schemi di
 `@workspace/api-zod`. Per cambiare una forma dati, modificare il contratto in
 `backend/local-libs/api-zod/src/generated/` e aggiornare il client generato del
 frontend insieme al backend.
+
+### 3.3b Chat
+
+Le chat sono salvate su Supabase nelle tabelle esistenti `conversazioni`,
+`conversazioni_utenti` e `messaggi` (`backend/migrations/003_chat.sql` aggiunge
+solo vincoli, indici e RLS: da eseguire una volta nel SQL Editor). Le
+rotte sono in `backend/src/routes/chat.ts`; solo i due partecipanti possono
+leggere/scrivere e c'è un rate limit di 30 messaggi/minuto per utente. Il
+frontend aggiorna i messaggi con polling (4 s la chat aperta, 10 s l'inbox).
 
 ### 3.4 Stato in memoria
 

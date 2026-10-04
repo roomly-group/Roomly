@@ -45,6 +45,8 @@ export interface ListingInput {
   photos?: number;
 }
 
+export type ConversationRole = 'student' | 'owner';
+
 export interface Conversation {
   id: number;
   participant: string;
@@ -52,6 +54,18 @@ export interface Conversation {
   preview: string;
   unread: boolean;
   updatedAt: string;
+  /** Ruolo di chi guarda la chat: studente o proprietario dell'annuncio. */
+  role?: ConversationRole;
+}
+
+export interface StartConversationInput {
+  listingId: number;
+  /** @minLength 1 */
+  body: string;
+}
+
+export interface StartConversationResponse {
+  conversationId: number;
 }
 
 export interface Message {

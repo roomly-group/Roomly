@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Mail, MessageCircle, MoreHorizontal, Send } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ChevronLeft, Mail, MessageCircle, MoreHorizontal, Send } from 'lucide-react';
 import { Link, useParams } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -17,6 +17,11 @@ import { PageIntro } from '@/components/shared/page-intro';
 import { QueryError } from '@/components/shared/query-error';
 import { EmptyState } from '@/components/shared/empty-state';
 
+// How often the open chat / the inbox are re-fetched. React Query pauses this
+// while the browser tab is in the background.
+const MESSAGES_POLL_MS = 4000;
+const CONVERSATIONS_POLL_MS = 10000;
+
 function TimeAgo({ value }: { value: string }) {
   const { t } = useLanguage();
   const date = new Date(value);
@@ -29,8 +34,8 @@ function TimeAgo({ value }: { value: string }) {
   return <>{date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</>;
 }
 
-function MessageBubble({ message, owner }: { message: Message; owner: boolean }) {
-  const mine = message.sender === (owner ? 'owner' : 'student');
+function MessageBubble({ message, viewerRole }: { message: Message; viewerRole: 'owner' | 'student' }) {
+  const mine = message.sender === viewerRole;
   return (
     <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`} data-testid={`message-${message.id}`}>
       <div
@@ -38,7 +43,7 @@ function MessageBubble({ message, owner }: { message: Message; owner: boolean })
           mine ? 'rounded-br-md bg-[#0F6E56] text-[#E1F5EE]' : 'rounded-bl-md bg-[#E1F5EE] text-[#085041]'
         }`}
       >
-        <p>{message.body}</p>
+        <p className="whitespace-pre-wrap break-words">{message.body}</p>
         <p className={`mt-1 text-[10px] font-bold ${mine ? 'text-[#9FE1CB]' : 'text-[#527067]'}`}>
           <TimeAgo value={message.sentAt} />
         </p>
@@ -112,14 +117,30 @@ function ConversationPanel({
   owner: boolean;
 }) {
   const { t } = useLanguage();
-  const { data, isLoading } = useListMessages(conversationId, {
-    query: { queryKey: getListMessagesQueryKey(conversationId) },
+  const { data, isLoading, isError, refetch } = useListMessages(conversationId, {
+    query: { queryKey: getListMessagesQueryKey(conversationId), refetchInterval: MESSAGES_POLL_MS },
   });
   const messages = data ?? [];
   const sendMessage = useSendMessage();
   const client = useQueryClient();
   const [body, setBody] = useState('');
   const [copied, setCopied] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // The same inbox lists chats where the person is the student AND chats where
+  // they are the owner, so "mine" depends on the role in THIS conversation.
+  const viewerRole: 'owner' | 'student' = conversation?.role ?? (owner ? 'owner' : 'student');
+
+  // Opening a chat marks it as read on the server: refresh the inbox so the
+  // unread dot disappears (and again whenever new messages arrive).
+  useEffect(() => {
+    if (data) void client.invalidateQueries({ queryKey: getListConversationsQueryKey() });
+  }, [client, conversationId, data?.length]);
+
+  // Keep the newest message in view.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [conversationId, messages.length]);
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -134,6 +155,7 @@ function ConversationPanel({
             message,
           ]);
           setBody('');
+          void client.invalidateQueries({ queryKey: getListConversationsQueryKey() });
         },
       },
     );
@@ -148,9 +170,17 @@ function ConversationPanel({
   };
 
   return (
-    <div className="flex h-full min-h-[520px] flex-col">
+    <div className="flex h-[75vh] max-h-[720px] min-h-[520px] flex-col">
       <div className="flex items-center justify-between border-b border-[#e1ebe4] p-5">
         <div className="flex items-center gap-3">
+          <Link
+            href={owner ? '/owner/messages' : '/messages'}
+            className="-ml-2 rounded-lg p-2 text-[#527067] hover:bg-[#E1F5EE] lg:hidden"
+            aria-label={t('messages.back')}
+            data-testid="link-back-to-inbox"
+          >
+            <ChevronLeft size={20} />
+          </Link>
           {conversation && <Avatar name={conversation.participant} size="sm" />}
           <div>
             <h2 className="font-black text-[#085041]">
@@ -180,15 +210,17 @@ function ConversationPanel({
         </p>
       )}
 
-      <div className="flex-1 space-y-3 overflow-y-auto p-5">
+      <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5">
         {isLoading ? (
           <>
             {[1, 2, 3].map((item) => (
               <div key={item} className={`skeleton h-12 w-2/3 rounded-2xl ${item % 2 ? '' : 'ml-auto'}`} />
             ))}
           </>
+        ) : isError ? (
+          <QueryError onRetry={() => refetch()} />
         ) : messages.length ? (
-          messages.map((message) => <MessageBubble key={message.id} message={message} owner={owner} />)
+          messages.map((message) => <MessageBubble key={message.id} message={message} viewerRole={viewerRole} />)
         ) : (
           <div className="flex h-full flex-col items-center justify-center text-center">
             <div className="rounded-xl bg-[#E1F5EE] p-3 text-[#0F6E56]">
@@ -205,6 +237,14 @@ function ConversationPanel({
           <textarea
             value={body}
             onChange={(event) => setBody(event.target.value)}
+            onKeyDown={(event) => {
+              // Enter sends, Shift+Enter inserts a new line.
+              if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                event.preventDefault();
+                event.currentTarget.form?.requestSubmit();
+              }
+            }}
+            maxLength={2000}
             rows={1}
             placeholder={t('messages.writeMessage')}
             className="max-h-28 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none placeholder:text-[#82978e]"
@@ -231,8 +271,10 @@ export function MessagesPage({ owner = false }: { owner?: boolean }) {
   const { t } = useLanguage();
   const { id } = useParams<{ id?: string }>();
   const { data, isLoading, isError, refetch } = useListConversations({
-    query: { queryKey: getListConversationsQueryKey() },
+    query: { queryKey: getListConversationsQueryKey(), refetchInterval: CONVERSATIONS_POLL_MS },
   });
+  // One synchronized inbox: /messages and /owner/messages show the same chats
+  // (as student and as owner), so nothing is split between the two sections.
   const conversations = data ?? [];
   // No conversation is auto-opened: the right panel starts on the
   // "select a contact" placeholder until the person picks one from the inbox.
@@ -248,7 +290,9 @@ export function MessagesPage({ owner = false }: { owner?: boolean }) {
         />
 
         <div className="grid min-h-[520px] overflow-hidden rounded-2xl border border-[#d6e7de] bg-[#F8F8F2] lg:grid-cols-[360px_1fr]">
-          <section className="border-b border-[#d6e7de] lg:border-b-0 lg:border-r">
+          <section
+            className={`border-b border-[#d6e7de] lg:block lg:border-b-0 lg:border-r ${selectedId ? 'hidden' : ''}`}
+          >
             <div className="flex items-center justify-between border-b border-[#e1ebe4] p-4">
               <h2 className="font-black text-[#085041]">{t('messages.inbox')}</h2>
               <span className="rounded-full bg-[#E1F5EE] px-2.5 py-1 text-xs font-black text-[#0F6E56]">
@@ -277,7 +321,7 @@ export function MessagesPage({ owner = false }: { owner?: boolean }) {
             )}
           </section>
 
-          <section className="hidden lg:block">
+          <section className={selectedId ? 'block' : 'hidden lg:block'}>
             {selectedId ? (
               <ConversationPanel
                 conversationId={selectedId}

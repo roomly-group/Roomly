@@ -111,22 +111,19 @@ router.get("/me/role", requireAuth, async (req: AuthenticatedRequest, res) => {
 
   const { data, error } = await supabaseAdmin
     .from("utenti")
-    .select("admin, owner")   // <-- aggiunto owner
+    .select("admin, owner")
     .eq("id", userId)
     .single();
 
-  if (error || !data) {
-    const created = await ensureUtenteRecord(userId);
-    res.json({
-      role: created?.admin ? "admin" : "user",
-      owner: created?.owner === true,
-    });
-    return;
-  }
+  const row = error || !data ? await ensureUtenteRecord(userId) : data;
+
+  // `owner` è un flag di fiducia: lo assegnano solo operazioni server/admin
+  // (vedi migrations/003_protect_owner_flag.sql), non lo si deduce dalle stanze.
+  const isOwner = row?.owner === true;
 
   res.json({
-    role: data.admin ? "admin" : "user",
-    owner: data.owner === true,
+    role: row?.admin ? "admin" : "user",
+    owner: isOwner,
   });
 });
 

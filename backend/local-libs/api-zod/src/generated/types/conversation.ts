@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export type ConversationRole = 'student' | 'owner';
+
 export interface Conversation {
   id: number;
   participant: string;
@@ -13,4 +15,6 @@ export interface Conversation {
   preview: string;
   unread: boolean;
   updatedAt: string;
+  /** Ruolo di chi guarda la chat: studente o proprietario dell'annuncio. */
+  role?: ConversationRole;
 }

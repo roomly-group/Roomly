@@ -8,13 +8,20 @@ import {
   LampDesk,
   MapPin,
   MessageCircle,
+  Send,
   ShieldCheck,
   Star,
   Wifi,
   X,
 } from 'lucide-react';
-import { Link, useParams } from 'wouter';
-import { getGetListingQueryKey, useGetListing } from '@workspace/api-client-react';
+import { Link, useLocation, useParams } from 'wouter';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  getGetListingQueryKey,
+  getListConversationsQueryKey,
+  useGetListing,
+  useStartConversation,
+} from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
 import { formatPrice, gradients } from '@/lib/constants';
 import { AppShell, Avatar } from '@/components/layout/app-shell';
@@ -39,6 +46,32 @@ export function ListingDetail() {
   });
   const [saved, setSaved] = useState(false);
   const [showContact, setShowContact] = useState(false);
+  const [firstMessage, setFirstMessage] = useState('');
+  const [, navigate] = useLocation();
+  const client = useQueryClient();
+  const startConversation = useStartConversation();
+
+  const sendFirstMessage = (event: React.FormEvent) => {
+    event.preventDefault();
+    const body = firstMessage.trim();
+    if (!body || startConversation.isPending) return;
+    startConversation.mutate(
+      { data: { listingId, body } },
+      {
+        onSuccess: ({ conversationId }) => {
+          void client.invalidateQueries({ queryKey: getListConversationsQueryKey() });
+          setShowContact(false);
+          setFirstMessage('');
+          navigate(`/messages/${conversationId}`);
+        },
+      },
+    );
+  };
+
+  const closeContact = () => {
+    setShowContact(false);
+    startConversation.reset();
+  };
 
   if (isLoading) {
     return (
@@ -182,20 +215,44 @@ export function ListingDetail() {
                   </h2>
                 </div>
                 <button
-                  onClick={() => setShowContact(false)}
+                  onClick={closeContact}
                   className="rounded-lg p-2 text-[#527067] hover:bg-[#E1F5EE]"
                   data-testid="button-close-contact"
                 >
                   <X size={18} />
                 </button>
               </div>
-              <p className="mt-3 text-sm leading-6 text-[#527067]">{t('listingDetail.modalInfo')}</p>
-              <div className="mt-5 rounded-xl bg-[#E1F5EE] p-4 text-sm font-bold text-[#085041]">
-                {t('listingDetail.modalTip')}
-              </div>
-              <Button onClick={() => setShowContact(false)} className="mt-5 w-full" data-testid="button-contact-done">
-                {t('listingDetail.gotIt')}
-              </Button>
+              <form onSubmit={sendFirstMessage}>
+                <p className="mt-3 text-sm leading-6 text-[#527067]">{t('listingDetail.modalInfo')}</p>
+                <div className="mt-4 rounded-xl bg-[#E1F5EE] p-3 text-xs font-bold text-[#085041]">
+                  {t('listingDetail.modalTip')}
+                </div>
+                <textarea
+                  value={firstMessage}
+                  onChange={(event) => setFirstMessage(event.target.value)}
+                  rows={4}
+                  maxLength={2000}
+                  autoFocus
+                  placeholder={t('listingDetail.firstMessagePlaceholder')}
+                  className="mt-4 w-full resize-none rounded-xl border border-[#c8ddd2] bg-[#F1EFE8] p-3 text-sm outline-none placeholder:text-[#82978e] focus:border-[#0F6E56]"
+                  data-testid="input-first-message"
+                />
+                {startConversation.isError && (
+                  <p className="mt-2 text-xs font-bold text-[#a74b32]" data-testid="status-contact-error">
+                    {(startConversation.error as { status?: number } | null)?.status === 400
+                      ? t('listingDetail.cannotMessageSelf')
+                      : t('messages.sendError')}
+                  </p>
+                )}
+                <Button
+                  type="submit"
+                  className="mt-4 w-full"
+                  disabled={!firstMessage.trim() || startConversation.isPending}
+                  data-testid="button-contact-send"
+                >
+                  <Send size={16} /> {t('listingDetail.sendMessage')}
+                </Button>
+              </form>
             </div>
           </div>
         )}

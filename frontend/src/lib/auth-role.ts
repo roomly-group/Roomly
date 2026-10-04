@@ -36,6 +36,10 @@ async function fetchRole(user: User | null | undefined): Promise<RoleResponse> {
   return fetchRoleFromBackend(''); // token not used
 }
 
+export async function getRoleInfo(user: User | null | undefined): Promise<RoleResponse> {
+  return fetchRole(user);
+}
+
 export async function getUserRole(user: User | null | undefined): Promise<UserRole> {
   const { role } = await fetchRole(user);
   return role;

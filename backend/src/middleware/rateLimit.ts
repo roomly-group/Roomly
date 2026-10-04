@@ -74,3 +74,24 @@ export const refreshLimiter = rateLimit({
     });
   },
 });
+
+/**
+ * Rate limiter for chat messages (start conversation + send message).
+ * Allows 30 messages per minute per authenticated user (falls back to IP).
+ * Must be mounted after `requireAuth` so `userId` is available.
+ */
+export const messageLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const userId = (req as Request & { userId?: string }).userId;
+    return userId ? `user:${userId}` : extractIP(req);
+  },
+  handler: (_req: Request, res: Response) => {
+    res.status(429).json({
+      error: 'Too many messages, please slow down.',
+    });
+  },
+});
