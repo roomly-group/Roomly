@@ -239,13 +239,26 @@ router.get("/listings/:id", async (req: Request, res: Response) => {
  */
 router.post("/listings", requireAuth, async (req: Request, res: Response) => {
   try {
+    const authedReq = req as typeof req & { userId: string; userEmail?: string };
+    const { data: ownerRecord, error: ownerCheckError } = await supabaseAdmin
+      .from("utenti")
+      .select("owner")
+      .eq("id", authedReq.userId)
+      .maybeSingle();
+
+    if (ownerCheckError) {
+      console.error("Failed to verify listing owner:", ownerCheckError);
+      return res.status(500).json({ error: "Unable to verify owner status" });
+    }
+    if (ownerRecord?.owner !== true) {
+      return res.status(403).json({ error: "Only verified owners can create listings" });
+    }
+
     const parsed = CreateListingBody.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: "Dati non validi", details: parsed.error.issues });
     }
     const input = parsed.data;
-    const authedReq = req as typeof req & { userId: string; userEmail?: string };
-
     // Assegniamo l'università più vicina (entro SEARCH_RADIUS_KM) in base alle
     // coordinate dell'indirizzo scelto. In ricerca la stanza comparirà comunque
     // per tutte le università nel raggio, non solo per questa.
@@ -354,12 +367,6 @@ router.post("/listings", requireAuth, async (req: Request, res: Response) => {
     if (!newListing) {
       throw new Error("Failed to create listing");
     }
-
-    const { error: ownerError } = await supabaseAdmin
-      .from("utenti")
-      .update({ owner: true })
-      .eq("id", authedReq.userId);
-    if (ownerError) console.error("Failed to promote listing owner:", ownerError);
 
     // We need to map the created listing to the Listing type for response
     // For simplicity, we'll return a basic Listing object (similar to above but with defaults)

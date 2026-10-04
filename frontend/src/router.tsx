@@ -32,17 +32,17 @@ export function Router() {
         <Route path="/login" component={LoginPage} />
         <Route path="/register" component={RegisterPage} />
         <Route path="/home" component={() => (
-          <RequireAdmin>
+          <RequireAdmin allowOwner>
             <Home />
           </RequireAdmin>
         )} />
         <Route path="/search" component={() => (
-          <RequireAdmin>
+          <RequireAdmin allowOwner>
             <SearchPage />
           </RequireAdmin>
         )} />
         <Route path="/listings/:id" component={() => (
-          <RequireAdmin>
+          <RequireAdmin allowOwner>
             <ListingDetail />
           </RequireAdmin>
         )} />
@@ -63,7 +63,9 @@ export function Router() {
         )} />
         <Route path="/owner/listings/new" component={() => (
           <RequireAuth>
-            <NewListingPage />
+            <RequireOwner>
+              <NewListingPage />
+            </RequireOwner>
           </RequireAuth>
         )} />
         <Route path="/owner/messages" component={() => (
@@ -82,7 +84,9 @@ export function Router() {
         )} />
         <Route path="/owner" component={() => (
           <RequireAuth>
-            <OwnerDashboard />
+            <RequireOwner>
+              <OwnerDashboard />
+            </RequireOwner>
           </RequireAuth>
         )} />
         <Route path="/waitlist" component={WaitlistPage} />

@@ -14,7 +14,7 @@ import { useLanguage } from '@/lib/i18n';
 import { LanguagePicker } from '@/components/language-selector';
 import { ProfileMenu } from '@/components/layout/profile-menu';
 import { supabase } from '@/lib/supabase';
-import { getUserRole } from '@/lib/auth-role';
+import { getIsOwner, getUserRole } from '@/lib/auth-role';
 
 const STATIC_PATHS = ['/chi-siamo', '/contatti', '/privacy', '/termini', '/cookie'];
 
@@ -50,6 +50,31 @@ function useIsAdmin() {
   return isAdmin;
 }
 
+function useIsOwner() {
+  const [isOwner, setIsOwner] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadOwnerStatus() {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const owner = await getIsOwner(data?.session?.user);
+        if (!cancelled) setIsOwner(owner);
+      } catch {
+        if (!cancelled) setIsOwner(false);
+      }
+    }
+
+    loadOwnerStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return isOwner;
+}
+
 // The ONE navbar for the whole app. It reads the current route and renders
 // itself accordingly, so every page just drops in `<Navbar />` with no
 // props — no more per-page hardcoded headers or variant/rightContent wiring.
@@ -64,6 +89,7 @@ export function Navbar() {
   const { t } = useLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
   const isAdmin = useIsAdmin();
+  const isOwner = useIsOwner();
   const [position, setPosition] = useState<number | null>(null);
   const [positionLoading, setPositionLoading] = useState(true);
 
@@ -171,7 +197,7 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center gap-2">
-            {isAdmin && (
+            {isOwner && (
               <Link
                 href={owner ? '/home' : '/owner'}
                 className="hidden rounded-xl px-3 py-2 text-sm font-extrabold text-[#0F6E56] hover:bg-[#E1F5EE] sm:inline-flex"
@@ -206,7 +232,7 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
-            {isAdmin && (
+            {isOwner && (
               <Link
                 href={adminSwitchHref}
                 onClick={() => setMobileOpen(false)}
@@ -214,7 +240,7 @@ export function Navbar() {
                 data-testid="link-mobile-switch-role"
               >
                 <MoveUpRight size={18} />
-                {owner ? t('nav.backToHunting') : t('nav.listRoom')}
+                {owner ? t('nav.lookingForRoom') : t('nav.listRoom')}
               </Link>
             )}
           </div>
