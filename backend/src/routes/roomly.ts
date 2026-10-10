@@ -1,4 +1,5 @@
-import { Router, type IRouter, type Request, type Response } from "express";
+import { raw, Router, type IRouter, type Request, type Response } from "express";
+import { randomUUID } from "node:crypto";
 import { requireAuth } from "../middleware/auth";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import {
@@ -30,14 +31,76 @@ type RoomRow = {
   universita_id?: string | number | null;
   latitudine?: number | null;
   longitudine?: number | null;
+  stanze_foto?: Array<{ url?: string | null; copertina?: boolean | null; ordine?: number | null }> | null;
   universita?: { nome?: string | null } | null;
   utenti?: { nome_utente?: string | null; nome?: string | null; cognome?: string | null } | null;
 };
 
-const mapRoomRowToListing = (row: RoomRow, distanceKm?: number): Listing => {
+const router: IRouter = Router();
+const ROOM_PHOTO_BUCKET = "foto_stanze";
+const MAX_ROOM_PHOTO_BYTES = 8 * 1024 * 1024;
+const MAX_ROOM_PHOTOS = 10;
+const ROOM_PHOTO_URL_TTL_SECONDS = 60 * 60;
+
+const isValidRoomPhoto = (file: Buffer, contentType: string): boolean => {
+  if (contentType === "image/png") {
+    if (!file.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) return false;
+    let offset = 8;
+    while (offset + 12 <= file.length) {
+      const chunkLength = file.readUInt32BE(offset);
+      const chunkEnd = offset + 12 + chunkLength;
+      if (chunkEnd > file.length) return false;
+      const chunkType = file.toString("ascii", offset + 4, offset + 8);
+      if (chunkType === "IEND") return chunkLength === 0 && chunkEnd === file.length;
+      offset = chunkEnd;
+    }
+    return false;
+  }
+
+  return contentType === "image/jpeg" &&
+    file.length >= 4 &&
+    file[0] === 0xff && file[1] === 0xd8 && file[2] === 0xff &&
+    file[file.length - 2] === 0xff && file[file.length - 1] === 0xd9;
+};
+
+const getRoomPhotoPath = (storedUrl: string): string | null => {
+  const markers = [
+    `/object/public/${ROOM_PHOTO_BUCKET}/`,
+    `/object/sign/${ROOM_PHOTO_BUCKET}/`,
+  ];
+  const marker = markers.find((candidate) => storedUrl.includes(candidate));
+  if (!marker) return storedUrl.startsWith("http") ? null : storedUrl;
+
+  try {
+    return decodeURIComponent(storedUrl.slice(storedUrl.indexOf(marker) + marker.length).split("?", 1)[0]);
+  } catch {
+    return null;
+  }
+};
+
+const createRoomPhotoSignedUrl = async (storedUrl: string): Promise<string | null> => {
+  const path = getRoomPhotoPath(storedUrl);
+  if (!path) return null;
+
+  const { data, error } = await supabaseAdmin.storage
+    .from(ROOM_PHOTO_BUCKET)
+    .createSignedUrl(path, ROOM_PHOTO_URL_TTL_SECONDS);
+
+  if (error) {
+    console.warn("Failed to sign room photo URL:", error.message);
+    return null;
+  }
+
+  return data.signedUrl;
+};
+
+const mapRoomRowToListing = async (
+  row: RoomRow,
+  distanceKm?: number,
+  includeGallery = false,
+): Promise<Listing> => {
   const ownerName = row.utenti?.nome_utente ??
     (row.utenti?.nome && row.utenti?.cognome ? `${row.utenti.nome} ${row.utenti.cognome}` : "Unknown");
-
   const serviziArray = Array.isArray(row.servizi) ? row.servizi : [];
   const furnished = serviziArray.some((servizio: string) =>
     ["arredato", "mobilio", "letto", "armadio"].includes(servizio.toLowerCase())
@@ -45,6 +108,17 @@ const mapRoomRowToListing = (row: RoomRow, distanceKm?: number): Listing => {
   const wifi = serviziArray.some((servizio: string) =>
     servizio.toLowerCase().includes("internet")
   );
+  const photos = [...(row.stanze_foto ?? [])].sort(
+    (left, right) => (left.ordine ?? 0) - (right.ordine ?? 0),
+  );
+  const coverIndex = Math.max(0, photos.findIndex((photo) => photo.copertina));
+  const coverPhoto = photos[coverIndex] ?? photos[0];
+  const signedPhotoUrls = includeGallery
+    ? await Promise.all(photos.map((photo) => photo.url ? createRoomPhotoSignedUrl(photo.url) : null))
+    : [];
+  const coverPhotoUrl = includeGallery
+    ? signedPhotoUrls[coverIndex]
+    : coverPhoto?.url ? await createRoomPhotoSignedUrl(coverPhoto.url) : null;
 
   return {
     id: row.id,
@@ -53,7 +127,9 @@ const mapRoomRowToListing = (row: RoomRow, distanceKm?: number): Listing => {
     price: Number(row.prezzo ?? 0),
     owner: ownerName,
     rating: 0,
-    photos: 0,
+    photos: photos.length,
+    ...(coverPhotoUrl ? { coverPhotoUrl } : {}),
+    ...(includeGallery ? { photoUrls: signedPhotoUrls.filter((url): url is string => Boolean(url)) } : {}),
     furnished,
     wifi,
     description: row.descrizione ?? "",
@@ -75,10 +151,9 @@ const ROOM_SELECT = `
   latitudine,
   longitudine,
   universita:universita_id(nome),
-  utenti:proprietario_id(nome_utente, nome, cognome)
+  utenti:proprietario_id(nome_utente, nome, cognome),
+  stanze_foto(url, copertina, ordine)
 `;
-
-const router: IRouter = Router();
 
 /**
  * GET /api/listings
@@ -144,17 +219,15 @@ router.get("/listings", async (req: Request, res: Response) => {
             )
           : null;
         const linked = String(row.universita_id ?? "") === String(university.id);
-        // Il rettangolo è più largo del cerchio: qui applichiamo il raggio vero.
         if (distance !== null ? distance > SEARCH_RADIUS_KM && !linked : !linked) continue;
         ranked.push({
-          listing: mapRoomRowToListing(
+          listing: await mapRoomRowToListing(
             row,
             distance !== null ? Math.round(distance * 10) / 10 : undefined,
           ),
           distance,
         });
       }
-      // Più vicine prima; quelle senza coordinate in fondo, poi per prezzo.
       ranked.sort((a, b) => {
         if (a.distance === null && b.distance === null) return a.listing.price - b.listing.price;
         if (a.distance === null) return 1;
@@ -163,12 +236,10 @@ router.get("/listings", async (req: Request, res: Response) => {
       });
       listings = ranked.map((item) => item.listing);
     } else {
-      listings = rows
-        .map((row) => mapRoomRowToListing(row))
-        .filter(
-          (listing) =>
-            !query.zone || listing.zone.toLowerCase().includes(query.zone.toLowerCase()),
-        );
+      const mappedListings = await Promise.all(rows.map((row) => mapRoomRowToListing(row)));
+      listings = mappedListings.filter(
+        (listing) => !query.zone || listing.zone.toLowerCase().includes(query.zone.toLowerCase()),
+      );
     }
 
     return res.json(ListListingsResponse.parse(listings));
@@ -177,7 +248,6 @@ router.get("/listings", async (req: Request, res: Response) => {
     return res.status(500).json({ error: "Internal server error" });
   }
 });
-
 /**
  * GET /api/listings/:id
  * Get a single listing by ID.
@@ -199,7 +269,8 @@ router.get("/listings/:id", async (req: Request, res: Response) => {
         universita_id,
         proprietario_id,
         universita:universita_id(nome),
-        utenti:proprietario_id(nome_utente, nome, cognome)
+        utenti:proprietario_id(nome_utente, nome, cognome),
+        stanze_foto(url, copertina, ordine)
       `)
       .eq("id", id)
       .eq("attiva", true)
@@ -218,7 +289,7 @@ router.get("/listings/:id", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Listing not found" });
     }
 
-    const listing: Listing = mapRoomRowToListing(data as RoomRow);
+    const listing: Listing = await mapRoomRowToListing(data as RoomRow, undefined, true);
 
     return res.json(GetListingResponse.parse(listing));
   } catch (error) {
@@ -385,6 +456,89 @@ router.post("/listings", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
+router.post(
+  "/owner/listings/:id/photos",
+  requireAuth,
+  raw({ type: () => true, limit: MAX_ROOM_PHOTO_BYTES }),
+  async (req: Request, res: Response) => {
+    let uploadedPath: string | null = null;
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({ error: "Invalid listing ID" });
+      }
+
+      const contentType = req.header("content-type")?.split(";")[0].trim().toLowerCase();
+      if (contentType !== "image/png" && contentType !== "image/jpeg") {
+        return res.status(400).json({ error: "Only PNG and JPEG images are allowed" });
+      }
+
+      if (!Buffer.isBuffer(req.body) || req.body.length === 0 || req.body.length > MAX_ROOM_PHOTO_BYTES) {
+        return res.status(400).json({ error: "Image must be between 1 byte and 8 MB" });
+      }
+      if (!isValidRoomPhoto(req.body, contentType)) {
+        return res.status(400).json({ error: "Invalid image file" });
+      }
+
+      const authedReq = req as typeof req & { userId: string };
+      const { data: listing, error: listingError } = await supabaseAdmin
+        .from("stanze")
+        .select("id")
+        .eq("id", id)
+        .eq("proprietario_id", authedReq.userId)
+        .maybeSingle();
+
+      if (listingError) throw listingError;
+      if (!listing) return res.status(404).json({ error: "Listing not found" });
+
+      const { data: existingPhotos, error: photosError } = await supabaseAdmin
+        .from("stanze_foto")
+        .select("ordine, copertina")
+        .eq("stanza_id", id);
+
+      if (photosError) throw photosError;
+      if ((existingPhotos ?? []).length >= MAX_ROOM_PHOTOS) {
+        return res.status(400).json({ error: `A listing can have at most ${MAX_ROOM_PHOTOS} photos` });
+      }
+
+      const extension = contentType === "image/png" ? "png" : "jpg";
+      uploadedPath = `${id}/${randomUUID()}.${extension}`;
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from(ROOM_PHOTO_BUCKET)
+        .upload(uploadedPath, req.body, {
+          contentType,
+          cacheControl: "31536000",
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const photoOrder = Math.max(-1, ...(existingPhotos ?? []).map((photo) => photo.ordine ?? -1)) + 1;
+      const isCover = !(existingPhotos ?? []).some((photo) => photo.copertina);
+      const { data: photo, error: insertError } = await supabaseAdmin
+        .from("stanze_foto")
+        .insert({
+          stanza_id: id,
+          url: uploadedPath,
+          copertina: isCover,
+          ordine: photoOrder,
+        })
+        .select("id")
+        .single();
+
+      if (insertError) throw insertError;
+
+      return res.status(201).json({ id: photo.id, url: uploadedPath, cover: isCover });
+    } catch (error) {
+      if (uploadedPath) {
+        await supabaseAdmin.storage.from(ROOM_PHOTO_BUCKET).remove([uploadedPath]);
+      }
+      console.error("Error uploading room photo:", error);
+      return res.status(500).json({ error: "Unable to upload photo" });
+    }
+  },
+);
+
 // Conversations and messages live in ./chat.ts
 
 router.get("/dashboard/owner", requireAuth, async (req: Request, res: Response) => {
@@ -409,36 +563,230 @@ router.get("/owner/listings", requireAuth, async (req: Request, res: Response) =
   try {
     const authedReq = req as typeof req & { userId: string };
 
-          let dbQuery = supabaseAdmin
-        .from("stanze")
-        .select(`
-          id,
-          titolo,
-          prezzo,
-          descrizione,
-          attiva,
-          stato,
-          servizi,
-          universita_id,
-          proprietario_id,
-          universita:universita_id(nome),
-          utenti:proprietario_id(nome_utente, nome, cognome)
-        `);
+    let dbQuery = supabaseAdmin
+      .from("stanze")
+      .select(`
+        id,
+        titolo,
+        prezzo,
+        descrizione,
+        attiva,
+        stato,
+        servizi,
+        universita_id,
+        proprietario_id,
+        universita:universita_id(nome),
+        utenti:proprietario_id(nome_utente, nome, cognome),
+        stanze_foto(url, copertina, ordine)
+      `);
 
-      dbQuery = dbQuery.eq("proprietario_id", authedReq.userId);
-      dbQuery = dbQuery.eq("attiva", true);
-      dbQuery = dbQuery.eq("stato", "disponibile");
+    dbQuery = dbQuery.eq("proprietario_id", authedReq.userId);
+    dbQuery = dbQuery.eq("attiva", true);
+    dbQuery = dbQuery.eq("stato", "disponibile");
 
-      const { data, error } = await dbQuery;
+    const { data, error } = await dbQuery;
 
     if (error) throw error;
 
     const rows = ((data ?? []) as RoomRow[]);
-    const listings: Listing[] = rows.map((row) => mapRoomRowToListing(row));
+    const listings: Listing[] = await Promise.all(rows.map((row) => mapRoomRowToListing(row)));
 
     return res.json(listings);
   } catch (error) {
     console.error("Error fetching owner listings:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /api/owner/listings/:id
+// Get a single listing for the current owner (for editing).
+router.get("/owner/listings/:id", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid listing ID" });
+    }
+
+    const authedReq = req as typeof req & { userId: string };
+
+    const { data, error } = await supabaseAdmin
+      .from("stanze")
+      .select(`
+        id,
+        titolo,
+        descrizione,
+        prezzo,
+        indirizzo,
+        citta,
+        cap,
+        latitudine,
+        longitudine,
+        servizi
+      `)
+      .eq("id", id)
+      .eq("proprietario_id", authedReq.userId)
+      .single();
+
+    if (error) {
+      if (error.code === "PGRST116") {
+        // No rows returned
+        return res.status(404).json({ error: "Listing not found" });
+      }
+      throw error;
+    }
+
+    if (!data) {
+      return res.status(404).json({ error: "Listing not found" });
+    }
+
+    const serviziArray = Array.isArray(data.servizi) ? data.servizi : [];
+    const furnished = serviziArray.some((servizio: string) =>
+      servizio.toLowerCase() === "arredato"
+    );
+    const wifi = serviziArray.some((servizio: string) =>
+      servizio.toLowerCase() === "internet"
+    );
+
+    const response = {
+      id: data.id,
+      title: data.titolo ?? "",
+      description: data.descrizione ?? "",
+      price: Number(data.prezzo ?? 0),
+      address: data.indirizzo ?? "",
+      city: data.citta ?? "",
+      postcode: data.cap ?? "",
+      latitude: data.latitudine ?? 0,
+      longitude: data.longitudine ?? 0,
+      furnished,
+      wifi,
+    };
+
+    return res.json(response);
+  } catch (error) {
+    console.error("Error fetching listing for owner:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// PUT /api/owner/listings/:id
+// Update a listing for the current owner.
+router.put("/owner/listings/:id", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid listing ID" });
+    }
+
+    const authedReq = req as typeof req & { userId: string };
+
+    // Validate request body
+    const { title, description, price, furnished, wifi, address, city, postcode, latitude, longitude } = req.body;
+
+    if (typeof title !== "string" || title.trim() === "") {
+      return res.status(400).json({ error: "Title is required" });
+    }
+    if (typeof description !== "string" || description.trim() === "") {
+      return res.status(400).json({ error: "Description is required" });
+    }
+    if (typeof price !== "number" || !Number.isFinite(price) || price < 1) {
+      return res.status(400).json({ error: "Price must be a number greater than or equal to 1" });
+    }
+
+    // Load current row to verify ownership and get existing services
+    const { data: currentRow, error: fetchError } = await supabaseAdmin
+      .from("stanze")
+      .select("id, servizi, indirizzo, citta, cap, latitudine, longitudine")
+      .eq("id", id)
+      .eq("proprietario_id", authedReq.userId)
+      .single();
+
+    if (fetchError) {
+      if (fetchError.code === "PGRST116") {
+        return res.status(404).json({ error: "Listing not found" });
+      }
+      throw fetchError;
+    }
+
+    if (!currentRow) {
+      return res.status(404).json({ error: "Listing not found" });
+    }
+
+    // Prepare services array: keep existing services except 'arredato' and 'internet', then add based on furnished/wifi flags
+    const existingServizi = Array.isArray(currentRow.servizi) ? currentRow.servizi : [];
+    const serviziWithoutFlags = existingServizi.filter(
+      (servizio: string) =>
+        servizio.toLowerCase() !== "arredato" && servizio.toLowerCase() !== "internet"
+    );
+    const serviziToUpdate = [
+      ...serviziWithoutFlags,
+      ...(furnished ? ["arredato"] : []),
+      ...(wifi ? ["internet"] : []),
+    ];
+
+    // Build update object
+    const updateData: any = {
+      titolo: title.trim(),
+      descrizione: description.trim(),
+      prezzo: price,
+      servizi: serviziToUpdate,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Check if coordinates need updating
+    const hasCoords =
+      latitude !== undefined &&
+      longitude !== undefined &&
+      !(latitude === 0 && longitude === 0);
+    const currentHasCoords =
+      currentRow.latitudine !== null &&
+      currentRow.longitudine !== null &&
+      !(Number(currentRow.latitudine) === 0 && Number(currentRow.longitudine) === 0);
+
+    if (hasCoords) {
+      const latDiff = Math.abs(Number(currentRow.latitudine || 0) - latitude) > 0.000001;
+      const lngDiff = Math.abs(Number(currentRow.longitudine || 0) - longitude) > 0.000001;
+      if (latDiff || lngDiff) {
+        // Update address-related fields and recompute university
+        updateData.indirizzo = address ?? null;
+        updateData.citta = city ?? null;
+        updateData.cap = postcode ?? null;
+        updateData.latitudine = latitude;
+        updateData.longitudine = longitude;
+
+        // Find nearest university (same logic as POST route)
+        if (latitude !== undefined && longitude !== undefined) {
+          const { data: universities, error: uniError } = await supabaseAdmin
+            .from("universita")
+            .select("id, nome, latitudine, longitudine");
+          if (!uniError && universities) {
+            const match = nearestUniversity(
+              latitude,
+              longitude,
+              (universities as unknown as UniversityPoint[]),
+            );
+            if (match) {
+              updateData.universita_id = match.university.id;
+            }
+          }
+        }
+      }
+    }
+
+    // Perform update
+    const { error: updateError } = await supabaseAdmin
+      .from("stanze")
+      .update(updateData)
+      .eq("id", id)
+      .eq("proprietario_id", authedReq.userId);
+
+    if (updateError) {
+      console.error("Error updating listing:", updateError);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+
+    return res.json({ id });
+  } catch (error) {
+    console.error("Error updating listing for owner:", error);
     return res.status(500).json({ error: "Internal server error" });
   }
 });

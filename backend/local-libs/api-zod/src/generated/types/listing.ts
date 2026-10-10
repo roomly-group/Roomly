@@ -14,6 +14,8 @@ export interface Listing {
   owner: string;
   rating: number;
   photos: number;
+  coverPhotoUrl?: string;
+  photoUrls?: string[];
   furnished: boolean;
   wifi: boolean;
   description: string;

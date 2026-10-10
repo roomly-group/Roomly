@@ -12,15 +12,19 @@ import { QueryError } from '@/components/shared/query-error';
 import { supabase } from '@/lib/supabase';
 
 function OwnerListingRow({
+  id,
   title,
   zone,
   price,
   status,
+  coverPhotoUrl,
 }: {
+  id: number;
   title: string;
   zone: string;
   price: string;
   status: string;
+  coverPhotoUrl?: string;
 }) {
   const { t } = useLanguage();
   const safeTitle = title ?? '';
@@ -30,7 +34,9 @@ function OwnerListingRow({
 
   return (
     <div className="flex items-center gap-3 rounded-xl border border-[#dbe8e0] p-3">
-      <div className="hidden h-12 w-16 rounded-lg bg-gradient-to-br from-[#a6dfca] to-[#efc68e] sm:block" />
+      <div className="relative h-12 w-16 shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-[#a6dfca] to-[#efc68e]">
+        {coverPhotoUrl && <img src={coverPhotoUrl} alt={safeTitle} crossOrigin="anonymous" className="absolute inset-0 h-full w-full object-cover" />}
+      </div>
       <div className="min-w-0 flex-1">
         <h3 className="truncate text-sm font-black text-[#085041]">{safeTitle}</h3>
         <p className="mt-0.5 text-xs font-bold text-[#527067]">
@@ -42,13 +48,15 @@ function OwnerListingRow({
         <Check size={12} className="mr-1" />
         {safeStatus}
       </span>
-      <span
+      <Link
+        href={`/owner/listings/${id}/edit`}
+        aria-label={t('dashboard.editListing')}
+        title={t('dashboard.editListing')}
+        data-testid={`link-edit-listing-${id}`}
         className="rounded-lg p-2 text-[#9ab8ab]"
-        title={t('dashboard.editingSoon')}
-        data-testid={`status-owner-listing-${safeTitle.replace(/\s/g, '-').toLowerCase()}`}
       >
         <PenLine size={16} />
-      </span>
+      </Link>
     </div>
   );
 }
@@ -223,10 +231,12 @@ export function OwnerDashboard() {
                       .map((listing) => (
                         <OwnerListingRow
                           key={listing.id}
+                          id={listing.id}
                           title={listing.title ?? ''}
                           zone={zoneLabel(listing.zone ?? '')}
                           price={`£${listing.price ?? 0}`}
                           status={t('dashboard.published')}
+                          coverPhotoUrl={listing.coverPhotoUrl}
                         />
                       ))}
                   </>

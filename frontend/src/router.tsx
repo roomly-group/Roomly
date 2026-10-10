@@ -6,10 +6,13 @@ import { LoginPage } from '@/pages/login';
 import { RegisterPage } from '@/pages/register';
 import { SearchPage } from '@/pages/search';
 import { ListingDetail } from '@/pages/listing-detail';
+import { RoomsPage } from '@/pages/rooms';
+import { RoomDetailPage } from '@/pages/room-detail';
 import { StudentMessagesRoute, OwnerMessagesRoute } from '@/pages/messages';
 import { StudentProfileRoute, OwnerProfileRoute } from '@/pages/profile';
 import { OwnerDashboard } from '@/pages/owner-dashboard';
 import { NewListingPage } from '@/pages/new-listing';
+import { EditListingPage } from '@/pages/edit-listing';
 import { WaitlistPage } from '@/pages/waitlist';
 import { WaitlistConfirmedPage } from '@/pages/waitlist-confirmed';
 import { ChiSiamoPage } from '@/pages/chi-siamo';
@@ -40,6 +43,16 @@ export function Router() {
           <RequireAdmin allowOwner>
             <SearchPage />
           </RequireAdmin>
+        </Route>
+        <Route path="/rooms">
+          <RequireAuth>
+            <RoomsPage />
+          </RequireAuth>
+        </Route>
+        <Route path="/rooms/:id">
+          <RequireAuth>
+            <RoomDetailPage />
+          </RequireAuth>
         </Route>
         <Route path="/listings/:id">
           <RequireAdmin allowOwner>
@@ -72,6 +85,13 @@ export function Router() {
           <RequireAuth>
             <RequireOwner>
               <OwnerProfileRoute />
+            </RequireOwner>
+          </RequireAuth>
+        </Route>
+        <Route path="/owner/listings/:id/edit">
+          <RequireAuth>
+            <RequireOwner>
+              <EditListingPage />
             </RequireOwner>
           </RequireAuth>
         </Route>
