@@ -1,36 +1,78 @@
 import { useState, useEffect } from 'react';
 import { ArrowRight, Check, Clock3, House, MessageCircle, MoreHorizontal, PenLine, Plus, Sparkles, Star } from 'lucide-react';
 import { Link } from 'wouter';
-import { getGetOwnerDashboardQueryKey, useGetOwnerDashboard } from '@workspace/api-client-react';
+import {
+  getGetOwnerDashboardQueryKey,
+  getGetListingQueryKey,
+  getListConversationsQueryKey,
+  getListMessagesQueryKey,
+  useGetOwnerDashboard,
+  useListConversations,
+} from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
 import { formatPrice } from '@/lib/constants';
 import { useZoneLabel } from '@/hooks/use-zone-label';
+import { Button } from '@/components/shared/button';
+import { useReleaseListing } from '@/hooks/use-release-listing';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogCancel, AlertDialogAction, AlertDialogFooter } from '@/components/ui/alert-dialog';
 import { useListOwnerListings } from '@/hooks/use-list-owner-listings';
+import { useQueryClient } from '@tanstack/react-query';
+import { getOwnerListingsQueryKey } from '@/hooks/use-list-owner-listings';
 import { AppShell } from '@/components/layout/app-shell';
 import { PageIntro } from '@/components/shared/page-intro';
 import { QueryError } from '@/components/shared/query-error';
 import { supabase } from '@/lib/supabase';
+import { useToast } from '@/hooks/use-toast';
 
 function OwnerListingRow({
   id,
   title,
   zone,
   price,
-  status,
+  available,
+  rented,
+  conversationId,
   coverPhotoUrl,
 }: {
   id: number;
   title: string;
   zone: string;
   price: string;
-  status: string;
+  available: boolean;
+  rented: boolean;
+  conversationId?: number;
   coverPhotoUrl?: string;
 }) {
   const { t } = useLanguage();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [isReleaseDialogOpen, setIsReleaseDialogOpen] = useState(false);
+  const releaseListing = useReleaseListing();
+
   const safeTitle = title ?? '';
   const safeZone = zone ?? '';
   const safePrice = price ?? '';
-  const safeStatus = status ?? '';
+  const statusText = rented ? t('dashboard.rented') : available ? t('common.availableNow') : t('dashboard.published');
+
+  const handleConfirmRelease = async () => {
+    try {
+      await releaseListing.mutateAsync({ id });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() }),
+        ...(conversationId ? [queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey(conversationId) })] : []),
+        queryClient.invalidateQueries({ queryKey: getGetListingQueryKey(id) }),
+        queryClient.invalidateQueries({ queryKey: getOwnerListingsQueryKey() }),
+        queryClient.invalidateQueries({ queryKey: getGetOwnerDashboardQueryKey() }),
+      ]);
+      setIsReleaseDialogOpen(false);
+    } catch {
+      toast({
+        title: t('messages.actionFailed'),
+        description: t('messages.sendError'),
+        variant: 'destructive',
+      });
+    }
+  };
 
   return (
     <div className="flex items-center gap-3 rounded-xl border border-[#dbe8e0] p-3">
@@ -46,8 +88,35 @@ function OwnerListingRow({
       </div>
       <span className="hidden rounded-full bg-[#E1F5EE] px-2.5 py-1 text-[11px] font-black text-[#0F6E56] sm:inline-flex">
         <Check size={12} className="mr-1" />
-        {safeStatus}
+        {statusText}
       </span>
+      {rented && (
+        <>
+          <Button
+            variant="outline"
+            onClick={() => setIsReleaseDialogOpen(true)}
+            disabled={releaseListing.isPending}
+            className="ml-2"
+            data-testid={`button-release-listing-${id}`}
+          >
+            {t('messages.releaseRoom')}
+          </Button>
+          <AlertDialog open={isReleaseDialogOpen} onOpenChange={setIsReleaseDialogOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t('messages.releaseListing')}</AlertDialogTitle>
+                <AlertDialogDescription>{t('messages.releaseListingDescription')}</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{t('common.tryAgain')}</AlertDialogCancel>
+                <AlertDialogAction onClick={() => void handleConfirmRelease()} disabled={releaseListing.isPending}>
+                  {t('messages.releaseRoom')}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      )}
       <Link
         href={`/owner/listings/${id}/edit`}
         aria-label={t('dashboard.editListing')}
@@ -68,6 +137,7 @@ export function OwnerDashboard() {
     query: { queryKey: getGetOwnerDashboardQueryKey() },
   });
   const { data: listings, isLoading: listingsLoading, isError: listingsError } = useListOwnerListings();
+  const { data: conversations } = useListConversations();
   const dashboard = data;
   const [listingOptionsOpen, setListingOptionsOpen] = useState(false);
   const [userName, setUserName] = useState<string>('Maya');
@@ -228,17 +298,27 @@ export function OwnerDashboard() {
                   <>
                     {safeListings
                       .filter((listing): listing is NonNullable<typeof listing> => listing !== null && listing !== undefined)
-                      .map((listing) => (
-                        <OwnerListingRow
-                          key={listing.id}
-                          id={listing.id}
-                          title={listing.title ?? ''}
-                          zone={zoneLabel(listing.zone ?? '')}
-                          price={`£${listing.price ?? 0}`}
-                          status={t('dashboard.published')}
-                          coverPhotoUrl={listing.coverPhotoUrl}
-                        />
-                      ))}
+                      .map((listing) => {
+                        const rentedConversation = conversations?.find(
+                          (conversation) =>
+                            conversation.role === 'owner' &&
+                            conversation.roomId === listing.id &&
+                            conversation.roomStatus === 'affittata',
+                        );
+                        return (
+                          <OwnerListingRow
+                            key={listing.id}
+                            id={listing.id}
+                            title={listing.title ?? ''}
+                            zone={zoneLabel(listing.zone ?? '')}
+                            price={`£${listing.price ?? 0}`}
+                            available={listing.available}
+                            rented={Boolean(rentedConversation)}
+                            conversationId={rentedConversation?.id}
+                            coverPhotoUrl={listing.coverPhotoUrl}
+                          />
+                        );
+                      })}
                   </>
                 )}
               </section>

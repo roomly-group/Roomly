@@ -17,4 +17,10 @@ export interface Conversation {
   updatedAt: string;
   /** Ruolo di chi guarda la chat: studente o proprietario dell'annuncio. */
   role?: ConversationRole;
+  /** Stato della richiesta: in_attesa, accettata, rifiutata, annullata */
+  requestStatus: string;
+  /** ID della stanza associata alla conversazione */
+  roomId: number;
+  /** Stato della stanza: disponibile, affittata, etc. */
+  roomStatus: string;
 }

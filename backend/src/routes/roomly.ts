@@ -581,8 +581,6 @@ router.get("/owner/listings", requireAuth, async (req: Request, res: Response) =
       `);
 
     dbQuery = dbQuery.eq("proprietario_id", authedReq.userId);
-    dbQuery = dbQuery.eq("attiva", true);
-    dbQuery = dbQuery.eq("stato", "disponibile");
 
     const { data, error } = await dbQuery;
 
@@ -667,6 +665,58 @@ router.get("/owner/listings/:id", requireAuth, async (req: Request, res: Respons
     return res.status(500).json({ error: "Internal server error" });
   }
 });
+
+// POST /api/listings/:id/release
+  // Release a room (set stato to disponibile)
+  router.post("/listings/:id/release", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({ error: "Invalid listing ID" });
+      }
+
+      const authedReq = req as typeof req & { userId: string };
+
+      const { data: listing, error: listingError } = await supabaseAdmin
+        .from("stanze")
+        .select("id, proprietario_id")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (listingError) throw listingError;
+      if (!listing) return res.status(404).json({ error: "Listing not found" });
+      if (listing.proprietario_id !== authedReq.userId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      // Call the libera_stanza RPC function
+      const { error: rpcError } = await supabaseAdmin.rpc("libera_stanza", {
+        p_stanza_id: id,
+        p_owner_id: authedReq.userId,
+      });
+
+      if (rpcError) {
+        // Map error codes to HTTP status
+        if (rpcError.code === "P0001") {
+          // not_owner
+          return res.status(403).json({ error: "Not authorized" });
+        }
+        if (rpcError.code === "P0006") {
+          // not_accepted
+          return res.status(409).json({ error: "Room is not accepted" });
+        }
+        // For any other error, return 500
+        console.error("Error releasing room:", rpcError);
+        return res.status(500).json({ error: "Internal server error" });
+      }
+
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error releasing room:", error);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
 
 // PUT /api/owner/listings/:id
 // Update a listing for the current owner.

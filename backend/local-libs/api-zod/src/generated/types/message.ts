@@ -12,4 +12,6 @@ export interface Message {
   body: string;
   sender: string;
   sentAt: string;
+  /** Tipo di messaggio: testo o sistema */
+  tipo: string;
 }

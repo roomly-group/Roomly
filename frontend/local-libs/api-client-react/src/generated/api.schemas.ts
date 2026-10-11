@@ -58,6 +58,9 @@ export interface Conversation {
   updatedAt: string;
   /** Ruolo di chi guarda la chat: studente o proprietario dell'annuncio. */
   role?: ConversationRole;
+  requestStatus: 'in_attesa' | 'accettata' | 'rifiutata' | 'annullata';
+  roomId: number;
+  roomStatus: string;
 }
 
 export interface StartConversationInput {
@@ -66,9 +69,10 @@ export interface StartConversationInput {
   body: string;
 }
 
-export interface StartConversationResponse {
-  conversationId: number;
-}
+export type StartConversationResponse = Conversation[] & {
+  /** @deprecated Legacy consumer compatibility; the API returns a conversation array. */
+  conversationId?: number;
+};
 
 export interface Message {
   id: number;
@@ -76,6 +80,8 @@ export interface Message {
   body: string;
   sender: string;
   sentAt: string;
+  kind?: 'user' | 'system' | 'text';
+  tipo?: 'testo' | 'sistema';
 }
 
 export interface MessageInput {
@@ -99,4 +105,3 @@ zone?: string;
 maxPrice?: number;
 furnished?: boolean;
 };
-

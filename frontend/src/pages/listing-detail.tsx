@@ -21,6 +21,7 @@ import {
   getGetListingQueryKey,
   getListConversationsQueryKey,
   useGetListing,
+  useListConversations,
   useStartConversation,
 } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
@@ -45,6 +46,9 @@ export function ListingDetail() {
   const { data: listing, isLoading, isError, refetch } = useGetListing(listingId, {
     query: { queryKey: getGetListingQueryKey(listingId) },
   });
+  const { data: conversations, isLoading: isLoadingConversations } = useListConversations({
+    query: { queryKey: getListConversationsQueryKey() },
+  });
   const [saved, setSaved] = useState(false);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const [showContact, setShowContact] = useState(false);
@@ -52,6 +56,48 @@ export function ListingDetail() {
   const [, navigate] = useLocation();
   const client = useQueryClient();
   const startConversation = useStartConversation();
+
+  const existingListingConversation = conversations?.find(
+    (conv) =>
+      conv.role === 'student' &&
+      conv.roomId === listingId
+  );
+  const acceptedConversation = conversations?.find(
+    (conv) => conv.role === 'student' && conv.requestStatus === 'accettata',
+  );
+
+  const getStartConversationErrorMessage = () => {
+    const error: unknown = startConversation.error;
+    if (typeof error !== 'object' || error === null || !('status' in error)) {
+      return t('messages.sendError');
+    }
+
+    const status = error.status;
+    const data = 'data' in error ? error.data : undefined;
+    const backendError =
+      typeof data === 'object' && data !== null && 'error' in data && typeof data.error === 'string'
+        ? data.error
+        : '';
+
+    if (status === 409) {
+      if (backendError === 'Student already has an accepted chat') {
+        return t('listingDetail.alreadyHaveRoom');
+      }
+      if (backendError === 'Too many pending requests for this room') {
+        return t('listingDetail.tooManyRequests');
+      }
+      if (backendError === 'Room not available') {
+        return t('listingDetail.roomUnavailable');
+      }
+    }
+    if (status === 404 && backendError === 'Listing not found') {
+      return t('listingDetail.roomUnavailable');
+    }
+    if (status === 400 && backendError === 'Non puoi scrivere a te stesso') {
+      return t('listingDetail.cannotMessageSelf');
+    }
+    return t('messages.sendError');
+  };
   const photoUrls = listing?.photoUrls?.length
     ? listing.photoUrls
     : listing?.coverPhotoUrl
@@ -89,11 +135,14 @@ export function ListingDetail() {
     startConversation.mutate(
       { data: { listingId, body } },
       {
-        onSuccess: ({ conversationId }) => {
+        onSuccess: (returnedConversations) => {
+          const returnedConversation = returnedConversations[0];
+          if (!returnedConversation) return;
           void client.invalidateQueries({ queryKey: getListConversationsQueryKey() });
+          void client.invalidateQueries({ queryKey: getGetListingQueryKey(listingId) });
           setShowContact(false);
           setFirstMessage('');
-          navigate(`/messages/${conversationId}`);
+          navigate(`/messages/${returnedConversation.id}`);
         },
       },
     );
@@ -322,16 +371,58 @@ export function ListingDetail() {
 
             <div className="my-5 border-t border-[#e1ebe4] pt-5">
               <p className="text-sm leading-6 text-[#527067]">{t('listingDetail.questionText')}</p>
-              <button
-                type="button"
-                onClick={() => setShowContact(true)}
-                aria-label={t('listingDetail.contactOwner')}
-                title={t('listingDetail.contactOwner')}
-                data-testid="button-contact-owner"
-                className="mt-4 h-12 w-full min-w-[80px] shrink-0 rounded-xl bg-[#EF9F27] px-4 font-extrabold text-[#2C2C2A] transition-all duration-200 hover:bg-[#e6a53d] active:scale-[0.98]"
-              >
-                {t('listingDetail.contactOwner')}
-              </button>
+              {acceptedConversation && (
+                <>
+                  <p className="mt-2 text-sm font-bold text-[#0F6E56]">
+                    {t('listingDetail.alreadyHaveRoom')}
+                  </p>
+                  <Link
+                    href={`/messages/${acceptedConversation.id}`}
+                    className="mt-2 block text-sm font-medium text-[#0F6E56] hover:underline"
+                    data-testid="link-accepted-chat"
+                  >
+                    {t('listingDetail.goToChat')}
+                  </Link>
+                </>
+              )}
+              {!listing.available && (
+                <p className="mt-2 text-sm font-bold text-[#a74b32]">
+                  {t('listingDetail.roomUnavailable')}
+                </p>
+              )}
+              {existingListingConversation && !acceptedConversation && (
+                <Link
+                  href={`/messages/${existingListingConversation.id}`}
+                  className="mt-4 block text-sm font-bold text-[#0F6E56] hover:underline"
+                  data-testid="link-existing-chat"
+                >
+                  {t('listingDetail.openExistingChat')}
+                </Link>
+              )}
+              {!existingListingConversation && !acceptedConversation && listing.available && (
+                <button
+                  type="button"
+                  onClick={() => setShowContact(true)}
+                  aria-label={t('listingDetail.contactOwner')}
+                  title={t('listingDetail.contactOwner')}
+                  data-testid="button-contact-owner"
+                  disabled={startConversation.isPending || isLoadingConversations}
+                  className="mt-4 h-12 w-full min-w-[80px] shrink-0 rounded-xl bg-[#EF9F27] px-4 font-extrabold text-[#2C2C2A] transition-all duration-200 hover:bg-[#e6a53d] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {t('listingDetail.contactOwner')}
+                </button>
+              )}
+              {!listing.available && !existingListingConversation && !acceptedConversation && (
+                <button
+                  type="button"
+                  disabled
+                  aria-label={t('listingDetail.contactOwner')}
+                  data-testid="button-contact-owner"
+                  className="mt-4 h-12 w-full rounded-xl bg-[#EF9F27] px-4 font-extrabold text-[#2C2C2A] opacity-50"
+                >
+                  {t('listingDetail.contactOwner')}
+                </button>
+              )}
             </div>
 
             <p className="flex items-start gap-2 text-xs leading-5 text-[#527067]">
@@ -360,7 +451,9 @@ export function ListingDetail() {
                 </button>
               </div>
               <form onSubmit={sendFirstMessage}>
-                <p className="mt-3 text-sm leading-6 text-[#527067]">{t('listingDetail.modalInfo')}</p>
+                <p className="mt-3 text-sm leading-6 text-[#527067]">
+                  {t('listingDetail.modalInfoRequest')}
+                </p>
                 <div className="mt-4 rounded-xl bg-[#E1F5EE] p-3 text-xs font-bold text-[#085041]">
                   {t('listingDetail.modalTip')}
                 </div>
@@ -376,9 +469,7 @@ export function ListingDetail() {
                 />
                 {startConversation.isError && (
                   <p className="mt-2 text-xs font-bold text-[#a74b32]" data-testid="status-contact-error">
-                    {(startConversation.error as { status?: number } | null)?.status === 400
-                      ? t('listingDetail.cannotMessageSelf')
-                      : t('messages.sendError')}
+                    {getStartConversationErrorMessage()}
                   </p>
                 )}
                 <Button

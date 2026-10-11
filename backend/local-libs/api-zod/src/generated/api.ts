@@ -124,7 +124,10 @@ export const ListConversationsResponseItem = zod.object({
   "preview": zod.string(),
   "unread": zod.boolean(),
   "updatedAt": zod.string(),
-  "role": zod.enum(['student', 'owner']).optional()
+  "role": zod.enum(['student', 'owner']).optional(),
+  "requestStatus": zod.string(),
+  "roomId": zod.number(),
+  "roomStatus": zod.string()
 })
 export const ListConversationsResponse = zod.array(ListConversationsResponseItem)
 
@@ -154,7 +157,8 @@ export const ListMessagesResponseItem = zod.object({
   "conversationId": zod.number(),
   "body": zod.string(),
   "sender": zod.string(),
-  "sentAt": zod.string()
+  "sentAt": zod.string(),
+  "tipo": zod.string()
 })
 export const ListMessagesResponse = zod.array(ListMessagesResponseItem)
 
@@ -178,7 +182,8 @@ export const SendMessageResponse = zod.object({
   "conversationId": zod.number(),
   "body": zod.string(),
   "sender": zod.string(),
-  "sentAt": zod.string()
+  "sentAt": zod.string(),
+  "tipo": zod.string()
 })
 
 
@@ -191,6 +196,54 @@ export const GetOwnerDashboardResponse = zod.object({
   "activeChats": zod.number(),
   "monthlyEarnings": zod.number(),
   "averageRating": zod.number()
+})
+
+
+/**
+ * @summary Accept a conversation request
+ */
+export const AcceptConversationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AcceptConversationResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Reject a conversation request
+ */
+export const RejectConversationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RejectConversationResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Cancel a conversation request
+ */
+export const CancelConversationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const CancelConversationResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Release a room (set stato a disponibile)
+ */
+export const ReleaseListingParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ReleaseListingResponse = zod.object({
+  "success": zod.boolean()
 })
 
 
