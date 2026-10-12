@@ -147,10 +147,15 @@ async function loadConversationFor(id: number, userId: string) {
 }
 
 // Salva il messaggio e aggiorna l'orario della conversazione (per l'ordinamento).
-async function insertMessage(conversationId: number, senderId: string, body: string) {
+async function insertMessage(
+  conversationId: number,
+  senderId: string,
+  body: string,
+  tipo: "testo" | "sistema" = "testo",
+) {
   const { data, error } = await supabaseAdmin
     .from("messaggi")
-    .insert({ conversazione_id: conversationId, mittente_id: senderId, testo: body, tipo: 'testo' })
+    .insert({ conversazione_id: conversationId, mittente_id: senderId, testo: body, tipo })
     .select("id, conversazione_id, mittente_id, testo, created_at, tipo")
     .single();
   if (error) throw error;
@@ -641,6 +646,196 @@ router.post("/conversations/:id/messages", requireAuth, messageLimiter, async (r
     return res.status(201).json(SendMessageResponse.parse(toMessage(message, found.ownerId)));
   } catch (error) {
     return serverError(res, "Error sending message:", error);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Azioni sulla richiesta: accetta / rifiuta (proprietario), annulla (studente)
+// ---------------------------------------------------------------------------
+
+type RequestContext = {
+  id: number;
+  stanza_id: number;
+  studente_id: string;
+  stato_richiesta: string;
+  stanza: { proprietario_id: string; stato: string } | null;
+};
+
+// Carica la conversazione con i dati necessari a decidere chi può fare cosa.
+// Chi non è né studente né proprietario riceve 404 (non riveliamo chat altrui).
+async function loadRequestContext(id: number, userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("conversazioni")
+    .select("id, stanza_id, studente_id, stato_richiesta, stanza:stanza_id(proprietario_id, stato)")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const ctx = data as unknown as RequestContext;
+  const isOwner = ctx.stanza?.proprietario_id === userId;
+  const isStudent = ctx.studente_id === userId;
+  if (!isOwner && !isStudent) return null;
+  return { ctx, isOwner, isStudent };
+}
+
+// Il messaggio di sistema è solo informativo: se fallisce non annulliamo l'azione.
+async function postSystemMessage(conversationId: number, userId: string, text: string) {
+  try {
+    await insertMessage(conversationId, userId, text, "sistema");
+  } catch (error) {
+    console.error("Failed to insert system message:", error);
+  }
+}
+
+// Passa la richiesta da "in_attesa" a `next` in modo atomico: l'UPDATE è
+// condizionato allo stato attuale, quindi due click/utenti insieme non si
+// sovrappongono. Ritorna false se la richiesta non era più in attesa.
+async function transitionPending(conversationId: number, next: "accettata" | "rifiutata" | "annullata") {
+  const { data, error } = await supabaseAdmin
+    .from("conversazioni")
+    .update({ stato_richiesta: next })
+    .eq("id", conversationId)
+    .eq("stato_richiesta", "in_attesa")
+    .select("id");
+  if (error) throw error;
+  return (data ?? []).length > 0;
+}
+
+/**
+ * POST /api/conversations/:id/accept
+ * Il proprietario accetta la richiesta: la chat diventa "accettata", la stanza
+ * "affittata" e le altre richieste in attesa per quella stanza vengono rifiutate.
+ */
+router.post("/conversations/:id/accept", requireAuth, messageLimiter, async (req, res) => {
+  const { userId } = req as AuthenticatedRequest;
+  const id = IdParam.safeParse(req.params.id);
+  if (!id.success) return res.status(400).json({ error: "Invalid conversation id" });
+
+  try {
+    const found = await loadRequestContext(id.data, userId);
+    if (!found) return res.status(404).json({ error: "Conversation not found" });
+    const { ctx, isOwner } = found;
+    if (!isOwner) return res.status(403).json({ error: "Not authorized" });
+    if (ctx.stato_richiesta !== "in_attesa") {
+      return res.status(409).json({ error: "Request is not pending" });
+    }
+    if (ctx.stanza?.stato !== "disponibile") {
+      return res.status(409).json({ error: "Room not available" });
+    }
+
+    // Lo studente può avere una sola stanza accettata alla volta.
+    const { data: studentAccepted, error: acceptedError } = await supabaseAdmin
+      .from("conversazioni")
+      .select("id")
+      .eq("studente_id", ctx.studente_id)
+      .eq("stato_richiesta", "accettata")
+      .limit(1);
+    if (acceptedError) throw acceptedError;
+    if ((studentAccepted ?? []).length > 0) {
+      return res.status(409).json({ error: "Student already has an accepted chat" });
+    }
+
+    if (!(await transitionPending(id.data, "accettata"))) {
+      return res.status(409).json({ error: "Request is not pending" });
+    }
+
+    // Occupa la stanza (solo se è ancora disponibile). Se non riesce, annulla
+    // l'accettazione così chat e stanza restano coerenti.
+    let roomTaken = false;
+    try {
+      const { data: roomRows, error: roomError } = await supabaseAdmin
+        .from("stanze")
+        .update({ stato: "affittata" })
+        .eq("id", ctx.stanza_id)
+        .eq("proprietario_id", userId)
+        .eq("stato", "disponibile")
+        .select("id");
+      if (roomError) throw roomError;
+      roomTaken = (roomRows ?? []).length > 0;
+    } catch (roomError) {
+      console.error("Failed to mark room as rented:", roomError);
+    }
+    if (!roomTaken) {
+      const { error: rollbackError } = await supabaseAdmin
+        .from("conversazioni")
+        .update({ stato_richiesta: "in_attesa" })
+        .eq("id", id.data)
+        .eq("stato_richiesta", "accettata");
+      if (rollbackError) console.error("Failed to roll back accepted request:", rollbackError);
+      return res.status(409).json({ error: "Room not available" });
+    }
+
+    // Pulizia (non bloccante): le altre richieste sulla stanza vengono rifiutate
+    // e le altre richieste in attesa dello studente annullate.
+    const [othersOnRoom, othersOfStudent] = await Promise.all([
+      supabaseAdmin
+        .from("conversazioni")
+        .update({ stato_richiesta: "rifiutata" })
+        .eq("stanza_id", ctx.stanza_id)
+        .neq("id", id.data)
+        .eq("stato_richiesta", "in_attesa"),
+      supabaseAdmin
+        .from("conversazioni")
+        .update({ stato_richiesta: "annullata" })
+        .eq("studente_id", ctx.studente_id)
+        .neq("id", id.data)
+        .eq("stato_richiesta", "in_attesa"),
+    ]);
+    if (othersOnRoom.error) console.error("Failed to reject other requests:", othersOnRoom.error);
+    if (othersOfStudent.error) console.error("Failed to cancel student's other requests:", othersOfStudent.error);
+
+    await postSystemMessage(id.data, userId, "Richiesta accettata");
+    return res.json({ success: true });
+  } catch (error) {
+    return serverError(res, "Error accepting conversation:", error);
+  }
+});
+
+/**
+ * POST /api/conversations/:id/reject
+ * Il proprietario rifiuta la richiesta: la chat si chiude, la stanza resta disponibile.
+ */
+router.post("/conversations/:id/reject", requireAuth, messageLimiter, async (req, res) => {
+  const { userId } = req as AuthenticatedRequest;
+  const id = IdParam.safeParse(req.params.id);
+  if (!id.success) return res.status(400).json({ error: "Invalid conversation id" });
+
+  try {
+    const found = await loadRequestContext(id.data, userId);
+    if (!found) return res.status(404).json({ error: "Conversation not found" });
+    if (!found.isOwner) return res.status(403).json({ error: "Not authorized" });
+    if (found.ctx.stato_richiesta !== "in_attesa" || !(await transitionPending(id.data, "rifiutata"))) {
+      return res.status(409).json({ error: "Request is not pending" });
+    }
+
+    await postSystemMessage(id.data, userId, "Richiesta rifiutata");
+    return res.json({ success: true });
+  } catch (error) {
+    return serverError(res, "Error rejecting conversation:", error);
+  }
+});
+
+/**
+ * POST /api/conversations/:id/cancel
+ * Lo studente annulla la propria richiesta ancora in attesa.
+ */
+router.post("/conversations/:id/cancel", requireAuth, messageLimiter, async (req, res) => {
+  const { userId } = req as AuthenticatedRequest;
+  const id = IdParam.safeParse(req.params.id);
+  if (!id.success) return res.status(400).json({ error: "Invalid conversation id" });
+
+  try {
+    const found = await loadRequestContext(id.data, userId);
+    if (!found) return res.status(404).json({ error: "Conversation not found" });
+    if (!found.isStudent) return res.status(403).json({ error: "Not authorized" });
+    if (found.ctx.stato_richiesta !== "in_attesa" || !(await transitionPending(id.data, "annullata"))) {
+      return res.status(409).json({ error: "Request is not pending" });
+    }
+
+    await postSystemMessage(id.data, userId, "Richiesta annullata");
+    return res.json({ success: true });
+  } catch (error) {
+    return serverError(res, "Error cancelling conversation:", error);
   }
 });
 

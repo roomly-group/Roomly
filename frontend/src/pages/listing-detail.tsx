@@ -29,6 +29,7 @@ import { formatPrice, gradients } from '@/lib/constants';
 import { AppShell, Avatar } from '@/components/layout/app-shell';
 import { Button } from '@/components/shared/button';
 import { QueryError } from '@/components/shared/query-error';
+import { supabase } from '@/lib/supabase';
 
 function Feature({ icon: Icon, label }: { icon: typeof BedDouble; label: string }) {
   return (
@@ -49,6 +50,7 @@ export function ListingDetail() {
   const { data: conversations, isLoading: isLoadingConversations } = useListConversations({
     query: { queryKey: getListConversationsQueryKey() },
   });
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const [showContact, setShowContact] = useState(false);
@@ -56,6 +58,19 @@ export function ListingDetail() {
   const [, navigate] = useLocation();
   const client = useQueryClient();
   const startConversation = useStartConversation();
+
+  useEffect(() => {
+    let active = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (active) setCurrentUserId(data.session?.user.id ?? null);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Il proprietario non può inviare richieste al proprio annuncio.
+  const isOwnListing = Boolean(currentUserId && listing?.ownerId && listing.ownerId === currentUserId);
 
   const existingListingConversation = conversations?.find(
     (conv) =>
@@ -131,7 +146,7 @@ export function ListingDetail() {
   const sendFirstMessage = (event: React.FormEvent) => {
     event.preventDefault();
     const body = firstMessage.trim();
-    if (!body || startConversation.isPending) return;
+    if (!body || startConversation.isPending || isOwnListing) return;
     startConversation.mutate(
       { data: { listingId, body } },
       {
@@ -399,7 +414,12 @@ export function ListingDetail() {
                   {t('listingDetail.openExistingChat')}
                 </Link>
               )}
-              {!existingListingConversation && !acceptedConversation && listing.available && (
+              {isOwnListing && (
+                <p className="mt-4 text-sm font-bold text-[#527067]" data-testid="status-own-listing">
+                  {t('listingDetail.cannotMessageSelf')}
+                </p>
+              )}
+              {!isOwnListing && !existingListingConversation && !acceptedConversation && listing.available && (
                 <button
                   type="button"
                   onClick={() => setShowContact(true)}
@@ -412,7 +432,7 @@ export function ListingDetail() {
                   {t('listingDetail.contactOwner')}
                 </button>
               )}
-              {!listing.available && !existingListingConversation && !acceptedConversation && (
+              {!isOwnListing && !listing.available && !existingListingConversation && !acceptedConversation && (
                 <button
                   type="button"
                   disabled
@@ -432,7 +452,7 @@ export function ListingDetail() {
           </aside>
         </div>
 
-        {showContact && (
+        {showContact && !isOwnListing && (
           <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#085041]/35 p-4 sm:items-center">
             <div className="surface page-enter w-full max-w-md rounded-2xl p-6 shadow-[var(--shadow-lg)]">
               <div className="flex items-start justify-between">

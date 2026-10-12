@@ -11,6 +11,8 @@ export interface HealthStatus {
 
 export interface Listing {
   id: number;
+  /** ID del proprietario (solo nel dettaglio annuncio). */
+  ownerId?: string;
   title: string;
   zone: string;
   price: number;

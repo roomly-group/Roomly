@@ -27,6 +27,7 @@ type RoomRow = {
   descrizione?: string | null;
   attiva?: boolean | null;
   stato?: string | null;
+  proprietario_id?: string | null;
   servizi?: string[] | null;
   universita_id?: string | number | null;
   latitudine?: number | null;
@@ -122,6 +123,7 @@ const mapRoomRowToListing = async (
 
   return {
     id: row.id,
+    ...(includeGallery && row.proprietario_id ? { ownerId: row.proprietario_id } : {}),
     title: row.titolo ?? "",
     zone: row.universita?.nome ?? "",
     price: Number(row.prezzo ?? 0),

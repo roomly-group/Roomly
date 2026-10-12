@@ -99,6 +99,7 @@ export const GetListingParams = zod.object({
 
 export const GetListingResponse = zod.object({
   "id": zod.number(),
+  "ownerId": zod.string().optional(),
   "title": zod.string(),
   "zone": zod.string(),
   "price": zod.number(),
