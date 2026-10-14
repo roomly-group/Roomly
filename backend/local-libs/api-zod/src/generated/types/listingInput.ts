@@ -22,6 +22,8 @@ export interface ListingInput {
   description: string;
   furnished?: boolean;
   wifi?: boolean;
+  /** Caratteristiche extra della stanza (salvate in `servizi`). */
+  amenities?: string[];
   /** @minimum 0 */
   photos?: number;
 }

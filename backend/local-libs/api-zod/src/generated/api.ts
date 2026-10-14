@@ -71,6 +71,7 @@ export const CreateListingBody = zod.object({
   "description": zod.string().min(1),
   "furnished": zod.boolean().optional(),
   "wifi": zod.boolean().optional(),
+  "amenities": zod.array(zod.enum(["lavatrice", "aria_condizionata", "riscaldamento", "balcone", "bagno_privato", "cucina", "spese_incluse", "animali", "scrivania", "ascensore"])).max(10).optional(),
   "photos": zod.number().min(createListingBodyPhotosMin).optional()
 })
 

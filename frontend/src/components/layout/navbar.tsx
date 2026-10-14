@@ -15,6 +15,7 @@ import { LanguagePicker } from '@/components/language-selector';
 import { ProfileMenu } from '@/components/layout/profile-menu';
 import { supabase } from '@/lib/supabase';
 import { getRoleInfo } from '@/lib/auth-role';
+import { peekLastKnownRole, peekRoleCache } from '@/lib/role-cache';
 
 const STATIC_PATHS = ['/chi-siamo', '/contatti', '/privacy', '/termini', '/cookie'];
 
@@ -24,8 +25,15 @@ const ADMIN_ONLY_NAV_KEYS = ['find-a-room', 'messages'];
 
 // Resolves the role flags of the current session. Both default to false until
 // resolved, so restricted nav items never flash on screen.
+function initialRoleFlags() {
+  const known = peekLastKnownRole();
+  return known
+    ? { isAdmin: known.role === 'admin', isOwner: known.owner }
+    : { isAdmin: false, isOwner: false };
+}
+
 function useRoleFlags() {
-  const [flags, setFlags] = useState({ isAdmin: false, isOwner: false });
+  const [flags, setFlags] = useState(initialRoleFlags);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,9 +43,16 @@ function useRoleFlags() {
         const { data } = await supabase.auth.getSession();
         const user = data?.session?.user;
         const info = await getRoleInfo(user);
-        if (!cancelled) setFlags({ isAdmin: info.role === 'admin', isOwner: info.owner });
+        // Verifica fallita (nulla in cache): non si declassa chi era già noto.
+        if (user && !peekRoleCache() && peekLastKnownRole()) return;
+        const next = { isAdmin: info.role === 'admin', isOwner: info.owner };
+        if (!cancelled) {
+          setFlags((prev) =>
+            prev.isAdmin === next.isAdmin && prev.isOwner === next.isOwner ? prev : next,
+          );
+        }
       } catch {
-        if (!cancelled) setFlags({ isAdmin: false, isOwner: false });
+        // Errore momentaneo: si tiene l'ultimo valore noto.
       }
     }
 

@@ -87,8 +87,14 @@ export function Home() {
   });
   const listings = data ?? [];
   const [isOwner, setIsOwner] = useState(false);
-  const onSearch = (nextZone: string) =>
-    setLocation(`/search${nextZone ? `?zone=${encodeURIComponent(nextZone)}` : ''}`);
+  const onSearch = (nextZone: string, nextMaxPrice: string) => {
+    const query = new URLSearchParams();
+    if (nextZone) query.set('zone', nextZone);
+    const price = Number(nextMaxPrice);
+    if (nextMaxPrice && Number.isFinite(price) && price > 0) query.set('maxPrice', String(price));
+    const qs = query.toString();
+    setLocation(`/search${qs ? `?${qs}` : ''}`);
+  };
 
   // Redirect non-admin users away from the home page
   useEffect(() => {
@@ -144,7 +150,7 @@ export function Home() {
               {t('home.subtitle')}
             </p>
             <div className="mt-8 max-w-2xl">
-              <SearchBar onSearch={(nextZone) => onSearch(nextZone)} />
+              <SearchBar onSearch={onSearch} />
             </div>
           </div>
 

@@ -17,14 +17,14 @@ export function SearchPage() {
   const { t } = useLanguage();
   const params = new URLSearchParams(window.location.search);
   const [zone, setZone] = useState(params.get('zone') ?? '');
-  const [maxPrice, setMaxPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState(params.get('maxPrice') ?? '');
   const [furnished, setFurnished] = useState(false);
   const { universities, loading: universitiesLoading } = useUniversities();
 
   const request = useMemo(
     () => ({
       ...(zone ? { zone } : {}),
-      ...(maxPrice ? { maxPrice: Number(maxPrice) } : {}),
+      ...(maxPrice && Number(maxPrice) > 0 ? { maxPrice: Number(maxPrice) } : {}),
       ...(furnished ? { furnished: true } : {}),
     }),
     [zone, maxPrice, furnished],

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Check, ChevronLeft, Mail, MessageCircle, MoreHorizontal, Send, X } from 'lucide-react';
-import { Link, useParams } from 'wouter';
+import { Check, ChevronLeft, Copy, Mail, MessageCircle, MoreHorizontal, Send, Trash2, X } from 'lucide-react';
+import { Link, useLocation, useParams } from 'wouter';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   customFetch,
@@ -15,6 +15,8 @@ import type { Conversation, Message } from '@workspace/api-client-react';
 import { useAcceptConversation } from '@/hooks/use-accept-conversation';
 import { useRejectConversation } from '@/hooks/use-reject-conversation';
 import { useCancelConversation } from '@/hooks/use-cancel-conversation';
+import { useDeleteConversation } from '@/hooks/use-delete-conversation';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useReleaseListing } from '@/hooks/use-release-listing';
 import { getOwnerListingsQueryKey } from '@/hooks/use-list-owner-listings';
 import { normalizeMessages } from '@/lib/chat-messages';
@@ -279,18 +281,22 @@ function ConversationPanel({
   const acceptConversation = useAcceptConversation();
   const rejectConversation = useRejectConversation();
   const cancelConversation = useCancelConversation();
+  const deleteConversation = useDeleteConversation();
+  const [, setLocation] = useLocation();
   const releaseListing = useReleaseListing();
   const { toast } = useToast();
 
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showReleaseDialog, setShowReleaseDialog] = useState(false);
   const { text: statusText, colorBg: statusColorBg, colorText: statusColorText } = statusInfo;
   const actionPending =
     acceptConversation.isPending ||
     rejectConversation.isPending ||
     cancelConversation.isPending ||
+    deleteConversation.isPending ||
     releaseListing.isPending;
 
   const invalidateActionQueries = async () => {
@@ -322,6 +328,16 @@ function ConversationPanel({
     runConversationAction(() => rejectConversation.mutateAsync({ id: conversationId }));
   const cancelRequest = () =>
     runConversationAction(() => cancelConversation.mutateAsync({ id: conversationId }));
+  const deleteChat = async () => {
+    try {
+      await deleteConversation.mutateAsync({ id: conversationId });
+      setShowDeleteDialog(false);
+      setLocation(conversation?.role === 'owner' ? '/owner/messages' : '/messages');
+      await client.invalidateQueries({ queryKey: getListConversationsQueryKey() });
+    } catch {
+      setShowDeleteDialog(false);
+    }
+  };
   const releaseRoom = () =>
     runConversationAction(() => releaseListing.mutateAsync({ id: conversation?.roomId ?? 0 }));
 
@@ -567,14 +583,31 @@ function ConversationPanel({
             )}
           </div>
           <div className="flex items-center">
-            <button
-              onClick={copyListing}
-              className="rounded-lg p-2 text-[#527067] hover:bg-[#E1F5EE]"
-              data-testid="button-conversation-more"
-              aria-label={t('messages.copyListingName')}
-            >
-              <MoreHorizontal size={19} />
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="rounded-lg p-2 text-[#527067] hover:bg-[#E1F5EE]"
+                  data-testid="button-conversation-more"
+                  aria-label={t('messages.moreOptions')}
+                >
+                  <MoreHorizontal size={19} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={copyListing} data-testid="menu-copy-listing">
+                  <Copy size={15} className="mr-2" /> {t('messages.copyListingName')}
+                </DropdownMenuItem>
+                {requestStatus === 'annullata' && (
+                  <DropdownMenuItem
+                    onSelect={() => setShowDeleteDialog(true)}
+                    className="text-[#a74b32]"
+                    data-testid="menu-delete-conversation"
+                  >
+                    <Trash2 size={15} className="mr-2" /> {t('messages.deleteChat')}
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -679,6 +712,21 @@ function ConversationPanel({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('messages.deleteChat')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('messages.deleteChatDescription')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('messages.keepChat')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void deleteChat()} data-testid="button-confirm-delete-conversation">
+              {t('messages.deleteChat')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
         <AlertDialogContent className="w-[300px] sm:w-[350px]">
           <AlertDialogHeader>

@@ -7,6 +7,8 @@ const TTL_MS = 5 * 60 * 1000;
 
 let cached: { value: CachedRole; at: number } | null = null;
 let inflight: Promise<CachedRole | null> | null = null;
+// Ultimo ruolo noto (anche scaduto il TTL): la navbar riparte da qui invece che da "false".
+let lastKnown: CachedRole | null = null;
 
 export function peekRoleCache(): CachedRole | null {
   return cached && Date.now() - cached.at < TTL_MS ? cached.value : null;
@@ -14,6 +16,11 @@ export function peekRoleCache(): CachedRole | null {
 
 export function setRoleCache(value: CachedRole) {
   cached = { value, at: Date.now() };
+  lastKnown = value;
+}
+
+export function peekLastKnownRole(): CachedRole | null {
+  return lastKnown;
 }
 
 export function getRoleInflight() {
@@ -28,4 +35,5 @@ export function setRoleInflight(promise: Promise<CachedRole | null> | null) {
 export function clearRoleCache() {
   cached = null;
   inflight = null;
+  lastKnown = null;
 }

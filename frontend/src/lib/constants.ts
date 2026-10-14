@@ -44,3 +44,6 @@ export function initials(name: string) {
     .slice(0, 2)
     .toUpperCase();
 }
+
+// Caratteristiche selezionabili in 'Aggiungi annuncio' (valore salvato in `servizi`).
+export const LISTING_AMENITIES = ['lavatrice', 'aria_condizionata', 'riscaldamento', 'balcone', 'bagno_privato', 'cucina', 'spese_incluse', 'animali', 'scrivania', 'ascensore'] as const;

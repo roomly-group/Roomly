@@ -7,8 +7,10 @@ import { useLanguage } from '@/lib/i18n';
 import { AppShell } from '@/components/layout/app-shell';
 import { PageIntro } from '@/components/shared/page-intro';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
+import { LISTING_AMENITIES } from '@/lib/constants';
 
 type ListingForm = ListingInput & {
+  amenities: string[];
   address: string;
   city: string;
   postcode: string;
@@ -78,6 +80,7 @@ export function NewListingPage() {
     description: '',
     furnished: true,
     wifi: true,
+    amenities: [],
     photos: 0,
     address: '',
     city: '',
@@ -166,6 +169,7 @@ export function NewListingPage() {
       description: form.description.trim(),
       furnished: form.furnished,
       wifi: form.wifi,
+      amenities: form.amenities,
       photos: selectedPhotos.length,
     };
 
@@ -284,6 +288,26 @@ export function NewListingPage() {
                 onChange={(value) => update('wifi', value)}
                 testId="toggle-listing-wifi"
               />
+            </div>
+
+            <p className="mb-2 mt-6 text-sm font-black text-[#085041]">{t('newListing.amenitiesTitle')}</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {LISTING_AMENITIES.map((key) => (
+                <Toggle
+                  key={key}
+                  label={t(`newListing.amenity.${key}` as any)}
+                  checked={form.amenities.includes(key)}
+                  onChange={(value) =>
+                    setForm((current) => ({
+                      ...current,
+                      amenities: value
+                        ? [...current.amenities, key]
+                        : current.amenities.filter((item) => item !== key),
+                    }))
+                  }
+                  testId={`toggle-listing-amenity-${key}`}
+                />
+              ))}
             </div>
 
             {fieldsError && (

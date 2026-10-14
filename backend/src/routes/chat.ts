@@ -839,4 +839,32 @@ router.post("/conversations/:id/cancel", requireAuth, messageLimiter, async (req
   }
 });
 
+/**
+ * DELETE /api/conversations/:id
+ * Toglie dalla propria casella una chat già annullata. Per l'altro
+ * partecipante la chat resta: si rimuove solo l'appartenenza di chi elimina.
+ */
+router.delete("/conversations/:id", requireAuth, messageLimiter, async (req, res) => {
+  const { userId } = req as AuthenticatedRequest;
+  const id = IdParam.safeParse(req.params.id);
+  if (!id.success) return res.status(400).json({ error: "Invalid conversation id" });
+
+  try {
+    const found = await loadRequestContext(id.data, userId);
+    if (!found) return res.status(404).json({ error: "Conversation not found" });
+    if (found.ctx.stato_richiesta !== "annullata") {
+      return res.status(409).json({ error: "Only cancelled conversations can be deleted" });
+    }
+    const { error } = await supabaseAdmin
+      .from("conversazioni_utenti")
+      .delete()
+      .eq("conversazione_id", id.data)
+      .eq("utente_id", userId);
+    if (error) throw error;
+    return res.json({ success: true });
+  } catch (error) {
+    return serverError(res, "Error deleting conversation:", error);
+  }
+});
+
 export default router;

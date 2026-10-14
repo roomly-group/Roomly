@@ -380,6 +380,7 @@ router.post("/listings", requireAuth, async (req: Request, res: Response) => {
       servizi: [
         ...(input.furnished ? ["arredato"] : []),
         ...(input.wifi ? ["internet"] : []),
+        ...(input.amenities ?? []),
       ],
       attiva: true,
       stato: "disponibile",
