@@ -5,7 +5,7 @@ import { useLanguage } from '@/lib/i18n';
 import { AppShell } from '@/components/layout/app-shell';
 import { PageIntro } from '@/components/shared/page-intro';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
-import { customFetch } from '../../local-libs/api-client-react/src/custom-fetch';
+import { ApiError, customFetch } from '../../local-libs/api-client-react/src/custom-fetch';
 import { useListOwnerListings } from '@/hooks/use-list-owner-listings';
 import { getOwnerListingsQueryKey } from '@/hooks/use-list-owner-listings';
 import {
@@ -115,21 +115,12 @@ export function EditListingPage() {
 
     setLoading(true);
     setError(null);
-    customFetch(`${API_BASE_PATH}${API_ROUTE_PATHS.OWNER_LISTINGS}/${listingId}`, {
+    // customFetch resolves with the parsed JSON body and throws ApiError on non-2xx.
+    customFetch<Partial<ListingForm>>(`${API_BASE_PATH}${API_ROUTE_PATHS.OWNER_LISTINGS}/${listingId}`, {
       method: 'GET',
       credentials: 'include',
     })
-      .then(async (response: Response) => {
-        if (!response.ok) {
-          if (response.status === 404) {
-            setError('Listing not found');
-          } else {
-            setError('Failed to load listing');
-          }
-          setLoading(false);
-          return;
-        }
-        const data = await response.json();
+      .then((data) => {
         // Map response to form
         const listingData: ListingForm = {
           title: data.title ?? '',
@@ -149,7 +140,7 @@ export function EditListingPage() {
       })
       .catch((err: unknown) => {
         console.error('Error fetching listing:', err);
-        setError('Failed to load listing');
+        setError(err instanceof ApiError && err.status === 404 ? 'Listing not found' : 'Failed to load listing');
         setLoading(false);
       });
   }, [listingId]);
@@ -210,24 +201,20 @@ export function EditListingPage() {
       },
       body: JSON.stringify(payload),
     })
-      .then(async (response: Response) => {
-        if (!response.ok) {
-          let errorMsg = 'Failed to update listing';
-          if (response.status === 404) {
-            errorMsg = 'Listing not found';
-          } else if (response.status === 400) {
-            errorMsg = 'Invalid data';
-          }
-          setError(errorMsg);
-          return;
-        }
+      .then(() => {
         // Invalidate owner listings and redirect
         refetchOwnerListings();
         setLocation(APP_ROUTES.OWNER_DASHBOARD);
       })
       .catch((err: unknown) => {
         console.error('Error updating listing:', err);
-        setError('Failed to update listing');
+        let errorMsg = 'Failed to update listing';
+        if (err instanceof ApiError && err.status === 404) {
+          errorMsg = 'Listing not found';
+        } else if (err instanceof ApiError && err.status === 400) {
+          errorMsg = 'Invalid data';
+        }
+        setError(errorMsg);
       });
   };
 
