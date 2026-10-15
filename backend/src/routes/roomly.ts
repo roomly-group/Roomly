@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import { requireAuth } from "../middleware/auth";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import {
+  SEARCH_RADIUS_KM,
+  boundingBox,
   haversineKm,
   nearestUniversity,
   type UniversityPoint,
@@ -177,9 +179,9 @@ router.get(API_ROUTE_PATHS.LISTINGS, async (req: Request, res: Response) => {
 
     let dbQuery = supabaseAdmin.from("stanze").select(ROOM_SELECT);
 
-    // Ricerca per università: se conosciamo le sue coordinate mostriamo tutte
-    // le stanze ordinate per distanza (anche se lontane), altrimenti
-    // ripieghiamo sul vecchio confronto per nome.
+    // Ricerca per università: se conosciamo le sue coordinate mostriamo le
+    // stanze entro SEARCH_RADIUS_KM ordinate per distanza (bounding box in SQL,
+    // distanza reale in memoria), altrimenti ripieghiamo sul confronto per nome.
     let university: UniversityPoint | null = null;
     if (query.zone) {
       const { data: matches, error: uniError } = await supabaseAdmin
@@ -196,6 +198,15 @@ router.get(API_ROUTE_PATHS.LISTINGS, async (req: Request, res: Response) => {
     const hasUniversityCoords =
       university?.latitudine != null && university?.longitudine != null;
 
+    if (university && hasUniversityCoords) {
+      const box = boundingBox(university.latitudine!, university.longitudine!, SEARCH_RADIUS_KM);
+      // Stanze nel rettangolo OPPURE già associate a questa università
+      // (annunci vecchi senza coordinate).
+      dbQuery = dbQuery.or(
+        `universita_id.eq.${university.id},and(latitudine.gte.${box.minLat},latitudine.lte.${box.maxLat},longitudine.gte.${box.minLon},longitudine.lte.${box.maxLon})`,
+      );
+    }
+
     if (query.maxPrice !== undefined) {
       dbQuery = dbQuery.lte("prezzo", query.maxPrice);
     }
@@ -211,11 +222,11 @@ router.get(API_ROUTE_PATHS.LISTINGS, async (req: Request, res: Response) => {
 
     if (university && hasUniversityCoords) {
       const uni = university;
-      // Nessun raggio massimo: tutte le stanze, dalla più vicina alla più
-      // lontana. Quelle senza coordinate finiscono in fondo (prima quelle già
-      // associate a questa università).
-      const ranked = await Promise.all(
-        rows.map(async (row) => {
+      // Entro il raggio, dalla più vicina alla più lontana; le stanze già
+      // associate a questa università restano sempre (quelle senza coordinate
+      // finiscono in fondo).
+      const nearby = rows
+        .map((row) => {
           const hasCoords = row.latitudine != null && row.longitudine != null;
           const distance = hasCoords
             ? haversineKm(
@@ -226,19 +237,23 @@ router.get(API_ROUTE_PATHS.LISTINGS, async (req: Request, res: Response) => {
               )
             : null;
           const linked = String(row.universita_id ?? "") === String(uni.id);
-          const listing = await mapRoomRowToListing(
+          return { row, distance, linked };
+        })
+        .filter(({ distance, linked }) => linked || (distance !== null && distance <= SEARCH_RADIUS_KM));
+      const ranked = await Promise.all(
+        nearby.map(async ({ row, distance }) => ({
+          listing: await mapRoomRowToListing(
             row,
             distance !== null ? Math.round(distance * 10) / 10 : undefined,
-          );
-          return { listing, distance, linked };
-        }),
+          ),
+          distance,
+        })),
       );
       ranked.sort((a, b) => {
-        if (a.distance !== null && b.distance !== null) return a.distance - b.distance;
-        if (a.distance !== null) return -1;
-        if (b.distance !== null) return 1;
-        if (a.linked !== b.linked) return a.linked ? -1 : 1;
-        return a.listing.price - b.listing.price;
+        if (a.distance === null && b.distance === null) return a.listing.price - b.listing.price;
+        if (a.distance === null) return 1;
+        if (b.distance === null) return -1;
+        return a.distance - b.distance;
       });
       listings = ranked.map((item) => item.listing);
     } else {

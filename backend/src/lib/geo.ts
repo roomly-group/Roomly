@@ -1,11 +1,11 @@
 // ===================== CONFIGURATION =====================
 
 /**
- * Radius (km) used to link a room to its nearest university when a listing is
- * created; search ignores it and ranks every room by distance. Supplied by the
- * deployment environment, evaluated at module load.
+ * Radius (km) within which a room counts as "near" a university: search shows
+ * rooms within it, and new listings are linked to the nearest university inside
+ * it. Supplied by the deployment environment, evaluated at module load.
  */
-export const SEARCH_RADIUS_KM = Number(process.env.SEARCH_RADIUS_KM ?? 5);
+export const SEARCH_RADIUS_KM = Number(process.env.SEARCH_RADIUS_KM ?? 15);
 
 /** Mean Earth radius used by the Haversine calculation (km). */
 const EARTH_RADIUS_KM = 6371 as const;

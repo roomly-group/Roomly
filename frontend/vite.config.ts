@@ -26,7 +26,9 @@ export default defineConfig({
       '@': path.resolve(import.meta.dirname, 'src'),
       '@assets': path.resolve(import.meta.dirname, 'assets'),
     },
-    dedupe: ['react', 'react-dom'],
+    // zod is imported by @workspace/api-zod, which lives in ../backend: dedupe
+    // resolves it from frontend/node_modules (backend deps aren't installed on Vercel).
+    dedupe: ['react', 'react-dom', 'zod'],
   },
   root: path.resolve(import.meta.dirname),
   build: {
