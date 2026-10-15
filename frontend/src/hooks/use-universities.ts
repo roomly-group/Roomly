@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 
 // The list is small and rarely changes, so it is fetched once per page load
 // and shared between every search field (home + search page).
@@ -8,7 +9,7 @@ let inflight: Promise<string[]> | null = null;
 function loadUniversities(): Promise<string[]> {
   if (cache) return Promise.resolve(cache);
   if (!inflight) {
-    inflight = fetch('/api/universita')
+    inflight = fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.UNIVERSITIES}`)
       .then((response) => (response.ok ? response.json() : []))
       .then((data) => {
         cache = Array.isArray(data) ? (data as string[]) : [];

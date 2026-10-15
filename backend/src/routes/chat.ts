@@ -8,23 +8,27 @@ import {
   ListMessagesResponse,
   SendMessageBody,
   SendMessageResponse,
+  API_ROUTE_PATHS,
+  MESSAGE_MAX_LENGTH_CHARS,
+  MESSAGES_PAGE_SIZE,
 } from "@workspace/api-zod";
 
-const router: IRouter = Router();
+// ===================== CONFIGURATION =====================
 
-const PREVIEW_LENGTH = 120;
-// Massimo messaggi per richiesta: il client non può chiederne di più.
-const MESSAGES_PAGE = 100;
+/** Maximum characters shown in a conversation preview (characters). */
+const MESSAGE_PREVIEW_LENGTH_CHARS = 120 as const;
+/** Maximum pending requests allowed for one room (requests). */
+const MAX_PENDING_REQUESTS_PER_ROOM = 10 as const;
+
+const router: IRouter = Router();
 
 const IdParam = z.coerce.number().int().positive();
 const AfterParam = z.coerce.number().int().nonnegative().optional();
 const BeforeParam = z.coerce.number().int().positive().optional();
 const StartConversationBody = z.object({
   listingId: z.number().int().positive(),
-  body: z.string().trim().min(1).max(2000),
+  body: z.string().trim().min(1).max(MESSAGE_MAX_LENGTH_CHARS),
 });
-
-const MAX_PENDING_REQUESTS = 10;
 
 type PersonRow = { nome_utente?: string | null; nome?: string | null; cognome?: string | null } | null;
 
@@ -97,7 +101,7 @@ const toConversation = (row: ConversationRow, userId: string, unreadCount: numbe
     role: roleOf(row, userId),
     participant: displayName(other?.utente),
     listingTitle: row.stanza?.titolo ?? "",
-    preview: preview.length > PREVIEW_LENGTH ? `${preview.slice(0, PREVIEW_LENGTH - 1)}…` : preview,
+    preview: preview.length > MESSAGE_PREVIEW_LENGTH_CHARS ? `${preview.slice(0, MESSAGE_PREVIEW_LENGTH_CHARS - 1)}…` : preview,
     unread: unreadCount > 0,
     updatedAt: last?.created_at ?? row.updated_at,
     requestStatus: row.stato_richiesta,
@@ -179,7 +183,7 @@ function serverError(res: Response, label: string, error: unknown) {
  * GET /api/conversations
  * Tutte le chat in cui l'utente è studente o proprietario, più recenti prima.
  */
-router.get("/conversations", requireAuth, chatReadLimiter, async (req, res) => {
+router.get(API_ROUTE_PATHS.CONVERSATIONS, requireAuth, chatReadLimiter, async (req, res) => {
   const { userId } = req as AuthenticatedRequest;
   try {
     const { data: memberships, error: memberError } = await supabaseAdmin
@@ -228,7 +232,7 @@ router.get("/conversations", requireAuth, chatReadLimiter, async (req, res) => {
  * Avvia (o riapre) la chat con il proprietario di un annuncio e invia il
  * primo messaggio. Usato dal pulsante "Scrivi a…" nel dettaglio annuncio.
  */
-router.post("/conversations", requireAuth, messageLimiter, async (req, res) => {
+router.post(API_ROUTE_PATHS.CONVERSATIONS, requireAuth, messageLimiter, async (req, res) => {
   const { userId } = req as AuthenticatedRequest;
   const parsed = StartConversationBody.safeParse(req.body);
   if (!parsed.success) {
@@ -265,14 +269,14 @@ router.post("/conversations", requireAuth, messageLimiter, async (req, res) => {
       return res.status(409).json({ error: "Student already has an accepted chat" });
     }
 
-    // Check if room has more than MAX_PENDING_REQUESTS chats with stato_richiesta = 'in_attesa'
+    // Check if room has more than MAX_PENDING_REQUESTS_PER_ROOM chats with stato_richiesta = 'in_attesa'
     const { count, error: countError } = await supabaseAdmin
       .from("conversazioni")
       .select("id", { count: "exact" })
       .eq("stanza_id", listingId)
       .eq("stato_richiesta", "in_attesa");
     if (countError) throw countError;
-    if (count && count >= MAX_PENDING_REQUESTS) {
+    if (count && count >= MAX_PENDING_REQUESTS_PER_ROOM) {
       return res.status(409).json({ error: "Too many pending requests for this room" });
     }
 
@@ -338,10 +342,9 @@ router.post("/conversations", requireAuth, messageLimiter, async (req, res) => {
         const other = (row.partecipanti ?? []).find((p) => p.utente_id !== userId);
         const last = row.messaggi?.[0];
         const preview = last?.testo ?? "";
-        const PREVIEW_LENGTH = 120;
         const trimmedPreview =
-          preview.length > PREVIEW_LENGTH
-            ? `${preview.slice(0, PREVIEW_LENGTH - 1)}…`
+          preview.length > MESSAGE_PREVIEW_LENGTH_CHARS
+            ? `${preview.slice(0, MESSAGE_PREVIEW_LENGTH_CHARS - 1)}…`
             : preview;
         const unreadCount = 0; // We don't compute unread here for simplicity, but we should.
         // We'll compute unread by checking messages from the other party not read.
@@ -394,10 +397,9 @@ router.post("/conversations", requireAuth, messageLimiter, async (req, res) => {
       const other = (row.partecipanti ?? []).find((p) => p.utente_id !== userId);
       const last = row.messaggi?.[0];
       const preview = last?.testo ?? "";
-      const PREVIEW_LENGTH = 120;
       const trimmedPreview =
-        preview.length > PREVIEW_LENGTH
-          ? `${preview.slice(0, PREVIEW_LENGTH - 1)}…`
+        preview.length > MESSAGE_PREVIEW_LENGTH_CHARS
+          ? `${preview.slice(0, MESSAGE_PREVIEW_LENGTH_CHARS - 1)}…`
           : preview;
       const unreadCount = 0; // TODO: compute unread
       const conversationResponse = {
@@ -467,10 +469,9 @@ router.post("/conversations", requireAuth, messageLimiter, async (req, res) => {
       const other = (row.partecipanti ?? []).find((p) => p.utente_id !== userId);
       const last = row.messaggi?.[0];
       const preview = last?.testo ?? "";
-      const PREVIEW_LENGTH = 120;
       const trimmedPreview =
-        preview.length > PREVIEW_LENGTH
-          ? `${preview.slice(0, PREVIEW_LENGTH - 1)}…`
+        preview.length > MESSAGE_PREVIEW_LENGTH_CHARS
+          ? `${preview.slice(0, MESSAGE_PREVIEW_LENGTH_CHARS - 1)}…`
           : preview;
       const unreadCount = 0; // TODO: compute unread
       const conversationResponse = {
@@ -519,10 +520,9 @@ router.post("/conversations", requireAuth, messageLimiter, async (req, res) => {
     const other = (row.partecipanti ?? []).find((p) => p.utente_id !== userId);
     const last = row.messaggi?.[0];
     const preview = last?.testo ?? "";
-    const PREVIEW_LENGTH = 120;
     const trimmedPreview =
-      preview.length > PREVIEW_LENGTH
-        ? `${preview.slice(0, PREVIEW_LENGTH - 1)}…`
+      preview.length > MESSAGE_PREVIEW_LENGTH_CHARS
+        ? `${preview.slice(0, MESSAGE_PREVIEW_LENGTH_CHARS - 1)}…`
         : preview;
     const unreadCount = 0; // TODO: compute unread
     const conversationResponse = {
@@ -553,7 +553,7 @@ router.post("/conversations", requireAuth, messageLimiter, async (req, res) => {
  *   simultanei un id più basso può diventare visibile dopo uno più alto).
  * Segna come letti i messaggi dell'altra persona, ma solo se ce ne sono di nuovi.
  */
-router.get("/conversations/:id/messages", requireAuth, chatReadLimiter, async (req, res) => {
+router.get(API_ROUTE_PATHS.CONVERSATION_MESSAGES, requireAuth, chatReadLimiter, async (req, res) => {
   const { userId } = req as AuthenticatedRequest;
   const id = IdParam.safeParse(req.params.id);
   if (!id.success) return res.status(400).json({ error: "Invalid conversation id" });
@@ -579,14 +579,14 @@ router.get("/conversations/:id/messages", requireAuth, chatReadLimiter, async (r
       const { data, error } = await base
         .gt("id", after.data)
         .order("id", { ascending: true })
-        .limit(MESSAGES_PAGE);
+        .limit(MESSAGES_PAGE_SIZE);
       if (error) throw error;
       rows = (data ?? []) as MessageRow[];
     } else {
       // Ultimi N messaggi (o i N prima di ?before), rimessi in ordine cronologico.
       const { data, error } = await (before.data !== undefined ? base.lt("id", before.data) : base)
         .order("id", { ascending: false })
-        .limit(MESSAGES_PAGE);
+        .limit(MESSAGES_PAGE_SIZE);
       if (error) throw error;
       rows = ((data ?? []) as MessageRow[]).reverse();
     }
@@ -616,14 +616,14 @@ router.get("/conversations/:id/messages", requireAuth, chatReadLimiter, async (r
  * POST /api/conversations/:id/messages
  * Invia un messaggio in una chat di cui si è partecipanti (studente o proprietario).
  */
-router.post("/conversations/:id/messages", requireAuth, messageLimiter, async (req, res) => {
+router.post(API_ROUTE_PATHS.CONVERSATION_MESSAGES, requireAuth, messageLimiter, async (req, res) => {
   const { userId } = req as AuthenticatedRequest;
   const id = IdParam.safeParse(req.params.id);
   if (!id.success) return res.status(400).json({ error: "Invalid conversation id" });
 
   const input = SendMessageBody.safeParse(req.body);
   const body = input.success ? input.data.body.trim() : "";
-  if (!body || body.length > 2000) {
+  if (!body || body.length > MESSAGE_MAX_LENGTH_CHARS) {
     return res.status(400).json({ error: "Messaggio non valido (1–2000 caratteri)" });
   }
 
@@ -706,7 +706,7 @@ async function transitionPending(conversationId: number, next: "accettata" | "ri
  * Il proprietario accetta la richiesta: la chat diventa "accettata", la stanza
  * "affittata" e le altre richieste in attesa per quella stanza vengono rifiutate.
  */
-router.post("/conversations/:id/accept", requireAuth, messageLimiter, async (req, res) => {
+router.post(API_ROUTE_PATHS.CONVERSATION_ACCEPT, requireAuth, messageLimiter, async (req, res) => {
   const { userId } = req as AuthenticatedRequest;
   const id = IdParam.safeParse(req.params.id);
   if (!id.success) return res.status(400).json({ error: "Invalid conversation id" });
@@ -795,7 +795,7 @@ router.post("/conversations/:id/accept", requireAuth, messageLimiter, async (req
  * POST /api/conversations/:id/reject
  * Il proprietario rifiuta la richiesta: la chat si chiude, la stanza resta disponibile.
  */
-router.post("/conversations/:id/reject", requireAuth, messageLimiter, async (req, res) => {
+router.post(API_ROUTE_PATHS.CONVERSATION_REJECT, requireAuth, messageLimiter, async (req, res) => {
   const { userId } = req as AuthenticatedRequest;
   const id = IdParam.safeParse(req.params.id);
   if (!id.success) return res.status(400).json({ error: "Invalid conversation id" });
@@ -819,7 +819,7 @@ router.post("/conversations/:id/reject", requireAuth, messageLimiter, async (req
  * POST /api/conversations/:id/cancel
  * Lo studente annulla la propria richiesta ancora in attesa.
  */
-router.post("/conversations/:id/cancel", requireAuth, messageLimiter, async (req, res) => {
+router.post(API_ROUTE_PATHS.CONVERSATION_CANCEL, requireAuth, messageLimiter, async (req, res) => {
   const { userId } = req as AuthenticatedRequest;
   const id = IdParam.safeParse(req.params.id);
   if (!id.success) return res.status(400).json({ error: "Invalid conversation id" });
@@ -844,7 +844,7 @@ router.post("/conversations/:id/cancel", requireAuth, messageLimiter, async (req
  * Toglie dalla propria casella una chat già annullata. Per l'altro
  * partecipante la chat resta: si rimuove solo l'appartenenza di chi elimina.
  */
-router.delete("/conversations/:id", requireAuth, messageLimiter, async (req, res) => {
+router.delete(API_ROUTE_PATHS.CONVERSATION_DELETE, requireAuth, messageLimiter, async (req, res) => {
   const { userId } = req as AuthenticatedRequest;
   const id = IdParam.safeParse(req.params.id);
   if (!id.success) return res.status(400).json({ error: "Invalid conversation id" });

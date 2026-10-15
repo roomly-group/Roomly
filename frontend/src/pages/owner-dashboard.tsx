@@ -10,7 +10,7 @@ import {
   useListConversations,
 } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
-import { formatPrice } from '@/lib/constants';
+import { APP_ROUTES, formatPrice, MAX_PAGE_ENTRY_DELAY_INDEX } from '@/lib/constants';
 import { useZoneLabel } from '@/hooks/use-zone-label';
 import { Button } from '@/components/shared/button';
 import { useReleaseListing } from '@/hooks/use-release-listing';
@@ -23,6 +23,19 @@ import { PageIntro } from '@/components/shared/page-intro';
 import { QueryError } from '@/components/shared/query-error';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+
+// ===================== CONFIGURATION =====================
+
+/** Stable test selectors used by owner-listing dashboard controls. */
+const OWNER_DASHBOARD_TEST_IDS = {
+  BUTTON_RELEASE_LISTING_PREFIX: 'button-release-listing-',
+  LINK_EDIT_LISTING_PREFIX: 'link-edit-listing-',
+  LINK_CREATE_LISTING: 'link-create-listing',
+  STAT_OWNER_PREFIX: 'stat-owner-',
+  BUTTON_LISTINGS_MORE: 'button-listings-more',
+  STATUS_LISTING_OPTIONS: 'status-listing-options',
+  LINK_OWNER_MESSAGES: 'link-owner-messages',
+} as const;
 
 function OwnerListingRow({
   id,
@@ -97,7 +110,7 @@ function OwnerListingRow({
             onClick={() => setIsReleaseDialogOpen(true)}
             disabled={releaseListing.isPending}
             className="ml-2"
-            data-testid={`button-release-listing-${id}`}
+            data-testid={`${OWNER_DASHBOARD_TEST_IDS.BUTTON_RELEASE_LISTING_PREFIX}${id}`}
           >
             {t('messages.releaseRoom')}
           </Button>
@@ -118,10 +131,10 @@ function OwnerListingRow({
         </>
       )}
       <Link
-        href={`/owner/listings/${id}/edit`}
+        href={`${APP_ROUTES.OWNER_LISTINGS}/${id}/edit`}
         aria-label={t('dashboard.editListing')}
         title={t('dashboard.editListing')}
-        data-testid={`link-edit-listing-${id}`}
+        data-testid={`${OWNER_DASHBOARD_TEST_IDS.LINK_EDIT_LISTING_PREFIX}${id}`}
         className="rounded-lg p-2 text-[#9ab8ab]"
       >
         <PenLine size={16} />
@@ -210,9 +223,9 @@ export function OwnerDashboard() {
           description={t('dashboard.subtitle')}
           action={
             <Link
-              href="/owner/listings/new"
+              href={APP_ROUTES.OWNER_LISTING_NEW}
               className="inline-flex items-center gap-2 rounded-xl bg-[#EF9F27] px-4 py-2.5 text-sm font-black text-[#2C2C2A] transition hover:bg-[#e6a53d]"
-              data-testid="link-create-listing"
+              data-testid={OWNER_DASHBOARD_TEST_IDS.LINK_CREATE_LISTING}
             >
               <Plus size={17} /> {t('dashboard.addListing')}
             </Link>
@@ -235,8 +248,8 @@ export function OwnerDashboard() {
                 return (
                   <div
                     key={metric.label}
-                    className={`surface page-enter delay-${Math.min(index + 1, 3)} rounded-2xl p-5`}
-                    data-testid={`stat-owner-${metric.label.toLowerCase().replace(/\s/g, '-')}`}
+                    className={`surface page-enter delay-${Math.min(index + 1, MAX_PAGE_ENTRY_DELAY_INDEX)} rounded-2xl p-5`}
+                    data-testid={`${OWNER_DASHBOARD_TEST_IDS.STAT_OWNER_PREFIX}${metric.label.toLowerCase().replace(/\s/g, '-')}`}
                   >
                     <div className="mb-5 flex items-start justify-between">
                       <p className="max-w-[100px] text-xs font-extrabold leading-4 text-[#527067]">{metric.label}</p>
@@ -260,7 +273,7 @@ export function OwnerDashboard() {
                   <button
                     onClick={() => setListingOptionsOpen(!listingOptionsOpen)}
                     className="rounded-lg p-2 text-[#527067] hover:bg-[#E1F5EE]"
-                    data-testid="button-listings-more"
+                    data-testid={OWNER_DASHBOARD_TEST_IDS.BUTTON_LISTINGS_MORE}
                     aria-label={t('dashboard.moreOptions')}
                   >
                     <MoreHorizontal size={19} />
@@ -268,7 +281,7 @@ export function OwnerDashboard() {
                 </div>
 
                 {listingOptionsOpen && (
-                  <p className="mt-3 rounded-lg bg-[#E1F5EE] px-3 py-2 text-xs font-bold text-[#0F6E56]" data-testid="status-listing-options">
+                  <p className="mt-3 rounded-lg bg-[#E1F5EE] px-3 py-2 text-xs font-bold text-[#0F6E56]" data-testid={OWNER_DASHBOARD_TEST_IDS.STATUS_LISTING_OPTIONS}>
                     {t('dashboard.publishedNote')}
                   </p>
                 )}
@@ -288,7 +301,7 @@ export function OwnerDashboard() {
                     <p className="text-base font-black text-[#085041]">No rooms published yet</p>
                     <p className="mt-2 text-sm text-[#527067]">Create your first listing to start receiving enquiries.</p>
                     <Link
-                      href="/owner/listings/new"
+                      href={APP_ROUTES.OWNER_LISTING_NEW}
                       className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#EF9F27] px-4 py-2.5 text-sm font-black text-[#2C2C2A]"
                     >
                       <Plus size={17} /> {t('dashboard.addListing')}
@@ -356,9 +369,9 @@ export function OwnerDashboard() {
                 </div>
 
                 <Link
-                  href="/owner/messages"
+                  href={APP_ROUTES.OWNER_MESSAGES}
                   className="mt-8 inline-flex items-center gap-2 text-sm font-black text-[#E1F5EE] hover:text-[#EF9F27]"
-                  data-testid="link-owner-messages"
+                  data-testid={OWNER_DASHBOARD_TEST_IDS.LINK_OWNER_MESSAGES}
                 >
                   {t('dashboard.openInbox')} <ArrowRight size={16} />
                 </Link>

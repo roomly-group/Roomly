@@ -3,6 +3,8 @@ import { Check, Bell, KeyRound } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { Navbar } from '@/components/layout/navbar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { WAITLIST_FALLBACK_POSITION } from '@/lib/constants';
+import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 
 export function WaitlistConfirmedPage() {
   const { t } = useLanguage();
@@ -13,18 +15,18 @@ export function WaitlistConfirmedPage() {
   useEffect(() => {
     async function fetchPosition() {
       try {
-        const response = await fetch('/api/waitlist/me', {
+        const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.WAITLIST_ME}`, {
           credentials: 'include',
         });
         if (response.ok) {
           const data = await response.json();
           setPosition(data.position);
         } else {
-          setPosition(107);
+          setPosition(WAITLIST_FALLBACK_POSITION);
         }
       } catch (error) {
         console.error('Failed to fetch waitlist position:', error);
-        setPosition(107);
+        setPosition(WAITLIST_FALLBACK_POSITION);
       } finally {
         setPositionLoading(false);
       }

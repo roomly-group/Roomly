@@ -3,6 +3,13 @@ import { GraduationCap, MapPin, Search, X } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
+// ===================== CONFIGURATION =====================
+
+/** Number of suggested places shown when no query is entered (results). */
+const SUGGESTED_PLACE_COUNT = 6 as const;
+/** Maximum ranked place matches shown for a typed query (results). */
+const LOCATION_SEARCH_RESULT_COUNT = 8 as const;
+
 // Lowercase + strip accents so "universita" finds "Università".
 const normalize = (value: string) =>
   value
@@ -11,12 +18,9 @@ const normalize = (value: string) =>
     .toLowerCase()
     .trim();
 
-const SUGGESTED_COUNT = 6;
-const RESULTS_COUNT = 8;
-
 function rank(options: string[], query: string): string[] {
   const q = normalize(query);
-  if (!q) return options.slice(0, SUGGESTED_COUNT);
+  if (!q) return options.slice(0, SUGGESTED_PLACE_COUNT);
 
   const starts: string[] = [];
   const wordStarts: string[] = [];
@@ -28,7 +32,7 @@ function rank(options: string[], query: string): string[] {
     else if (n.split(/[\s'’\-]+/).some((word) => word.startsWith(q))) wordStarts.push(option);
     else if (n.includes(q)) contains.push(option);
   }
-  return [...starts, ...wordStarts, ...contains].slice(0, RESULTS_COUNT);
+  return [...starts, ...wordStarts, ...contains].slice(0, LOCATION_SEARCH_RESULT_COUNT);
 }
 
 function Highlight({ text, query }: { text: string; query: string }) {

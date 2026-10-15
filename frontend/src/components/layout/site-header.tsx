@@ -1,5 +1,6 @@
 import { Link } from 'wouter';
 import roomlyMark from '@assets/logo_no_background.png';
+import { SHARED_TEST_IDS } from '@/lib/constants';
 
 // One navbar, two variants:
 // - 'app'     -> the sticky full-width header with nav links (AppShell pages)
@@ -23,7 +24,7 @@ export function SiteHeader({
   const isApp = variant === 'app';
 
   const logo = (
-    <Link href={logoHref} className="flex items-center gap-2.5" data-testid="link-logo">
+    <Link href={logoHref} className="flex items-center gap-2.5" data-testid={SHARED_TEST_IDS.LINK_LOGO}>
       <img
         src={roomlyMark}
         alt={isApp ? '' : 'Roomly'}

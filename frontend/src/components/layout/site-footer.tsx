@@ -2,6 +2,7 @@ import { Link } from 'wouter';
 import { Instagram, Linkedin, Music2 } from 'lucide-react';
 import roomlyMark from '@assets/logo_no_background.png';
 import { useLanguage } from '@/lib/i18n';
+import { APP_ROUTES, SOCIAL_PROFILE_URLS, WAITLIST_FAQ_ANCHOR_URL } from '@/lib/constants';
 
 export function SiteFooter() {
   const { t } = useLanguage();
@@ -22,17 +23,17 @@ export function SiteFooter() {
               <FooterSocial
                 icon={<Instagram size={16} />}
                 label={t('footer.social.instagram')}
-                href="https://www.instagram.com/roomlygroup"
+                href={SOCIAL_PROFILE_URLS.INSTAGRAM}
               />
               <FooterSocial
                 icon={<Linkedin size={16} />}
                 label={t('footer.social.linkedin')}
-                href="https://www.linkedin.com/in/daniele-vinciguerra-6588773a8/"
+                href={SOCIAL_PROFILE_URLS.LINKEDIN}
               />
               <FooterSocial
                 icon={<Music2 size={16} />}
                 label={t('footer.social.tiktok')}
-                href="https://www.tiktok.com/@roomlygroup"
+                href={SOCIAL_PROFILE_URLS.TIKTOK}
               />
             </div>
           </div>
@@ -40,23 +41,23 @@ export function SiteFooter() {
           <FooterColumn
             title={t('footer.column.prodotto')}
             links={[
-              { label: t('footer.link.beta'), href: '/' },
-              { label: t('footer.link.faq'), href: '/#faq' },
+              { label: t('footer.link.beta'), href: APP_ROUTES.ROOT },
+              { label: t('footer.link.faq'), href: WAITLIST_FAQ_ANCHOR_URL },
             ]}
           />
           <FooterColumn
             title={t('footer.column.empresa')}
             links={[
-              { label: t('footer.link.chi-siamo'), href: '/chi-siamo' },
-              { label: t('footer.link.contatti'), href: '/contatti' },
+              { label: t('footer.link.chi-siamo'), href: APP_ROUTES.ABOUT },
+              { label: t('footer.link.contatti'), href: APP_ROUTES.CONTACT },
             ]}
           />
           <FooterColumn
             title={t('footer.column.legal')}
             links={[
-              { label: t('footer.link.privacy'), href: '/privacy' },
-              { label: t('footer.link.termini'), href: '/termini' },
-              { label: t('footer.link.cookie'), href: '/cookie' },
+              { label: t('footer.link.privacy'), href: APP_ROUTES.PRIVACY },
+              { label: t('footer.link.termini'), href: APP_ROUTES.TERMS },
+              { label: t('footer.link.cookie'), href: APP_ROUTES.COOKIES },
             ]}
           />
         </div>

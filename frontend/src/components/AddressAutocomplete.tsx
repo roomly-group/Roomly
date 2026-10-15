@@ -5,6 +5,18 @@ import {
   GeoapifyGeocoderAutocomplete,
 } from "@geoapify/react-geocoder-autocomplete";
 import { useLanguage } from "@/lib/i18n";
+import { SUPPORTED_LANGUAGE_CODES } from "@workspace/api-zod";
+
+// ===================== CONFIGURATION =====================
+
+/** Delay after selecting a place during which widget-generated clears are ignored (ms). */
+const SELECTED_PLACE_IGNORE_DELAY_MS = 800 as const;
+/** Minimum input length before address-autocomplete state is treated as active (characters). */
+const MIN_ADDRESS_QUERY_LENGTH_CHARS = 3 as const;
+/** Maximum address suggestions requested from Geoapify (results). */
+const ADDRESS_SUGGESTION_LIMIT = 6 as const;
+/** Delay before Geoapify requests suggestions after typing stops (ms). */
+const ADDRESS_AUTOCOMPLETE_DEBOUNCE_MS = 250 as const;
 
 interface AddressAutocompleteProps {
   /** Chiamato quando l'utente sceglie un suggerimento (feature GeoJSON di Geoapify). */
@@ -12,8 +24,6 @@ interface AddressAutocompleteProps {
   /** Chiamato quando l'utente modifica o svuota il testo: la selezione precedente non è più valida. */
   onClear?: () => void;
 }
-
-const GEO_LANGS = ["it", "en", "es", "fr", "de", "pt"] as const;
 
 export default function AddressAutocomplete({ onPlaceSelect, onClear }: AddressAutocompleteProps) {
   const { language, t } = useLanguage();
@@ -24,7 +34,7 @@ export default function AddressAutocomplete({ onPlaceSelect, onClear }: AddressA
   const justSelected = (input?: string) => {
     const sel = selected.current;
     if (!sel) return false;
-    return Date.now() - sel.at < 800 || (input !== undefined && input === sel.text);
+    return Date.now() - sel.at < SELECTED_PLACE_IGNORE_DELAY_MS || (input !== undefined && input === sel.text);
   };
   const apiKey = import.meta.env.VITE_GEOAPIFY_API_KEY ?? import.meta.env.GEOAPIFY_API_KEY ?? "";
 
@@ -36,7 +46,7 @@ export default function AddressAutocomplete({ onPlaceSelect, onClear }: AddressA
     );
   }
 
-  const lang = (GEO_LANGS as readonly string[]).includes(language) ? (language as any) : "en";
+  const lang = (SUPPORTED_LANGUAGE_CODES as readonly string[]).includes(language) ? (language as any) : "en";
 
   return (
     <div>
@@ -47,8 +57,8 @@ export default function AddressAutocomplete({ onPlaceSelect, onClear }: AddressA
           placeholder={t("address.placeholder")}
           lang={lang}
           filterByCountryCode={["it"]}
-          limit={6}
-          debounceDelay={250}
+          limit={ADDRESS_SUGGESTION_LIMIT}
+          debounceDelay={ADDRESS_AUTOCOMPLETE_DEBOUNCE_MS}
           skipIcons
           allowNonVerifiedHouseNumber
           allowNonVerifiedStreet
@@ -65,7 +75,7 @@ export default function AddressAutocomplete({ onPlaceSelect, onClear }: AddressA
             if (justSelected(input)) return;
             selected.current = null;
             onClear?.();
-            if (input.trim().length < 3) setStatus("idle");
+            if (input.trim().length < MIN_ADDRESS_QUERY_LENGTH_CHARS) setStatus("idle");
           }}
           onClear={() => {
             if (justSelected()) return;

@@ -2,9 +2,21 @@ import path from 'path';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
+import { API_BASE_PATH } from '../backend/local-libs/api-zod/src/constants';
 
-const port = Number(process.env.PORT) || 5173;
-const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+// ===================== CONFIGURATION =====================
+
+/** Default development and preview server port when PORT is unset (port). */
+const DEFAULT_SERVER_PORT = 5173 as const;
+/** Fallback backend origin used by the Vite API proxy (URL). */
+const DEFAULT_BACKEND_URL = 'http://localhost:3001' as const;
+/** Host interface used by the Vite development and preview servers. */
+const SERVER_HOST = '0.0.0.0' as const;
+/** Chunk-size threshold used by Vite's build warning (KB). */
+const CHUNK_SIZE_WARNING_LIMIT_KB = 1000 as const;
+
+const port = Number(process.env.PORT) || DEFAULT_SERVER_PORT;
+const backendUrl = process.env.BACKEND_URL || DEFAULT_BACKEND_URL;
 
 export default defineConfig({
   base: process.env.VITE_BASE_PATH || "",
@@ -21,17 +33,17 @@ export default defineConfig({
     outDir: path.resolve(import.meta.dirname, 'dist/public'),
     emptyOutDir: true,
     sourcemap: true,
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: CHUNK_SIZE_WARNING_LIMIT_KB,
   },
   server: {
     port,
     strictPort: true,
-    host: '0.0.0.0',
+    host: SERVER_HOST,
     fs: {
       strict: true,
     },
     proxy: {
-      '/api': {
+      [API_BASE_PATH]: {
         target: backendUrl,
         changeOrigin: true,
       },
@@ -39,6 +51,6 @@ export default defineConfig({
   },
   preview: {
     port,
-    host: '0.0.0.0',
+    host: SERVER_HOST,
   },
 });

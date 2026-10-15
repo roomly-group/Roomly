@@ -23,10 +23,11 @@ import {
   useStartConversation,
 } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
-import { formatPrice, gradients } from '@/lib/constants';
+import { APP_ROUTES, formatPrice, gradients, LISTING_DETAIL_TEST_IDS } from '@/lib/constants';
 import { AppShell, Avatar } from '@/components/layout/app-shell';
 import { Button } from '@/components/shared/button';
 import { QueryError } from '@/components/shared/query-error';
+import { MESSAGE_MAX_LENGTH_CHARS } from '@workspace/api-zod';
 
 function Feature({ icon: Icon, label }: { icon: typeof BedDouble; label: string }) {
   return (
@@ -62,7 +63,7 @@ export function ListingDetail() {
           void client.invalidateQueries({ queryKey: getListConversationsQueryKey() });
           setShowContact(false);
           setFirstMessage('');
-          navigate(`/messages/${conversationId}`);
+          navigate(`${APP_ROUTES.MESSAGES}/${conversationId}`);
         },
       },
     );
@@ -101,9 +102,9 @@ export function ListingDetail() {
     <AppShell>
       <div className="mx-auto max-w-[1120px] px-5 py-8 lg:px-8 lg:py-12">
         <Link
-          href="/search"
+          href={APP_ROUTES.SEARCH}
           className="mb-6 inline-flex items-center gap-2 text-sm font-black text-[#0F6E56]"
-          data-testid="link-back-search"
+          data-testid={LISTING_DETAIL_TEST_IDS.LINK_BACK_SEARCH}
         >
           <ChevronLeft size={16} /> {t('listingDetail.allRooms')}
         </Link>
@@ -128,7 +129,7 @@ export function ListingDetail() {
             className={`absolute right-5 top-5 rounded-full p-3 backdrop-blur ${
               saved ? 'bg-[#0F6E56] text-[#E1F5EE]' : 'bg-[#F1EFE8]/80 text-[#085041]'
             }`}
-            data-testid="button-save-detail"
+            data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_SAVE_DETAIL}
             aria-label={t('common.saveRoom')}
           >
             <Heart size={19} fill={saved ? 'currentColor' : 'none'} />
@@ -191,7 +192,7 @@ export function ListingDetail() {
               <Button
                 className="mt-4 w-full"
                 onClick={() => setShowContact(true)}
-                data-testid="button-contact-owner"
+                data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_CONTACT_OWNER}
               >
                 <MessageCircle size={17} /> {t('listingDetail.message')} {listing.owner.split(' ')[0]}
               </Button>
@@ -217,7 +218,7 @@ export function ListingDetail() {
                 <button
                   onClick={closeContact}
                   className="rounded-lg p-2 text-[#527067] hover:bg-[#E1F5EE]"
-                  data-testid="button-close-contact"
+                  data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_CLOSE_CONTACT}
                 >
                   <X size={18} />
                 </button>
@@ -231,14 +232,14 @@ export function ListingDetail() {
                   value={firstMessage}
                   onChange={(event) => setFirstMessage(event.target.value)}
                   rows={4}
-                  maxLength={2000}
+                  maxLength={MESSAGE_MAX_LENGTH_CHARS}
                   autoFocus
                   placeholder={t('listingDetail.firstMessagePlaceholder')}
                   className="mt-4 w-full resize-none rounded-xl border border-[#c8ddd2] bg-[#F1EFE8] p-3 text-sm outline-none placeholder:text-[#82978e] focus:border-[#0F6E56]"
-                  data-testid="input-first-message"
+                  data-testid={LISTING_DETAIL_TEST_IDS.INPUT_FIRST_MESSAGE}
                 />
                 {startConversation.isError && (
-                  <p className="mt-2 text-xs font-bold text-[#a74b32]" data-testid="status-contact-error">
+                  <p className="mt-2 text-xs font-bold text-[#a74b32]" data-testid={LISTING_DETAIL_TEST_IDS.STATUS_CONTACT_ERROR}>
                     {(startConversation.error as { status?: number } | null)?.status === 400
                       ? t('listingDetail.cannotMessageSelf')
                       : t('messages.sendError')}
@@ -248,7 +249,7 @@ export function ListingDetail() {
                   type="submit"
                   className="mt-4 w-full"
                   disabled={!firstMessage.trim() || startConversation.isPending}
-                  data-testid="button-contact-send"
+                  data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_CONTACT_SEND}
                 >
                   <Send size={16} /> {t('listingDetail.sendMessage')}
                 </Button>

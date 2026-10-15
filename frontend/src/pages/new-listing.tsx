@@ -7,7 +7,21 @@ import { useLanguage } from '@/lib/i18n';
 import { AppShell } from '@/components/layout/app-shell';
 import { PageIntro } from '@/components/shared/page-intro';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
-import { LISTING_AMENITIES } from '@/lib/constants';
+import {
+  APP_ROUTES,
+  LISTING_AMENITIES,
+  LISTING_FORM_TEST_IDS,
+  LISTING_PRICE_INPUT_PADDING_LEFT_PX,
+  LISTING_PRICE_PLACEHOLDER,
+} from '@/lib/constants';
+import { API_BASE_PATH, API_ROUTE_PATHS, ROOM_PHOTO_MAX_COUNT, ROOM_PHOTO_MAX_SIZE_BYTES } from '@workspace/api-zod';
+
+// ===================== CONFIGURATION =====================
+
+/** Maximum photos allowed per listing, shared with API validation (photos). */
+const LISTING_PHOTO_MAX_COUNT = ROOM_PHOTO_MAX_COUNT;
+/** Maximum upload size per listing photo, shared with API validation (bytes). */
+const LISTING_PHOTO_MAX_SIZE_BYTES = ROOM_PHOTO_MAX_SIZE_BYTES;
 
 type ListingForm = ListingInput & {
   amenities: string[];
@@ -17,9 +31,6 @@ type ListingForm = ListingInput & {
   latitude: number;
   longitude: number;
 };
-
-const MAX_PHOTOS = 10;
-const MAX_PHOTO_SIZE = 8 * 1024 * 1024;
 
 function Field({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
   return (
@@ -112,8 +123,8 @@ export function NewListingPage() {
       return (photo.type === 'image/png' && extension === 'png') ||
         (photo.type === 'image/jpeg' && ['jpg', 'jpeg'].includes(extension ?? ''));
     });
-    const validSize = validType.filter((photo) => photo.size > 0 && photo.size <= MAX_PHOTO_SIZE);
-    const remaining = Math.max(0, MAX_PHOTOS - selectedPhotos.length);
+    const validSize = validType.filter((photo) => photo.size > 0 && photo.size <= LISTING_PHOTO_MAX_SIZE_BYTES);
+    const remaining = Math.max(0, LISTING_PHOTO_MAX_COUNT - selectedPhotos.length);
 
     if (validType.length !== incoming.length) setPhotoError(t('newListing.photosInvalidType'));
     else if (validSize.length !== validType.length) setPhotoError(t('newListing.photosTooLarge'));
@@ -185,7 +196,7 @@ export function NewListingPage() {
 
       for (let index = uploadedPhotoCount; index < selectedPhotos.length; index += 1) {
         const photo = selectedPhotos[index];
-        const response = await fetch(`/api/owner/listings/${listingId}/photos`, {
+        const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.OWNER_LISTING_PHOTOS.replace(':id', String(listingId))}`, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': photo.type },
@@ -195,7 +206,7 @@ export function NewListingPage() {
         setUploadedPhotoCount(index + 1);
       }
 
-      setLocation(`/listings/${listingId}`);
+      setLocation(APP_ROUTES.LISTING_DETAIL.replace(':id', String(listingId)));
     } catch (error) {
       console.error('Failed to create listing or upload photos:', error);
       if (listingId) setPhotoUploadError(true);
@@ -208,9 +219,9 @@ export function NewListingPage() {
     <AppShell>
       <div className="mx-auto max-w-[920px] px-5 py-8 lg:px-8 lg:py-12">
         <Link
-          href="/owner"
+          href={APP_ROUTES.OWNER_DASHBOARD}
           className="mb-6 inline-flex items-center gap-2 text-sm font-black text-[#0F6E56]"
-          data-testid="link-back-owner"
+          data-testid={LISTING_FORM_TEST_IDS.LINK_BACK_OWNER}
         >
           <ChevronLeft size={16} /> {t('newListing.dashboardLink')}
         </Link>
@@ -229,7 +240,7 @@ export function NewListingPage() {
                 onChange={(event) => update('title', event.target.value)}
                 placeholder={t('newListing.titlePlaceholder')}
                 className="form-input"
-                data-testid="input-listing-title"
+                data-testid={LISTING_FORM_TEST_IDS.INPUT_LISTING_TITLE}
               />
             </Field>
 
@@ -256,10 +267,10 @@ export function NewListingPage() {
                   min="1"
                   value={form.price || ''}
                   onChange={(event) => update('price', event.target.value)}
-                  placeholder="720"
+                  placeholder={LISTING_PRICE_PLACEHOLDER}
                   className="form-input"
-                  style={{ paddingLeft: 36 }}
-                  data-testid="input-listing-price"
+                  style={{ paddingLeft: LISTING_PRICE_INPUT_PADDING_LEFT_PX }}
+                  data-testid={LISTING_FORM_TEST_IDS.INPUT_LISTING_PRICE}
                 />
               </div>
             </Field>
@@ -271,7 +282,7 @@ export function NewListingPage() {
                 rows={6}
                 placeholder={t('newListing.detailsPlaceholder')}
                 className="form-input resize-none"
-                data-testid="textarea-listing-description"
+                data-testid={LISTING_FORM_TEST_IDS.TEXTAREA_LISTING_DESCRIPTION}
               />
             </Field>
 
@@ -330,7 +341,7 @@ export function NewListingPage() {
             <button
               type="submit"
               disabled={createListing.isPending || isUploadingPhotos}
-              data-testid="button-publish-listing"
+              data-testid={LISTING_FORM_TEST_IDS.BUTTON_PUBLISH_LISTING}
               className="mt-2 h-12 w-full rounded-xl bg-[#EF9F27] px-6 font-extrabold text-[#2C2C2A] transition-all duration-200 hover:bg-[#e6a53d] active:scale-[0.98] disabled:opacity-60 sm:w-auto"
             >
               {isUploadingPhotos
@@ -358,7 +369,7 @@ export function NewListingPage() {
                   disabled={Boolean(createdListingId) || isUploadingPhotos}
                   onChange={handlePhotoSelect}
                   className="sr-only"
-                  data-testid="input-listing-photos"
+                  data-testid={LISTING_FORM_TEST_IDS.INPUT_LISTING_PHOTOS}
                 />
               </label>
 

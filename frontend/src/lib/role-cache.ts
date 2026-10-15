@@ -3,7 +3,10 @@
 // chiamato una volta ogni TTL invece che a ogni navigazione.
 export type CachedRole = { role: 'admin' | 'user'; owner: boolean };
 
-const TTL_MS = 5 * 60 * 1000;
+// ===================== CONFIGURATION =====================
+
+/** Duration before cached role information expires and may be refreshed (ms). */
+const ROLE_CACHE_TTL_MS = 300000 as const;
 
 let cached: { value: CachedRole; at: number } | null = null;
 let inflight: Promise<CachedRole | null> | null = null;
@@ -11,7 +14,7 @@ let inflight: Promise<CachedRole | null> | null = null;
 let lastKnown: CachedRole | null = null;
 
 export function peekRoleCache(): CachedRole | null {
-  return cached && Date.now() - cached.at < TTL_MS ? cached.value : null;
+  return cached && Date.now() - cached.at < ROLE_CACHE_TTL_MS ? cached.value : null;
 }
 
 export function setRoleCache(value: CachedRole) {

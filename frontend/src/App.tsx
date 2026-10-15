@@ -5,10 +5,15 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { PersonaLanguageProvider } from '@/components/layout/app-shell';
 import { Router } from '@/router';
 
+// ===================== CONFIGURATION =====================
+
+/** Number of times React Query retries a failed request before showing its error state. */
+const QUERY_RETRY_COUNT = 1 as const;
+
 // Retry once (not the default 3 times with backoff) so a failing API shows the
 // error state quickly instead of leaving the loading skeleton on screen.
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
+  defaultOptions: { queries: { retry: QUERY_RETRY_COUNT, refetchOnWindowFocus: false } },
 });
 
 function App() {

@@ -12,6 +12,18 @@ import { ListingCard } from '@/components/shared/listing-card';
 import { LoadingCards } from '@/components/shared/loading-cards';
 import { QueryError } from '@/components/shared/query-error';
 import { EmptyState } from '@/components/shared/empty-state';
+import { APP_ROUTES } from '@/lib/constants';
+
+// ===================== CONFIGURATION =====================
+
+/** Stable selectors for search filters and actions. */
+const SEARCH_TEST_IDS = {
+  LINK_BACK_HOME: 'link-back-home',
+  INPUT_SEARCH_ZONE: 'input-search-zone',
+  INPUT_SEARCH_MAX: 'input-search-max',
+  BUTTON_FILTER_FURNISHED: 'button-filter-furnished',
+  BUTTON_CLEAR_FILTERS: 'button-clear-filters',
+} as const;
 
 export function SearchPage() {
   const { t } = useLanguage();
@@ -44,9 +56,9 @@ export function SearchPage() {
           description={t('searchPage.description')}
           action={
             <Link
-              href="/home"
+              href={APP_ROUTES.HOME}
               className="hidden items-center gap-2 text-sm font-black text-[#0F6E56] sm:flex"
-              data-testid="link-back-home"
+              data-testid={SEARCH_TEST_IDS.LINK_BACK_HOME}
             >
               <ChevronLeft size={16} /> {t('searchPage.backHome')}
             </Link>
@@ -72,7 +84,7 @@ export function SearchPage() {
               options={universities}
               loading={universitiesLoading}
               commit="explicit"
-              data-testid="input-search-zone"
+              data-testid={SEARCH_TEST_IDS.INPUT_SEARCH_ZONE}
             />
 
             <label className="flex items-center gap-2 rounded-xl border border-[#bedbcd] bg-[#F1EFE8] px-3 py-2 text-sm font-bold text-[#527067]">
@@ -83,7 +95,7 @@ export function SearchPage() {
                 type="number"
                 placeholder={t('searchPage.max')}
                 className="w-16 bg-transparent outline-none"
-                data-testid="input-search-max"
+                data-testid={SEARCH_TEST_IDS.INPUT_SEARCH_MAX}
               />
             </label>
 
@@ -94,7 +106,7 @@ export function SearchPage() {
                   ? 'border-[#0F6E56] bg-[#0F6E56] text-[#E1F5EE]'
                   : 'border-[#bedbcd] bg-[#F1EFE8] text-[#527067]'
               }`}
-              data-testid="button-filter-furnished"
+              data-testid={SEARCH_TEST_IDS.BUTTON_FILTER_FURNISHED}
             >
               {furnished && <Check size={15} />} {t('common.furnished')}
             </button>
@@ -123,7 +135,7 @@ export function SearchPage() {
                   setMaxPrice('');
                   setFurnished(false);
                 }}
-                data-testid="button-clear-filters"
+                data-testid={SEARCH_TEST_IDS.BUTTON_CLEAR_FILTERS}
               >
                 {t('searchPage.clearFilters')}
               </Button>

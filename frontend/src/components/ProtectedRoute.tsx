@@ -5,6 +5,7 @@ import { getUserRole, UserRole } from '@/lib/auth-role';
 import NotFound from '@/pages/not-found';
 import { PageIntro } from '@/components/shared/page-intro';
 import { useLanguage } from '@/lib/i18n';
+import { APP_ROUTES } from '@/lib/constants';
 
 type ProtectedRouteProps = {
   allowedRoles: UserRole[];
@@ -25,7 +26,7 @@ export function ProtectedRoute({ allowedRoles, children, redirect }: ProtectedRo
         const user = data?.session?.user;
         if (!user) {
           // No session, redirect to login page
-          const redirectPath = redirect ?? '/login';
+          const redirectPath = redirect ?? APP_ROUTES.LOGIN;
           setRedirectTo(redirectPath);
           setLoading(false);
           return;
@@ -35,7 +36,7 @@ export function ProtectedRoute({ allowedRoles, children, redirect }: ProtectedRo
       } catch (err) {
         console.error('Failed to fetch user role:', err);
         // Error fetching role, redirect to login page
-        const redirectPath = redirect ?? '/login';
+        const redirectPath = redirect ?? APP_ROUTES.LOGIN;
         setRedirectTo(redirectPath);
       } finally {
         setLoading(false);

@@ -3,6 +3,9 @@ import { cn } from '@/lib/utils';
 import * as RechartsPrimitive from 'recharts';
 
 // Format: { THEME_NAME: CSS_SELECTOR }
+// ===================== CONFIGURATION =====================
+
+/** Theme selectors used to scope chart color variables to light and dark modes. */
 const THEMES = { light: '', dark: '.dark' } as const;
 
 /**

@@ -1,6 +1,14 @@
 import { Mail, Instagram, Linkedin, Music2 } from 'lucide-react';
 import { StaticPage } from '@/components/layout/static-page';
 import { useLanguage } from '@/lib/i18n';
+import { SOCIAL_PROFILE_URLS } from '@/lib/constants';
+
+// ===================== CONFIGURATION =====================
+
+/** Contact email address displayed and linked by the contact page. */
+const CONTACT_EMAIL_ADDRESS = 'hello@roomly.it' as const;
+/** Mail link destination for the contact email address. */
+const CONTACT_EMAIL_HREF = 'mailto:hello@roomly.it' as const;
 
 export function ContattiPage() {
   const { t } = useLanguage();
@@ -16,25 +24,25 @@ export function ContattiPage() {
           icon={<Mail size={20} />}
           title={t('contatti.emailTitle')}
           text={t('contatti.emailText')}
-          action={{ label: 'hello@roomly.it', href: 'mailto:hello@roomly.it' }}
+          action={{ label: CONTACT_EMAIL_ADDRESS, href: CONTACT_EMAIL_HREF }}
         />
         <ContactCard
           icon={<Instagram size={20} />}
           title={t('contatti.instagramTitle')}
           text={t('contatti.instagramText')}
-          action={{ label: '@roomlygroup', href: 'https://www.instagram.com/roomlygroup' }}
+          action={{ label: '@roomlygroup', href: SOCIAL_PROFILE_URLS.INSTAGRAM }}
         />
         <ContactCard
           icon={<Music2 size={20} />}
           title={t('contatti.tiktokTitle')}
           text={t('contatti.tiktokText')}
-          action={{ label: '@roomlygroup', href: 'https://www.tiktok.com/@roomlygroup' }}
+          action={{ label: '@roomlygroup', href: SOCIAL_PROFILE_URLS.TIKTOK }}
         />
         <ContactCard
           icon={<Linkedin size={20} />}
           title={t('contatti.linkedinTitle')}
           text={t('contatti.linkedinText')}
-          action={{ label: t('contatti.linkedinCta'), href: 'https://www.linkedin.com/in/daniele-vinciguerra-6588773a8/' }}
+          action={{ label: t('contatti.linkedinCta'), href: SOCIAL_PROFILE_URLS.LINKEDIN }}
         />
       </div>
 

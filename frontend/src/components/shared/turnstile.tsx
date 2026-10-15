@@ -1,5 +1,12 @@
 import { useEffect, useId, useRef } from 'react';
 
+// ===================== CONFIGURATION =====================
+
+/** Turnstile script URL loaded when the CAPTCHA widget first mounts. */
+const SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js' as const;
+/** Stable test selector attached to the Turnstile container. */
+const TURNSTILE_TEST_ID = 'turnstile-widget' as const;
+
 // Minimal typings for the bits of the global `turnstile` object we use.
 // The actual script is loaded from Cloudflare at runtime (see loadTurnstileScript below).
 declare global {
@@ -21,7 +28,6 @@ declare global {
   }
 }
 
-const SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
 let scriptLoadPromise: Promise<void> | null = null;
 
 // Cloudflare's api.js is safe to load once and share across every widget
@@ -98,5 +104,5 @@ export function TurnstileWidget({ onVerify, onExpire, onError }: TurnstileWidget
 
   if (!siteKey) return null;
 
-  return <div id={containerId} data-testid="turnstile-widget" />;
+  return <div id={containerId} data-testid={TURNSTILE_TEST_ID} />;
 }

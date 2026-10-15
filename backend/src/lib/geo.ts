@@ -2,9 +2,13 @@
  * Raggio (km) entro cui una stanza viene considerata "vicina" a un'università
  * e quindi mostrata quando si cerca quell'università.
  */
+// ===================== CONFIGURATION =====================
+
+/** Search radius supplied by the deployment environment, evaluated at module load (km). */
 export const SEARCH_RADIUS_KM = Number(process.env.SEARCH_RADIUS_KM ?? 5);
 
-const EARTH_RADIUS_KM = 6371;
+/** Mean Earth radius used by the Haversine calculation (km). */
+const EARTH_RADIUS_KM = 6371 as const;
 const toRad = (deg: number) => (deg * Math.PI) / 180;
 
 /** Distanza in km tra due coordinate (formula di Haversine). */

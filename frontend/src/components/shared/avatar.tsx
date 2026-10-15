@@ -1,5 +1,10 @@
 import { initials } from '@/lib/constants';
 
+// ===================== CONFIGURATION =====================
+
+/** Test ID prefix used by avatar instances (followed by a normalized display name). */
+const AVATAR_TEST_ID_PREFIX = 'avatar-' as const;
+
 export function Avatar({
   name,
   size = 'md',
@@ -15,7 +20,7 @@ export function Avatar({
   return (
     <span
       className={`inline-flex shrink-0 items-center justify-center rounded-full bg-[#9FE1CB] font-black text-[#085041] ${sizes[size]}`}
-      data-testid={`avatar-${name.replace(/\s/g, '-').toLowerCase()}`}
+      data-testid={`${AVATAR_TEST_ID_PREFIX}${name.replace(/\s/g, '-').toLowerCase()}`}
     >
       {initials(name)}
     </span>

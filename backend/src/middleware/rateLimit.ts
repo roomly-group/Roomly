@@ -1,6 +1,25 @@
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { type Request, type Response } from 'express';
 
+// ===================== CONFIGURATION =====================
+
+/** Login limiter window shared by the login and refresh endpoints (ms). */
+const RATE_LIMIT_WINDOW_15_MINUTES_MS = 900000 as const;
+/** Signup limiter window (ms). */
+const SIGNUP_RATE_LIMIT_WINDOW_MS = 3600000 as const;
+/** Message and chat-read limiter windows (ms). */
+const CHAT_RATE_LIMIT_WINDOW_MS = 60000 as const;
+/** Maximum login attempts allowed per window. */
+const LOGIN_RATE_LIMIT_MAX_REQUESTS = 10 as const;
+/** Maximum signups allowed per window. */
+const SIGNUP_RATE_LIMIT_MAX_REQUESTS = 5 as const;
+/** Maximum token refresh requests allowed per window. */
+const REFRESH_RATE_LIMIT_MAX_REQUESTS = 20 as const;
+/** Maximum messages allowed per window. */
+const MESSAGE_RATE_LIMIT_MAX_REQUESTS = 30 as const;
+/** Maximum chat-read requests allowed per window. */
+const CHAT_READ_RATE_LIMIT_MAX_REQUESTS = 120 as const;
+
 /**
  * Extracts and normalizes IP address for use in rate limiting keys.
  * Properly handles IPv6 addresses using the ipKeyGenerator helper.
@@ -16,8 +35,8 @@ const extractIP = (req: Request): string => {
  * distributed attacks against a single account.
  */
 export const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // limit each IP to 5 requests per windowMs
+  windowMs: RATE_LIMIT_WINDOW_15_MINUTES_MS, // 15 minutes
+  max: LOGIN_RATE_LIMIT_MAX_REQUESTS, // limit each IP to 5 requests per windowMs
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   keyGenerator: (req: Request) => {
@@ -42,8 +61,8 @@ export const loginLimiter = rateLimit({
  * for a real user filling out the form by hand, but throttles scripted abuse.
  */
 export const signupLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 5, // limit each IP to 5 signups per windowMs
+  windowMs: SIGNUP_RATE_LIMIT_WINDOW_MS, // 1 hour
+  max: SIGNUP_RATE_LIMIT_MAX_REQUESTS, // limit each IP to 5 signups per windowMs
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req: Request) => extractIP(req),
@@ -60,8 +79,8 @@ export const signupLimiter = rateLimit({
  * This is more lenient as legitimate clients refresh tokens periodically.
  */
 export const refreshLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // limit each IP to 20 requests per windowMs
+  windowMs: RATE_LIMIT_WINDOW_15_MINUTES_MS, // 15 minutes
+  max: REFRESH_RATE_LIMIT_MAX_REQUESTS, // limit each IP to 20 requests per windowMs
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   keyGenerator: (req: Request) => {
@@ -81,8 +100,8 @@ export const refreshLimiter = rateLimit({
  * Must be mounted after `requireAuth` so `userId` is available.
  */
 export const messageLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 30,
+  windowMs: CHAT_RATE_LIMIT_WINDOW_MS, // 1 minute
+  max: MESSAGE_RATE_LIMIT_MAX_REQUESTS,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req: Request) => {
@@ -105,8 +124,8 @@ export const messageLimiter = rateLimit({
  * Must be mounted after `requireAuth` so `userId` is available.
  */
 export const chatReadLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 120,
+  windowMs: CHAT_RATE_LIMIT_WINDOW_MS, // 1 minute
+  max: CHAT_READ_RATE_LIMIT_MAX_REQUESTS,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req: Request) => {

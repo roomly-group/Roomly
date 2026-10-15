@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { peekRoleCache } from '@/lib/role-cache';
 import NotFound from '@/pages/not-found';
 import { useLanguage } from '@/lib/i18n';
+import { APP_ROUTES } from '@/lib/constants';
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {
   // Se il ruolo è già in cache l'utente è autenticato: niente schermata di caricamento.
@@ -40,7 +41,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   }
 
   if (!authenticated) {
-    return <Redirect to="/login" replace />;
+    return <Redirect to={APP_ROUTES.LOGIN} replace />;
   }
 
   return <>{children}</>;

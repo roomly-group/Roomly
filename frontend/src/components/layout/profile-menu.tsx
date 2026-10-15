@@ -6,6 +6,18 @@ import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n';
 import { Avatar } from '@/components/shared/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { APP_ROUTES } from '@/lib/constants';
+import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
+
+// ===================== CONFIGURATION =====================
+
+/** Stable test selectors used by profile menu and account actions. */
+const PROFILE_MENU_TEST_IDS = {
+  BUTTON_PROFILE_MENU: 'button-profile-menu',
+  PANEL_PROFILE_INFO: 'panel-profile-info',
+  LINK_FULL_PROFILE: 'link-full-profile',
+  BUTTON_LOGOUT: 'button-logout',
+} as const;
 
 // Avatar button + dropdown panel with account info, an optional extra row
 // (e.g. the waitlist position), a "full profile" link, and logout. Used by
@@ -17,7 +29,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 export function ProfileMenu({
   profileHref,
   extra,
-  logoutRedirect = '/',
+  logoutRedirect = APP_ROUTES.ROOT,
 }: {
   profileHref: string;
   /** Extra content rendered inside the panel, above the "full profile" link. */
@@ -39,7 +51,7 @@ export function ProfileMenu({
         const { data } = await supabase.auth.getSession();
         if (!data.session) return;
 
-        const response = await fetch('/api/me', { credentials: 'include' });
+        const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.ME}`, { credentials: 'include' });
         if (response.ok) {
           const json = await response.json();
           if (!cancelled) setAccount({ full_name: json.full_name, email: json.email });
@@ -73,7 +85,7 @@ export function ProfileMenu({
   }, []);
 
   async function handleLogout() {
-    await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+    await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.LOGOUT}`, { method: 'POST', credentials: 'include' });
     clearRoleCache();
     setLocation(logoutRedirect);
   }
@@ -89,7 +101,7 @@ export function ProfileMenu({
         type="button"
         onClick={() => setMenuOpen((open) => !open)}
         className="flex items-center gap-2 rounded-full border border-[#0850411f] bg-white py-1 pl-1 pr-3 transition-colors hover:border-[#08504140]"
-        data-testid="button-profile-menu"
+        data-testid={PROFILE_MENU_TEST_IDS.BUTTON_PROFILE_MENU}
         aria-expanded={menuOpen}
       >
         {accountLoading ? (
@@ -108,7 +120,7 @@ export function ProfileMenu({
       {menuOpen && (
         <div
           className="absolute right-0 z-20 mt-2 w-72 rounded-2xl border border-[#0850411a] bg-white p-4 shadow-[0_16px_40px_rgba(8,80,65,0.14)]"
-          data-testid="panel-profile-info"
+          data-testid={PROFILE_MENU_TEST_IDS.PANEL_PROFILE_INFO}
         >
           <div className="flex items-center gap-3 border-b border-[#0850411a] pb-4">
             {accountLoading ? (
@@ -139,7 +151,7 @@ export function ProfileMenu({
             href={profileHref}
             onClick={() => setMenuOpen(false)}
             className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#085041] py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#0F6E56]"
-            data-testid="link-full-profile"
+            data-testid={PROFILE_MENU_TEST_IDS.LINK_FULL_PROFILE}
           >
             <UserRound size={15} />
             {t('waitlistConfirmed.fullProfileLink')}
@@ -150,7 +162,7 @@ export function ProfileMenu({
             type="button"
             onClick={handleLogout}
             className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#0850411a] py-2.5 text-sm font-bold text-[#527067] transition-colors hover:border-[#08504140] hover:text-[#085041]"
-            data-testid="button-logout"
+            data-testid={PROFILE_MENU_TEST_IDS.BUTTON_LOGOUT}
           >
             <LogOut size={15} />
             {t('waitlistConfirmed.logout')}

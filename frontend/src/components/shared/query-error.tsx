@@ -2,6 +2,11 @@ import { CircleAlert } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { Button } from '@/components/shared/button';
 
+// ===================== CONFIGURATION =====================
+
+/** Test selector used by the retry action in the query error panel. */
+const QUERY_RETRY_TEST_ID = 'button-retry' as const;
+
 export function QueryError({ onRetry }: { onRetry?: () => void }) {
   const { t } = useLanguage();
   return (
@@ -14,7 +19,7 @@ export function QueryError({ onRetry }: { onRetry?: () => void }) {
         {t('common.somethingWrongDesc')}
       </p>
       {onRetry && (
-        <Button variant="outline" onClick={onRetry} className="mt-5" data-testid="button-retry">
+        <Button variant="outline" onClick={onRetry} className="mt-5" data-testid={QUERY_RETRY_TEST_ID}>
           {t('common.tryAgain')}
         </Button>
       )}

@@ -1,10 +1,10 @@
 import { useMutation } from '@tanstack/react-query';
 import { customFetch } from '../../local-libs/api-client-react/src/custom-fetch';
-import { RejectConversationParams, RejectConversationResponse } from '@workspace/api-zod';
+import { RejectConversationParams, RejectConversationResponse, API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 import type { z } from 'zod';
 
 export const getRejectConversationUrl = (id: number) => {
-  return `/api/conversations/${id}/reject`;
+  return `${API_BASE_PATH}${API_ROUTE_PATHS.CONVERSATIONS}/${id}/reject`;
 };
 
 export const rejectConversation = async (params: z.infer<typeof RejectConversationParams>): Promise<z.infer<typeof RejectConversationResponse>> => {
@@ -15,7 +15,7 @@ export const rejectConversation = async (params: z.infer<typeof RejectConversati
 };
 
 export const getRejectConversationKey = (id: number) => {
-  return [`/api/conversations/${id}/reject`] as const;
+  return [getRejectConversationUrl(id)] as const;
 };
 
 export type RejectConversationMutationResult = NonNullable<Awaited<ReturnType<typeof rejectConversation>>>;

@@ -1,10 +1,10 @@
 import { useMutation } from '@tanstack/react-query';
 import { customFetch } from '../../local-libs/api-client-react/src/custom-fetch';
-import { ReleaseListingParams, ReleaseListingResponse } from '@workspace/api-zod';
+import { ReleaseListingParams, ReleaseListingResponse, API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 import type { z } from 'zod';
 
 export const getReleaseListingUrl = (id: number) => {
-  return `/api/listings/${id}/release`;
+  return `${API_BASE_PATH}${API_ROUTE_PATHS.LISTINGS}/${id}/release`;
 };
 
 export const releaseListing = async (params: z.infer<typeof ReleaseListingParams>): Promise<z.infer<typeof ReleaseListingResponse>> => {
@@ -15,7 +15,7 @@ export const releaseListing = async (params: z.infer<typeof ReleaseListingParams
 };
 
 export const getReleaseListingKey = (id: number) => {
-  return [`/api/listings/${id}/release`] as const;
+  return [getReleaseListingUrl(id)] as const;
 };
 
 export type ReleaseListingMutationResult = NonNullable<Awaited<ReturnType<typeof releaseListing>>>;

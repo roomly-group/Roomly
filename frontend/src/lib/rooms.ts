@@ -1,4 +1,10 @@
 import { supabase } from './supabase';
+import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
+
+// ===================== CONFIGURATION =====================
+
+/** Default number of rooms fetched when callers omit pagination settings (rooms). */
+const ROOMS_DEFAULT_PAGE_SIZE = 20 as const;
 
 export interface RoomFilters {
   universityId?: string;
@@ -37,7 +43,7 @@ export interface Room {
 }
 
 async function fetchListingMedia(): Promise<Map<number, { coverPhotoUrl?: string; photoUrls?: string[]; photos?: number }>> {
-  const response = await fetch('/api/listings');
+  const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.LISTINGS}`);
   if (!response.ok) return new Map();
   const listings = await response.json() as Array<{
     id: number;
@@ -57,7 +63,7 @@ export async function listRooms(options: RoomListOptions = {}) {
     city,
     maxPrice,
     page = 1,
-    pageSize = 20,
+    pageSize = ROOMS_DEFAULT_PAGE_SIZE,
   } = options;
 
   const from = (page - 1) * pageSize;
@@ -197,7 +203,7 @@ export async function getRoom(id: number): Promise<Room | null> {
     console.warn('Failed to fetch owner info:', ownerError);
   }
 
-  const listingResponse = await fetch(`/api/listings/${id}`);
+  const listingResponse = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.LISTINGS}/${id}`);
   const listingMedia = listingResponse.ok
     ? await listingResponse.json() as { coverPhotoUrl?: string; photoUrls?: string[] }
     : {};

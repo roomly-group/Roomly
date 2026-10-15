@@ -2,6 +2,18 @@ import { Globe } from 'lucide-react';
 import { LANGUAGES, useLanguage } from '@/lib/i18n';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+// ===================== CONFIGURATION =====================
+
+/** Stable test selectors used by language picker and profile language settings. */
+const LANGUAGE_SELECTOR_TEST_IDS = {
+  SELECT_LANGUAGE_PICKER: 'select-language-picker',
+  OPTION_LANGUAGE_PICKER_PREFIX: 'option-language-picker-',
+  SECTION_LANGUAGE_SETTING: 'section-language-setting',
+  TEXT_LANGUAGE_SOURCE: 'text-language-source',
+  SELECT_LANGUAGE_SETTINGS: 'select-language-settings',
+  OPTION_LANGUAGE_SETTINGS_PREFIX: 'option-language-settings-',
+} as const;
+
 /**
  * Compact language switcher — a flag + dropdown, no label or description.
  * Meant for public pages that sit outside AppShell (login, register,
@@ -16,7 +28,7 @@ export function LanguagePicker({ className = '' }: { className?: string }) {
     <Select value={language} onValueChange={(value) => setLanguage(value as typeof language)}>
       <SelectTrigger
         className={`h-9 w-auto gap-1.5 rounded-full border-[#0850411f] bg-white/70 px-3 text-sm font-bold text-[#085041] ${className}`}
-        data-testid="select-language-picker"
+        data-testid={LANGUAGE_SELECTOR_TEST_IDS.SELECT_LANGUAGE_PICKER}
         aria-label={t('settings.language')}
       >
         <Globe size={14} />
@@ -24,7 +36,7 @@ export function LanguagePicker({ className = '' }: { className?: string }) {
       </SelectTrigger>
       <SelectContent>
         {LANGUAGES.map((lang) => (
-          <SelectItem key={lang.code} value={lang.code} data-testid={`option-language-picker-${lang.code}`}>
+          <SelectItem key={lang.code} value={lang.code} data-testid={`${LANGUAGE_SELECTOR_TEST_IDS.OPTION_LANGUAGE_PICKER_PREFIX}${lang.code}`}>
             <span className="mr-2">{lang.flag}</span>
             {lang.label}
           </SelectItem>
@@ -44,7 +56,7 @@ export function LanguagePicker({ className = '' }: { className?: string }) {
 export function LanguageSetting() {
   const { language, setLanguage, isAuto, t } = useLanguage();
   return (
-    <section className="surface rounded-2xl p-5 sm:p-7" data-testid="section-language-setting">
+    <section className="surface rounded-2xl p-5 sm:p-7" data-testid={LANGUAGE_SELECTOR_TEST_IDS.SECTION_LANGUAGE_SETTING}>
       <div className="flex items-start gap-3">
         <span className="rounded-xl bg-[#E1F5EE] p-2.5 text-[#0F6E56]">
           <Globe size={18} />
@@ -53,17 +65,17 @@ export function LanguageSetting() {
           <p className="eyebrow">{t('settings.language')}</p>
           <h2 className="mt-1 text-lg font-black text-[#085041]">{t('settings.language')}</h2>
           <p className="mt-1 text-sm leading-6 text-[#527067]">{t('settings.languageDesc')}</p>
-          <p className="mt-3 text-xs font-extrabold uppercase tracking-wide text-[#0F6E56]" data-testid="text-language-source">
+          <p className="mt-3 text-xs font-extrabold uppercase tracking-wide text-[#0F6E56]" data-testid={LANGUAGE_SELECTOR_TEST_IDS.TEXT_LANGUAGE_SOURCE}>
             {isAuto ? t('settings.languageAuto') : t('settings.languageManual')}
           </p>
           <div className="mt-4 max-w-xs">
             <Select value={language} onValueChange={(value) => setLanguage(value as typeof language)}>
-              <SelectTrigger data-testid="select-language-settings" aria-label={t('settings.language')}>
+              <SelectTrigger data-testid={LANGUAGE_SELECTOR_TEST_IDS.SELECT_LANGUAGE_SETTINGS} aria-label={t('settings.language')}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {LANGUAGES.map((lang) => (
-                  <SelectItem key={lang.code} value={lang.code} data-testid={`option-language-settings-${lang.code}`}>
+                  <SelectItem key={lang.code} value={lang.code} data-testid={`${LANGUAGE_SELECTOR_TEST_IDS.OPTION_LANGUAGE_SETTINGS_PREFIX}${lang.code}`}>
                     <span className="mr-2">{lang.flag}</span>
                     {lang.label}
                   </SelectItem>
