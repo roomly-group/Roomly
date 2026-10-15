@@ -5,6 +5,36 @@ import pinoHttp from "pino-http";
 import cookieParser from "cookie-parser";
 import router from "./routes/index.js";
 import { logger } from "./lib/logger.js";
+import { API_BASE_PATH } from "@workspace/api-zod";
+
+// ===================== CONFIGURATION =====================
+
+/** Production origin permitted by backend CORS. */
+const PRODUCTION_CORS_ORIGIN = "https://www.roomly.group" as const;
+/** Local development origin permitted by backend CORS. */
+const LOCALHOST_CORS_ORIGIN = "http://localhost:5173" as const;
+/** Loopback development origin permitted by backend CORS. */
+const LOOPBACK_CORS_ORIGIN = "http://127.0.0.1:5173" as const;
+/** Turnstile origin used by the Content Security Policy. */
+const TURNSTILE_CSP_ORIGIN = "https://challenges.cloudflare.com" as const;
+/** Geoapify origin used by the Content Security Policy. */
+const GEOAPIFY_CSP_ORIGIN = "https://api.geoapify.com" as const;
+/** Supabase origin pattern used by the Content Security Policy. */
+const SUPABASE_CSP_ORIGIN_PATTERN = "https://*.supabase.co" as const;
+/** Cache lifetime applied by HTTP Strict Transport Security (seconds). */
+const HSTS_MAX_AGE_SECONDS = 31536000 as const;
+/** Content Security Policy source tokens used by the directives below. */
+const CSP_SOURCES = {
+  SELF: "'self'",
+  UNSAFE_INLINE: "'unsafe-inline'",
+  NONE: "'none'",
+  DATA: "data:",
+  HTTPS: "https:",
+} as const;
+/** HTTP methods enabled for cross-origin API requests. */
+const CORS_ALLOWED_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] as const;
+/** HTTP headers enabled for cross-origin API requests. */
+const CORS_ALLOWED_HEADERS = ["Content-Type", "Authorization", "X-Requested-With"] as const;
 
 const app: Express = express();
 
@@ -34,9 +64,9 @@ app.use(
 );
 // Determine allowed origins based on environment
 const isProduction = process.env.NODE_ENV === "production";
-const allowedOrigins = isProduction
-  ? ["https://www.roomly.group"]
-  : ["http://localhost:5173", "http://127.0.0.1:5173"];
+const allowedOrigins: readonly string[] = isProduction
+  ? [PRODUCTION_CORS_ORIGIN]
+  : [LOCALHOST_CORS_ORIGIN, LOOPBACK_CORS_ORIGIN];
 
 // Apply CORS middleware with restricted origins
 app.use(cors({
@@ -49,23 +79,23 @@ app.use(cors({
     callback(new Error(`Origin not allowed by CORS: ${origin}`));
   },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  methods: [...CORS_ALLOWED_METHODS],
+  allowedHeaders: [...CORS_ALLOWED_HEADERS],
 }));
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
-      defaultSrc: ["'self'"],
+      defaultSrc: [CSP_SOURCES.SELF],
       // https://challenges.cloudflare.com: Turnstile CAPTCHA widget on the
       // signup page (script + the iframe it renders + its own XHR calls).
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://challenges.cloudflare.com"], // Allow inline scripts for now (can be tightened)
-      styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for Tailwind/Vite
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "https://api.geoapify.com", "https://*.supabase.co", "https://challenges.cloudflare.com"], // Allow Supabase + Turnstile connections
-      fontSrc: ["'self'"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'"],
-      frameSrc: ["https://challenges.cloudflare.com"], // Turnstile renders its challenge in an iframe
+      scriptSrc: [CSP_SOURCES.SELF, CSP_SOURCES.UNSAFE_INLINE, TURNSTILE_CSP_ORIGIN], // Allow inline scripts for now (can be tightened)
+      styleSrc: [CSP_SOURCES.SELF, CSP_SOURCES.UNSAFE_INLINE], // Allow inline styles for Tailwind/Vite
+      imgSrc: [CSP_SOURCES.SELF, CSP_SOURCES.DATA, CSP_SOURCES.HTTPS],
+      connectSrc: [CSP_SOURCES.SELF, GEOAPIFY_CSP_ORIGIN, SUPABASE_CSP_ORIGIN_PATTERN, TURNSTILE_CSP_ORIGIN], // Allow Supabase + Turnstile connections
+      fontSrc: [CSP_SOURCES.SELF],
+      objectSrc: [CSP_SOURCES.NONE],
+      mediaSrc: [CSP_SOURCES.SELF],
+      frameSrc: [TURNSTILE_CSP_ORIGIN], // Turnstile renders its challenge in an iframe
     },
   },
   crossOriginEmbedderPolicy: true,
@@ -75,7 +105,7 @@ app.use(helmet({
   frameguard: { action: "deny" },
   hidePoweredBy: true,
   hsts: {
-    maxAge: 31536000, // 1 year
+    maxAge: HSTS_MAX_AGE_SECONDS, // 1 year
     includeSubDomains: true,
     preload: true,
   },
@@ -88,6 +118,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-app.use("/api", router);
+app.use(API_BASE_PATH, router);
 
 export default app;

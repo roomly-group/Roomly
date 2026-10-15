@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
+import { API_ROUTE_PATHS, SUPPORTED_LANGUAGE_CODES } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
@@ -106,7 +107,7 @@ async function ensureUtenteRecord(userId: string) {
 // service-role client, which bypasses RLS — this is the one place in the
 // system that is allowed to see that value on the caller's behalf. The
 // frontend must trust only this response, never read `utenti` directly.
-router.get("/me/role", requireAuth, async (req: AuthenticatedRequest, res) => {
+router.get(API_ROUTE_PATHS.ME_ROLE, requireAuth, async (req: AuthenticatedRequest, res) => {
   const { userId } = req;
 
   const { data, error } = await supabaseAdmin
@@ -129,7 +130,7 @@ router.get("/me/role", requireAuth, async (req: AuthenticatedRequest, res) => {
 
 // Restituisce i dati reali del profilo dell'utente autenticato,
 // creando il record in "utenti" se non esiste ancora.
-router.get("/me", requireAuth, async (req: AuthenticatedRequest, res) => {
+router.get(API_ROUTE_PATHS.ME, requireAuth, async (req: AuthenticatedRequest, res) => {
   const { userId } = req;
 
   const { data, error } = await supabaseAdmin
@@ -162,14 +163,12 @@ router.get("/me", requireAuth, async (req: AuthenticatedRequest, res) => {
     full_name: `${data.nome ?? ""} ${data.cognome ?? ""}`.trim(),
   });
 });
-const SUPPORTED_LANGUAGES = ["en", "it", "es", "fr", "de", "pt"];
-
 // Salva la lingua scelta manualmente dall'utente.
-router.patch("/me/language", requireAuth, async (req: AuthenticatedRequest, res) => {
+router.patch(API_ROUTE_PATHS.ME_LANGUAGE, requireAuth, async (req: AuthenticatedRequest, res) => {
   const { userId } = req;
   const { language } = req.body as { language?: string };
 
-  if (!language || !SUPPORTED_LANGUAGES.includes(language)) {
+  if (!language || !SUPPORTED_LANGUAGE_CODES.includes(language as (typeof SUPPORTED_LANGUAGE_CODES)[number])) {
     res.status(400).json({ error: "Lingua non valida" });
     return;
   }

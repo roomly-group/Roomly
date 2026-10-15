@@ -1,6 +1,8 @@
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { getRoleInflight, peekRoleCache, setRoleCache, setRoleInflight } from '@/lib/role-cache';
+import { APP_ROUTES } from '@/lib/constants';
+import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 
 export type UserRole = 'admin' | 'user';
 
@@ -12,7 +14,7 @@ const DEFAULT_ROLE: RoleResponse = { role: 'user', owner: false };
 // (un errore momentaneo non deve "ricordare" che l'utente non è owner).
 async function fetchRoleFromBackend(): Promise<RoleResponse | null> {
   try {
-    const response = await fetch('/api/me/role', {
+    const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.ME_ROLE}`, {
       // No Authorization header needed - relying on HttpOnly cookie
       credentials: 'include',
     });
@@ -66,5 +68,5 @@ export async function getIsOwner(user: User | null | undefined): Promise<boolean
 
 export async function postAuthRoute(user: User | null | undefined): Promise<string> {
   const role = await getUserRole(user);
-  return role === 'admin' ? '/home' : '/waitlist/confirmed';
+  return role === 'admin' ? APP_ROUTES.HOME : APP_ROUTES.WAITLIST_CONFIRMED;
 }

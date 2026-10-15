@@ -1,6 +1,7 @@
 import { Link } from 'wouter';
 import { ArrowRight } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
+import { APP_ROUTES } from '@/lib/constants';
 
 export default function NotFound() {
   const { t } = useLanguage();
@@ -19,7 +20,7 @@ export default function NotFound() {
         <p className="text-lg text-white/90">
           {t('notFound.text')}
         </p>
-        <Link href="/home" className="inline-flex items-center gap-2 rounded-xl bg-white/20 px-6 py-3 text-white font-semibold hover:bg-white/25 transition-all duration-200">
+        <Link href={APP_ROUTES.HOME} className="inline-flex items-center gap-2 rounded-xl bg-white/20 px-6 py-3 text-white font-semibold hover:bg-white/25 transition-all duration-200">
           {t('notFound.backHome')}
           <ArrowRight size={16} className="text-white" />
         </Link>

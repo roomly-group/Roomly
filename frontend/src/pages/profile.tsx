@@ -6,6 +6,15 @@ import { PageIntro } from '@/components/shared/page-intro';
 import { LanguageSetting } from '@/components/language-selector';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/lib/supabase';
+import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
+
+// ===================== CONFIGURATION =====================
+
+/** Stable test selectors used by profile editing controls. */
+const PROFILE_TEST_IDS = {
+  STATUS_PROFILE_EDITING: 'status-profile-editing',
+  BUTTON_PROFILE_SETTINGS: 'button-profile-settings',
+} as const;
 
 function InfoRow({ label, value, loading }: { label: string; value: string; loading?: boolean }) {
   return (
@@ -43,7 +52,7 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
           return;
         }
 
-        const response = await fetch('/api/me', {
+        const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.ME}`, {
           // No Authorization header needed - relying on HttpOnly cookie
           credentials: 'include',
         });
@@ -98,7 +107,7 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
             {editing && (
               <p
                 className="mt-3 text-left text-xs font-bold leading-5 text-[#527067]"
-                data-testid="status-profile-editing"
+                data-testid={PROFILE_TEST_IDS.STATUS_PROFILE_EDITING}
               >
                 {t('profile.editingStatus')}
               </p>
@@ -115,7 +124,7 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
                 <button
                   onClick={() => setEditing(!editing)}
                   className="rounded-lg p-2 text-[#0F6E56] hover:bg-[#E1F5EE]"
-                  data-testid="button-profile-settings"
+                  data-testid={PROFILE_TEST_IDS.BUTTON_PROFILE_SETTINGS}
                   aria-label={t('profile.profileSettings')}
                 >
                   <Settings size={18} />

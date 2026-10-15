@@ -1,5 +1,11 @@
 /// <reference types="vite/client" />
 import { createClient } from '@supabase/supabase-js';
+import { API_BASE_PATH, API_ROUTE_PATHS, CSRF_TOKEN_COOKIE_NAME } from '@workspace/api-zod';
+
+// ===================== CONFIGURATION =====================
+
+/** Regex source matching the CSRF cookie key used by the auth-state listener. */
+const CSRF_COOKIE_PATTERN = `(?:^|; )${CSRF_TOKEN_COOKIE_NAME}=([^;]*)` as const;
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -47,13 +53,15 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 // after future reloads.
 // Helper to get CSRF token from cookie
 const getCsrfToken = () => {
-  const match = document.cookie.match(/(?:^|; )csrf-token=([^;]*)/);
+  const match = document.cookie.match(new RegExp(CSRF_COOKIE_PATTERN));
   return match ? decodeURIComponent(match[1]) : '';
 };
 
 supabase.auth.onAuthStateChange(async (event, session) => {
   if (session && (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN')) {
-    const endpoint = event === 'SIGNED_IN' ? '/api/session' : '/api/refresh';
+    const endpoint = event === 'SIGNED_IN'
+      ? `${API_BASE_PATH}${API_ROUTE_PATHS.SESSION}`
+      : `${API_BASE_PATH}${API_ROUTE_PATHS.REFRESH}`;
 
     await fetch(endpoint, {
       method: 'POST',

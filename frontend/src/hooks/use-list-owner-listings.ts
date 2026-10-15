@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { customFetch } from '../../local-libs/api-client-react/src/custom-fetch';
-import type { Listing } from '@workspace/api-zod';
+import { API_BASE_PATH, API_ROUTE_PATHS, type Listing } from '@workspace/api-zod';
 
 export const getOwnerListingsUrl = () => {
-  return `/api/owner/listings`;
+  return `${API_BASE_PATH}${API_ROUTE_PATHS.OWNER_LISTINGS}`;
 };
 
 export const getOwnerListings = async (): Promise<Listing[]> => {
@@ -14,7 +14,7 @@ export const getOwnerListings = async (): Promise<Listing[]> => {
 };
 
 export const getOwnerListingsQueryKey = () => {
-  return [`/api/owner/listings`] as const;
+  return [getOwnerListingsUrl()] as const;
 };
 
 export type OwnerListingsQueryResult = NonNullable<Awaited<ReturnType<typeof getOwnerListings>>>;

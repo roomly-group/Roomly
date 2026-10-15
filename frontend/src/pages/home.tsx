@@ -17,6 +17,27 @@ import { ListingCard } from '@/components/shared/listing-card';
 import { LoadingCards } from '@/components/shared/loading-cards';
 import { QueryError } from '@/components/shared/query-error';
 import { EmptyState } from '@/components/shared/empty-state';
+import { APP_ROUTES, SHARED_TEST_IDS } from '@/lib/constants';
+import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
+
+// ===================== CONFIGURATION =====================
+
+/** Cache freshness duration for the health-check query (ms). */
+const HEALTH_CHECK_STALE_TIME_MS = 60000 as const;
+/** Number of listings shown in the featured listings section. */
+const FEATURED_LISTING_COUNT = 3 as const;
+/** Stable selectors for the homepage search and featured-listing controls. */
+const HOME_TEST_IDS = {
+  FORM_SEARCH: 'form-search',
+  INPUT_ZONE: 'input-zone',
+  INPUT_MAX_PRICE: 'input-max-price',
+  STATUS_ROOMLY_HEALTH: 'status-roomly-health',
+  LINK_SEE_HOW_IT_WORKS: 'link-see-how-it-works',
+  LINK_BROWSE_ALL: 'link-browse-all',
+  LINK_EMPTY_SEARCH: 'link-empty-search',
+  LINK_OWNER_CTA: 'link-owner-cta',
+  LINK_OTHER_LISTINGS_HOME: 'link-other-listings-home',
+} as const;
 
 function SearchBar({
   initialZone = '',
@@ -39,7 +60,7 @@ function SearchBar({
         event.preventDefault();
         onSearch(zone, maxPrice);
       }}
-      data-testid="form-search"
+      data-testid={HOME_TEST_IDS.FORM_SEARCH}
     >
       <LocationSearch
         className="flex-1"
@@ -47,7 +68,7 @@ function SearchBar({
         onChange={setZone}
         options={universities}
         loading={loading}
-        data-testid="input-zone"
+        data-testid={HOME_TEST_IDS.INPUT_ZONE}
       />
 
       <label className="flex min-h-12 w-full flex-1 items-center gap-2 rounded-xl bg-[#F1EFE8] px-3 text-[#527067] sm:max-w-[220px]">
@@ -59,7 +80,7 @@ function SearchBar({
           onChange={(event) => setMaxPrice(event.target.value)}
           placeholder={t('searchBar.maxMonthly')}
           className="w-full bg-transparent text-sm font-bold text-[#2C2C2A] outline-none placeholder:text-[#82978e]"
-          data-testid="input-max-price"
+          data-testid={HOME_TEST_IDS.INPUT_MAX_PRICE}
         />
       </label>
 
@@ -67,7 +88,7 @@ function SearchBar({
         type="submit"
         aria-label="Cerca"
         title="Cerca"
-        data-testid="button-search"
+        data-testid={SHARED_TEST_IDS.BUTTON_SEARCH}
         className="h-12 min-w-[80px] shrink-0 rounded-xl bg-[#EF9F27] px-4 font-extrabold text-[#2C2C2A] transition-all duration-200 hover:bg-[#e6a53d] active:scale-[0.98]"
       >
         Cerca
@@ -83,7 +104,7 @@ export function Home() {
     query: { queryKey: getListListingsQueryKey() },
   });
   const { data: health } = useHealthCheck({
-    query: { queryKey: getHealthCheckQueryKey(), staleTime: 60000 },
+    query: { queryKey: getHealthCheckQueryKey(), staleTime: HEALTH_CHECK_STALE_TIME_MS },
   });
   const listings = data ?? [];
   const [isOwner, setIsOwner] = useState(false);
@@ -93,7 +114,7 @@ export function Home() {
     const price = Number(nextMaxPrice);
     if (nextMaxPrice && Number.isFinite(price) && price > 0) query.set('maxPrice', String(price));
     const qs = query.toString();
-    setLocation(`/search${qs ? `?${qs}` : ''}`);
+    setLocation(`${APP_ROUTES.SEARCH}${qs ? `?${qs}` : ''}`);
   };
 
   // Redirect non-admin users away from the home page
@@ -101,28 +122,28 @@ export function Home() {
     async function checkAuthAndRole() {
       const { data } = await supabase.auth.getSession();
       if (!data.session) {
-        setLocation('/login');
+        setLocation(APP_ROUTES.LOGIN);
         return;
       }
 
       try {
-        const response = await fetch('/api/me/role', {
+        const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.ME_ROLE}`, {
           // No Authorization header needed - relying on HttpOnly cookie
           credentials: 'include',
         });
         if (!response.ok) {
           // Fail safe: treat as non-admin
-          setLocation('/waitlist/confirmed');
+          setLocation(APP_ROUTES.WAITLIST_CONFIRMED);
           return;
         }
         const { role, owner } = (await response.json()) as { role?: string; owner?: boolean };
         setIsOwner(owner === true);
         if (role !== 'admin' && owner !== true) {
-          setLocation('/waitlist/confirmed');
+          setLocation(APP_ROUTES.WAITLIST_CONFIRMED);
         }
       } catch (err) {
         console.error('Failed to fetch role:', err);
-        setLocation('/waitlist/confirmed');
+        setLocation(APP_ROUTES.WAITLIST_CONFIRMED);
       }
     }
     checkAuthAndRole();
@@ -171,7 +192,7 @@ export function Home() {
               <p className="mt-1 text-sm text-[#527067]">{t('home.trustText')}</p>
               <p
                 className="mt-2 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#0F6E56]"
-                data-testid="status-roomly-health"
+                data-testid={HOME_TEST_IDS.STATUS_ROOMLY_HEALTH}
               >
                 <span className={`h-1.5 w-1.5 rounded-full ${health?.status ? 'bg-[#0F6E56]' : 'bg-[#EF9F27]'}`} />
                 {health?.status ? t('home.statusOnline') : t('home.statusChecking')}
@@ -179,9 +200,9 @@ export function Home() {
             </div>
           </div>
           <Link
-            href="/search"
+            href={APP_ROUTES.SEARCH}
             className="inline-flex items-center gap-2 whitespace-nowrap text-sm font-black text-[#0F6E56] hover:text-[#085041]"
-            data-testid="link-see-how-it-works"
+            data-testid={HOME_TEST_IDS.LINK_SEE_HOW_IT_WORKS}
           >
             {t('home.seeAllRooms')} <ArrowRight size={16} />
           </Link>
@@ -197,9 +218,9 @@ export function Home() {
               </h2>
             </div>
             <Link
-              href="/search"
+              href={APP_ROUTES.SEARCH}
               className="hidden items-center gap-1 text-sm font-black text-[#0F6E56] sm:flex"
-              data-testid="link-browse-all"
+              data-testid={HOME_TEST_IDS.LINK_BROWSE_ALL}
             >
               {t('home.browseAll')} <ArrowRight size={16} />
             </Link>
@@ -211,7 +232,7 @@ export function Home() {
             <QueryError onRetry={() => refetch()} />
           ) : listings.length ? (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {listings.slice(0, 3).map((listing, index) => (
+              {listings.slice(0, FEATURED_LISTING_COUNT).map((listing, index) => (
                 <ListingCard listing={listing} index={index} key={listing.id} isClickable={true} />
               ))}
             </div>
@@ -220,7 +241,7 @@ export function Home() {
               title={t('home.emptyTitle')}
               text={t('home.emptyText')}
               action={
-                <Link href="/search" className="text-sm font-black text-[#0F6E56]" data-testid="link-empty-search">
+                <Link href={APP_ROUTES.SEARCH} className="text-sm font-black text-[#0F6E56]" data-testid={HOME_TEST_IDS.LINK_EMPTY_SEARCH}>
                   {t('home.emptySearch')}
                 </Link>
               }
@@ -239,9 +260,9 @@ export function Home() {
             </p>
             {isOwner && (
               <Link
-                href="/owner"
+                href={APP_ROUTES.OWNER_DASHBOARD}
                 className="mt-7 inline-flex items-center gap-2 rounded-xl bg-[#085041] px-4 py-3 text-sm font-black text-[#E1F5EE] transition hover:bg-[#0F6E56]"
-                data-testid="link-owner-cta"
+                data-testid={HOME_TEST_IDS.LINK_OWNER_CTA}
               >
                 {t('home.ownersCta')} <ArrowRight size={16} />
               </Link>
@@ -274,9 +295,9 @@ export function Home() {
               </div>
               {isOwner && (
                 <Link
-                  href="/search"
+                  href={APP_ROUTES.SEARCH}
                   className="mt-6 flex items-center gap-2 text-left text-sm font-black text-[#E1F5EE] hover:text-[#EF9F27]"
-                  data-testid="link-other-listings-home"
+                  data-testid={HOME_TEST_IDS.LINK_OTHER_LISTINGS_HOME}
                 >
                   {t('nav.lookingForRoom')} <ArrowRight size={15} />
                 </Link>

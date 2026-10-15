@@ -7,6 +7,14 @@ import { QueryError } from '@/components/shared/query-error';
 import { EmptyState } from '@/components/shared/empty-state';
 import { MapPin, Star, Wifi } from 'lucide-react';
 import { getRoom } from '@/lib/rooms';
+import { APP_ROUTES } from '@/lib/constants';
+
+// ===================== CONFIGURATION =====================
+
+/** Stable test selector for links returning to the rooms list. */
+const ROOM_DETAIL_TEST_IDS = {
+  LINK_BACK_TO_ROOMS: 'link-back-to-rooms',
+} as const;
 
 export function RoomDetailPage() {
   const { t } = useLanguage();
@@ -75,9 +83,9 @@ export function RoomDetailPage() {
             text="The room you requested is no longer available."
             action={
               <Link
-                href="/rooms"
+                href={APP_ROUTES.ROOMS}
                 className="text-sm font-black text-[#0F6E56]"
-                data-testid="link-back-to-rooms"
+                data-testid={ROOM_DETAIL_TEST_IDS.LINK_BACK_TO_ROOMS}
               >
                 Back to rooms
               </Link>
@@ -97,9 +105,9 @@ export function RoomDetailPage() {
       <div className="mx-auto max-w-[1320px] px-5 py-8 lg:px-8 lg:py-12">
         <div className="mb-6 flex items-center gap-2">
           <Link
-            href="/rooms"
+            href={APP_ROUTES.ROOMS}
             className="text-sm font-black text-[#0F6E56]"
-            data-testid="link-back-to-rooms"
+            data-testid={ROOM_DETAIL_TEST_IDS.LINK_BACK_TO_ROOMS}
           >
             Back to rooms
           </Link>

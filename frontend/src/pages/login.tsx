@@ -8,8 +8,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
 import { postAuthRoute } from '@/lib/auth-role';
+import { APP_ROUTES, PASSWORD_FIELD_PLACEHOLDER, SHARED_TEST_IDS } from '@/lib/constants';
+import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 import { TurnstileWidget } from '@/components/shared/turnstile';
 import roomlyMark from '@assets/logo_no_background.png';
+
+// ===================== CONFIGURATION =====================
+
+/** Stable selectors specific to the login form and its registration link. */
+const LOGIN_TEST_IDS = {
+  FORM_LOGIN: 'form-login',
+  LINK_GO_REGISTER: 'link-go-register',
+} as const;
 
 export function LoginPage() {
   const { t } = useLanguage();
@@ -41,7 +51,7 @@ export function LoginPage() {
       // supabase.auth.signInWithPassword({ options: { captchaToken } }), and Supabase
       // verifies it server-side against our Turnstile secret key - same protection
       // register already has, now covering login too.
-      const response = await fetch('/api/login', {
+      const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.LOGIN}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -64,7 +74,7 @@ export function LoginPage() {
       const { user } = await response.json();
 
       // Verify the session via cookies to update Supabase client
-      const verifyResponse = await fetch('/api/verify', {
+      const verifyResponse = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.VERIFY}`, {
         method: 'POST',
         credentials: 'include',
       });
@@ -108,7 +118,7 @@ export function LoginPage() {
             <p className="text-sm text-[#527067]">{t('auth.loginSubtitle')}</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4" data-testid="form-login">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4" data-testid={LOGIN_TEST_IDS.FORM_LOGIN}>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="login-email">{t('auth.emailLabel')}</Label>
               <div className="relative">
@@ -122,7 +132,7 @@ export function LoginPage() {
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   className="pl-9"
-                  data-testid="input-email"
+                  data-testid={SHARED_TEST_IDS.INPUT_EMAIL}
                 />
               </div>
             </div>
@@ -137,11 +147,11 @@ export function LoginPage() {
                   autoComplete="current-password"
                   required
                   minLength={8}
-                  placeholder="••••••••"
+                  placeholder={PASSWORD_FIELD_PLACEHOLDER}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   className="pl-9 pr-10"
-                  data-testid="input-password"
+                  data-testid={SHARED_TEST_IDS.INPUT_PASSWORD}
                 />
                 <button
                   type="button"
@@ -177,7 +187,7 @@ export function LoginPage() {
                 type="submit"
                 aria-label="Accedi"
                 title="Accedi"
-                data-testid="button-search"
+                data-testid={SHARED_TEST_IDS.BUTTON_SEARCH}
                 disabled={isSubmitting || !captchaToken}
                 className="h-12 min-w-[80px] shrink-0 rounded-xl bg-[#0F6E56] px-4 font-extrabold text-white transition-all duration-200 hover:bg-[#0c5a47] active:scale-[0.98] disabled:opacity-60"
               >
@@ -189,9 +199,9 @@ export function LoginPage() {
         <p className="mt-6 text-center text-sm font-semibold text-[#527067]">
           {t('auth.noAccount')}{' '}
           <Link
-            href="/register"
+            href={APP_ROUTES.REGISTER}
             className="font-extrabold text-[#0F6E56] hover:text-[#085041]"
-            data-testid="link-go-register"
+            data-testid={LOGIN_TEST_IDS.LINK_GO_REGISTER}
           >
             {t('auth.registerCta')}
           </Link>

@@ -10,6 +10,21 @@ import { QueryError } from '@/components/shared/query-error';
 import { EmptyState } from '@/components/shared/empty-state';
 import { listRooms, listUniversities, RoomFilters } from '@/lib/rooms';
 
+// ===================== CONFIGURATION =====================
+
+/** Number of rooms requested per page and used to determine whether another page exists. */
+const ROOMS_PAGE_SIZE = 10 as const;
+/** Placeholder shown by the maximum monthly price filter (display text). */
+const ROOMS_MAX_PRICE_PLACEHOLDER = 'Max price' as const;
+/** Stable test selectors used by room-list filters and pagination. */
+const ROOMS_TEST_IDS = {
+  INPUT_UNIVERSITY: 'input-room-university',
+  INPUT_MAX_PRICE: 'input-room-max-price',
+  BUTTON_FILTER_RADIUS: 'button-filter-radius',
+  BUTTON_RESET_FILTERS: 'button-reset-filters',
+  BUTTON_LOAD_MORE: 'button-load-more',
+} as const;
+
 export function RoomsPage() {
   const { t } = useLanguage();
   const [, setLocation] = useLocation();
@@ -55,14 +70,14 @@ export function RoomsPage() {
             listNearbyRooms(universityId, radiusValue),
           );
         } else {
-          newRooms = await listRooms({ ...filters, page, pageSize: 10 });
+          newRooms = await listRooms({ ...filters, page, pageSize: ROOMS_PAGE_SIZE });
         }
       } else {
-        newRooms = await listRooms({ ...filters, page, pageSize: 10 });
+        newRooms = await listRooms({ ...filters, page, pageSize: ROOMS_PAGE_SIZE });
       }
 
       setRooms(prev => (page === 1 ? newRooms : [...prev, ...newRooms]));
-      setHasMore(newRooms.length === 10);
+      setHasMore(newRooms.length === ROOMS_PAGE_SIZE);
     } catch (err) {
       console.error('Failed to load rooms:', err);
       setError('Failed to load rooms. Please try again.');
@@ -109,7 +124,7 @@ export function RoomsPage() {
               onChange={setUniversityId}
               options={universities}
               loading={false} // universities are loaded
-              data-testid="input-room-university"
+              data-testid={ROOMS_TEST_IDS.INPUT_UNIVERSITY}
             />
 
             <label className="flex items-center gap-2 rounded-xl border border-[#bedbcd] bg-[#F1EFE8] px-3 py-2 text-sm font-bold text-[#527067]">
@@ -118,9 +133,9 @@ export function RoomsPage() {
                 value={maxPrice}
                 onChange={(e) => setMaxPrice(e.target.value)}
                 type="number"
-                placeholder="Max price"
+                placeholder={ROOMS_MAX_PRICE_PLACEHOLDER}
                 className="w-16 bg-transparent outline-none"
-                data-testid="input-room-max-price"
+                data-testid={ROOMS_TEST_IDS.INPUT_MAX_PRICE}
               />
             </label>
 
@@ -136,7 +151,7 @@ export function RoomsPage() {
                   ? 'border-[#0F6E56] bg-[#0F6E56] text-[#E1F5EE]'
                   : 'border-[#bedbcd] bg-[#F1EFE8] text-[#527067]'
               }`}
-              data-testid="button-filter-radius"
+              data-testid={ROOMS_TEST_IDS.BUTTON_FILTER_RADIUS}
             >
               {radius ? `${radius} km within` : 'Within'}
             </button>
@@ -181,7 +196,7 @@ export function RoomsPage() {
               <Button
                 variant="secondary"
                 onClick={resetFilters}
-                data-testid="button-reset-filters"
+                data-testid={ROOMS_TEST_IDS.BUTTON_RESET_FILTERS}
               >
                 Reset
               </Button>
@@ -194,7 +209,7 @@ export function RoomsPage() {
             <Button
               onClick={loadMore}
               className="w-48"
-              data-testid="button-load-more"
+              data-testid={ROOMS_TEST_IDS.BUTTON_LOAD_MORE}
             >
               Load more
             </Button>

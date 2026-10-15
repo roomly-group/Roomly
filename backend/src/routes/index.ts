@@ -6,6 +6,7 @@ import meRouter from "./me.js";
 import waitlistRouter from "./waitlist.js";
 import authRouter from "./auth.js";
 import universitaRouter from "./universita.js";
+import { API_ROUTE_PATHS } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
@@ -15,6 +16,6 @@ router.use(chatRouter);
 router.use(meRouter);
 router.use(waitlistRouter);
 router.use(authRouter);
-router.use("/universita", universitaRouter);
+router.use(API_ROUTE_PATHS.UNIVERSITIES, universitaRouter);
 
 export default router;

@@ -19,6 +19,52 @@ import { Navbar } from '@/components/layout/navbar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
+import { APP_ROUTES, SHARED_TEST_IDS } from '@/lib/constants';
+import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
+
+// ===================== CONFIGURATION =====================
+
+/** Waitlist fallback displayed when the count endpoint is unavailable or invalid (people). */
+const WAITLIST_FALLBACK_COUNT = 1284 as const;
+/** Delay before scrolling to the FAQ after an anchor navigation (ms). */
+const FAQ_HASH_SCROLL_DELAY_MS = 100 as const;
+/** Anchor identifying the FAQ section in the waitlist page URL. */
+const WAITLIST_FAQ_HASH = '#faq' as const;
+/** Browser event used to detect changes to the current URL hash. */
+const HASH_CHANGE_EVENT_NAME = 'hashchange' as const;
+/** Entrance, hover, FAQ, and stagger animation configuration used throughout this page. */
+const WAITLIST_MOTION_CONFIG = {
+  ENTRY_DURATION_S: 0.6,
+  CARD_DURATION_S: 0.5,
+  SHORT_DURATION_S: 0.4,
+  FAST_DURATION_S: 0.3,
+  BUTTON_DURATION_S: 0.2,
+  DELAY_0_1_S: 0.1,
+  DELAY_0_2_S: 0.2,
+  DELAY_0_3_S: 0.3,
+  DELAY_0_4_S: 0.4,
+  DELAY_0_6_S: 0.6,
+  DELAY_0_8_S: 0.8,
+  DELAY_0_9_S: 0.9,
+  DELAY_1_S: 1,
+  DELAY_1_1_S: 1.1,
+  DELAY_1_2_S: 1.2,
+  DELAY_1_3_S: 1.3,
+  ENTRY_OFFSET_Y_PX: 20,
+  HIGHLIGHT_OFFSET_Y_PX: 10,
+  BADGE_HOVER_SCALE: 1.3,
+  BADGE_TAP_SCALE: 1.1,
+  BUTTON_HOVER_SCALE: 1.05,
+  BUTTON_TAP_SCALE: 0.95,
+  CARD_HOVER_SCALE: 1.02,
+  CARD_TAP_SCALE: 0.98,
+  FEATURE_HOVER_SCALE: 1.03,
+  FEATURE_TAP_SCALE: 0.97,
+  FAQ_TAP_SCALE: 0.99,
+  SPRING_STIFFNESS_VALUE: 300,
+  SPRING_DAMPING_VALUE: 20,
+  FAQ_HOVER_BACKGROUND_COLOR: '#f8f9fa',
+} as const;
 
 /* =============================================================
    FAQ
@@ -64,7 +110,7 @@ export function WaitlistPage() {
   =========================================================== */
 
   useEffect(() => {
-    fetch('/api/waitlist/count')
+    fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.WAITLIST_COUNT}`)
       .then((response) => {
         if (!response.ok) {
           throw new Error(`HTTP error ${response.status}`);
@@ -76,12 +122,12 @@ export function WaitlistPage() {
         if (typeof data.count === 'number') {
           setWaitlistCount(data.count);
         } else {
-          setWaitlistCount(1284);
+          setWaitlistCount(WAITLIST_FALLBACK_COUNT);
         }
       })
       .catch((error) => {
         console.error('Failed to fetch waitlist count:', error);
-        setWaitlistCount(1284);
+        setWaitlistCount(WAITLIST_FALLBACK_COUNT);
       });
   }, []);
 
@@ -91,21 +137,21 @@ export function WaitlistPage() {
 
   useEffect(() => {
     const scrollToFaqIfNeeded = () => {
-      if (window.location.hash === '#faq') {
+      if (window.location.hash === WAITLIST_FAQ_HASH) {
         setTimeout(() => {
           document
             .getElementById('faq')
             ?.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
+        }, FAQ_HASH_SCROLL_DELAY_MS);
       }
     };
 
     scrollToFaqIfNeeded();
 
-    window.addEventListener('hashchange', scrollToFaqIfNeeded);
+    window.addEventListener(HASH_CHANGE_EVENT_NAME, scrollToFaqIfNeeded);
 
     return () => {
-      window.removeEventListener('hashchange', scrollToFaqIfNeeded);
+      window.removeEventListener(HASH_CHANGE_EVENT_NAME, scrollToFaqIfNeeded);
     };
   }, []);
 
@@ -125,18 +171,18 @@ export function WaitlistPage() {
           <div className="pointer-events-none absolute -bottom-20 -left-16 h-[180px] w-[180px] rounded-full bg-white/25" />
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S }}
           >
             <div className="relative z-10 mx-auto inline-flex items-center gap-2 rounded-full border border-[#08504129] bg-[#08504114] px-4 py-1.5 text-xs font-extrabold text-[#085041]">
               <motion.span
-                whileHover={{ scale: 1.3 }}
-                whileTap={{ scale: 1.1 }}
+                whileHover={{ scale: WAITLIST_MOTION_CONFIG.BADGE_HOVER_SCALE }}
+                whileTap={{ scale: WAITLIST_MOTION_CONFIG.BADGE_TAP_SCALE }}
                 transition={{
                   type: 'spring',
-                  stiffness: 300,
-                  damping: 20,
+                  stiffness: WAITLIST_MOTION_CONFIG.SPRING_STIFFNESS_VALUE,
+                  damping: WAITLIST_MOTION_CONFIG.SPRING_DAMPING_VALUE,
                 }}
                 className="h-1.5 w-1.5 rounded-full bg-[#EF9F27]"
               />
@@ -146,9 +192,9 @@ export function WaitlistPage() {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_2_S }}
           >
             <div className="relative z-10 mx-auto mt-7 flex h-[76px] w-[76px] items-center justify-center rounded-[20px] bg-white shadow-[0_14px_30px_rgba(8,80,65,0.1)]">
               <img
@@ -160,34 +206,34 @@ export function WaitlistPage() {
           </motion.div>
 
           <motion.h1
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
+            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_4_S }}
             className="relative z-10 mx-auto mt-7 max-w-lg text-4xl font-black leading-[1.1] text-[#085041] sm:text-5xl"
           >
             {t('waitlist.title')}
           </motion.h1>
 
           <motion.p
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.6 }}
+            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_6_S }}
             className="relative z-10 mx-auto mt-4 max-w-md text-[17px] leading-relaxed text-[#085041]/75"
           >
             {t('waitlist.subtitle')}
           </motion.p>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.8 }}
+            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_8_S }}
             className="relative z-10 mt-8 flex flex-col items-center w-full"
           >
             {/* Login Button */}
-            <Link href="/login">
+            <Link href={APP_ROUTES.LOGIN}>
               <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: WAITLIST_MOTION_CONFIG.BUTTON_HOVER_SCALE }}
+                whileTap={{ scale: WAITLIST_MOTION_CONFIG.BUTTON_TAP_SCALE }}
                 type="button"
                 aria-label={t('waitlist.ctaLogin')}
                 title={t('waitlist.ctaLogin')}
@@ -199,23 +245,23 @@ export function WaitlistPage() {
 
             {/* "or" Text */}
             <motion.p
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.9 }}
+              transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_9_S }}
               className="w-full text-center text-xs text-[#085041]/60 mb-4"
             >
               {t('waitlist.ctaOr')}
             </motion.p>
 
             {/* Existing Sign-up Button (now moved down) */}
-            <Link href="/register">
+            <Link href={APP_ROUTES.REGISTER}>
               <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: WAITLIST_MOTION_CONFIG.BUTTON_HOVER_SCALE }}
+                whileTap={{ scale: WAITLIST_MOTION_CONFIG.BUTTON_TAP_SCALE }}
                 type="button"
                 aria-label={t('waitlist.ctaRegister')}
                 title={t('waitlist.ctaRegister')}
-                data-testid="button-search"
+                data-testid={SHARED_TEST_IDS.BUTTON_SEARCH}
                 className="w-full h-12 rounded-xl bg-[#EF9F27] px-4 font-extrabold text-[#2C2C2A] transition-all duration-200 hover:bg-[#e6a53d] active:scale-[0.98]"
               >
                 {t('waitlist.ctaRegister')}
@@ -224,18 +270,18 @@ export function WaitlistPage() {
           </motion.div>
 
           <motion.p
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 1 }}
+            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_1_S }}
             className="relative z-10 mt-3 text-xs text-[#085041]/60"
           >
             {t('waitlist.ctaNote')}
           </motion.p>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 1.2 }}
+            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_1_2_S }}
             className="relative z-10 mt-6 inline-block rounded-full border border-[#08504129] bg-white/60 px-5 py-2 text-sm font-semibold text-[#085041]"
           >
             <Sparkle
@@ -263,9 +309,9 @@ export function WaitlistPage() {
 
         <section className="grid grid-cols-2 gap-4 py-10">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_2_S }}
           >
             <Stat
               value={
@@ -278,9 +324,9 @@ export function WaitlistPage() {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
+            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_4_S }}
           >
             <Stat
               value="4,8/5"
@@ -295,9 +341,9 @@ export function WaitlistPage() {
 
         <section className="py-6">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_2_S }}
           >
             <div className="mb-8 text-center">
               <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-[#0F6E56]">
@@ -311,15 +357,15 @@ export function WaitlistPage() {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
+            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_4_S }}
           >
             <div className="grid gap-5 sm:grid-cols-3">
               <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ duration: 0.3 }}
+                whileHover={{ scale: WAITLIST_MOTION_CONFIG.CARD_HOVER_SCALE }}
+                whileTap={{ scale: WAITLIST_MOTION_CONFIG.CARD_TAP_SCALE }}
+                transition={{ duration: WAITLIST_MOTION_CONFIG.FAST_DURATION_S }}
               >
                 <StepCard
                   icon={<UserPlus size={20} />}
@@ -330,9 +376,9 @@ export function WaitlistPage() {
               </motion.div>
 
               <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ duration: 0.3 }}
+                whileHover={{ scale: WAITLIST_MOTION_CONFIG.CARD_HOVER_SCALE }}
+                whileTap={{ scale: WAITLIST_MOTION_CONFIG.CARD_TAP_SCALE }}
+                transition={{ duration: WAITLIST_MOTION_CONFIG.FAST_DURATION_S }}
               >
                 <StepCard
                   icon={<Search size={20} />}
@@ -343,9 +389,9 @@ export function WaitlistPage() {
               </motion.div>
 
               <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ duration: 0.3 }}
+                whileHover={{ scale: WAITLIST_MOTION_CONFIG.CARD_HOVER_SCALE }}
+                whileTap={{ scale: WAITLIST_MOTION_CONFIG.CARD_TAP_SCALE }}
+                transition={{ duration: WAITLIST_MOTION_CONFIG.FAST_DURATION_S }}
               >
                 <StepCard
                   icon={<KeyRound size={20} />}
@@ -364,11 +410,11 @@ export function WaitlistPage() {
 
         <section className="grid gap-5 py-14 sm:grid-cols-2">
           <motion.div
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            initial={{ opacity: 0, y: 20 }}
+            whileHover={{ scale: WAITLIST_MOTION_CONFIG.FEATURE_HOVER_SCALE }}
+            whileTap={{ scale: WAITLIST_MOTION_CONFIG.FEATURE_TAP_SCALE }}
+            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_2_S }}
           >
             <FeatureCard
               icon={
@@ -383,11 +429,11 @@ export function WaitlistPage() {
           </motion.div>
 
           <motion.div
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            initial={{ opacity: 0, y: 20 }}
+            whileHover={{ scale: WAITLIST_MOTION_CONFIG.FEATURE_HOVER_SCALE }}
+            whileTap={{ scale: WAITLIST_MOTION_CONFIG.FEATURE_TAP_SCALE }}
+            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
+            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_4_S }}
           >
             <FeatureCard
               icon={
@@ -408,9 +454,9 @@ export function WaitlistPage() {
 
         <section className="py-10">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_2_S }}
           >
             <div className="mb-8 text-center">
               <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-[#0F6E56]">
@@ -428,18 +474,18 @@ export function WaitlistPage() {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
+            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_4_S }}
           >
             <div className="grid gap-4 sm:grid-cols-3">
 
               <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: WAITLIST_MOTION_CONFIG.CARD_HOVER_SCALE }}
+                whileTap={{ scale: WAITLIST_MOTION_CONFIG.CARD_TAP_SCALE }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
+                transition={{ duration: WAITLIST_MOTION_CONFIG.CARD_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_1_S }}
               >
                 <WhyCard
                   icon={<ShieldCheck size={19} />}
@@ -453,11 +499,11 @@ export function WaitlistPage() {
               </motion.div>
 
               <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: WAITLIST_MOTION_CONFIG.CARD_HOVER_SCALE }}
+                whileTap={{ scale: WAITLIST_MOTION_CONFIG.CARD_TAP_SCALE }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
+                transition={{ duration: WAITLIST_MOTION_CONFIG.CARD_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_2_S }}
               >
                 <WhyCard
                   icon={<Search size={19} />}
@@ -471,11 +517,11 @@ export function WaitlistPage() {
               </motion.div>
 
               <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: WAITLIST_MOTION_CONFIG.CARD_HOVER_SCALE }}
+                whileTap={{ scale: WAITLIST_MOTION_CONFIG.CARD_TAP_SCALE }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
+                transition={{ duration: WAITLIST_MOTION_CONFIG.CARD_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_3_S }}
               >
                 <WhyCard
                   icon={<UserPlus size={19} />}
@@ -498,9 +544,9 @@ export function WaitlistPage() {
 
         <section className="py-10">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_2_S }}
           >
             <div className="mb-8 text-center">
               <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-[#0F6E56]">
@@ -514,18 +560,18 @@ export function WaitlistPage() {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
+            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_4_S }}
           >
             <div className="grid gap-5 sm:grid-cols-3">
 
               <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: WAITLIST_MOTION_CONFIG.CARD_HOVER_SCALE }}
+                whileTap={{ scale: WAITLIST_MOTION_CONFIG.CARD_TAP_SCALE }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
+                transition={{ duration: WAITLIST_MOTION_CONFIG.CARD_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_1_S }}
               >
                 <MiniPoint
                   icon={<MapPin size={18} />}
@@ -534,11 +580,11 @@ export function WaitlistPage() {
               </motion.div>
 
               <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: WAITLIST_MOTION_CONFIG.CARD_HOVER_SCALE }}
+                whileTap={{ scale: WAITLIST_MOTION_CONFIG.CARD_TAP_SCALE }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
+                transition={{ duration: WAITLIST_MOTION_CONFIG.CARD_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_2_S }}
               >
                 <MiniPoint
                   icon={<Wallet size={18} />}
@@ -547,11 +593,11 @@ export function WaitlistPage() {
               </motion.div>
 
               <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: WAITLIST_MOTION_CONFIG.CARD_HOVER_SCALE }}
+                whileTap={{ scale: WAITLIST_MOTION_CONFIG.CARD_TAP_SCALE }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
+                transition={{ duration: WAITLIST_MOTION_CONFIG.CARD_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_3_S }}
               >
                 <MiniPoint
                   icon={<Clock3 size={18} />}
@@ -569,9 +615,9 @@ export function WaitlistPage() {
 
         <section className="py-10">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_2_S }}
           >
             <div className="relative overflow-hidden rounded-[28px] bg-[#085041] px-8 py-12 sm:px-12">
 
@@ -583,9 +629,9 @@ export function WaitlistPage() {
 
                 <div>
                   <motion.div
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.4 }}
+                    transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_4_S }}
                   >
                     <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-bold text-[#E1F5EE]">
                       <Sparkle size={13} />
@@ -594,9 +640,9 @@ export function WaitlistPage() {
                   </motion.div>
 
                   <motion.h2
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.6 }}
+                    transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_6_S }}
                     className="max-w-lg text-[28px] font-black leading-tight text-white sm:text-[34px]"
                   >
                     {t('waitlist.featureHighlightTitle')}
@@ -605,9 +651,9 @@ export function WaitlistPage() {
                   </motion.h2>
 
                   <motion.p
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.8 }}
+                    transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_8_S }}
                     className="mt-4 max-w-lg text-[15px] leading-relaxed text-[#E1F5EE]/70"
                   >
                     {t('waitlist.featureHighlightDescription')}
@@ -615,15 +661,15 @@ export function WaitlistPage() {
                 </div>
 
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 1 }}
+                  transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_1_S }}
                   className="space-y-3"
                 >
                   <motion.div
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.HIGHLIGHT_OFFSET_Y_PX }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 1.1 }}
+                    transition={{ duration: WAITLIST_MOTION_CONFIG.SHORT_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_1_1_S }}
                   >
                     <HighlightItem
                       text={t(
@@ -633,9 +679,9 @@ export function WaitlistPage() {
                   </motion.div>
 
                   <motion.div
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.HIGHLIGHT_OFFSET_Y_PX }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 1.2 }}
+                    transition={{ duration: WAITLIST_MOTION_CONFIG.SHORT_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_1_2_S }}
                   >
                     <HighlightItem
                       text={t(
@@ -645,9 +691,9 @@ export function WaitlistPage() {
                   </motion.div>
 
                   <motion.div
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.HIGHLIGHT_OFFSET_Y_PX }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 1.3 }}
+                    transition={{ duration: WAITLIST_MOTION_CONFIG.SHORT_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_1_3_S }}
                   >
                     <HighlightItem
                       text={t(
@@ -671,9 +717,9 @@ export function WaitlistPage() {
           className="scroll-mt-8 py-10"
         >
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_2_S }}
           >
             <div className="mb-8 text-center">
               <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-[#0F6E56]">
@@ -687,9 +733,9 @@ export function WaitlistPage() {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
+            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_4_S }}
           >
             <div className="mx-auto max-w-2xl space-y-3">
 
@@ -699,11 +745,11 @@ export function WaitlistPage() {
                 return (
                   <motion.div
                     key={item.question}
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{
-                      duration: 0.5,
-                      delay: index * 0.1,
+                      duration: WAITLIST_MOTION_CONFIG.CARD_DURATION_S,
+                      delay: index * WAITLIST_MOTION_CONFIG.DELAY_0_1_S,
                     }}
                   >
                     <div className="overflow-hidden rounded-2xl border border-[#0850411a] bg-white">
@@ -716,9 +762,9 @@ export function WaitlistPage() {
                         aria-expanded={isOpen}
                         className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
                         whileHover={{
-                          backgroundColor: '#f8f9fa',
+                          backgroundColor: WAITLIST_MOTION_CONFIG.FAQ_HOVER_BACKGROUND_COLOR,
                         }}
-                        whileTap={{ scale: 0.99 }}
+                        whileTap={{ scale: WAITLIST_MOTION_CONFIG.FAQ_TAP_SCALE }}
                       >
                         <span className="text-sm font-black text-[#2C2C2A]">
                           {item.question}
@@ -737,7 +783,7 @@ export function WaitlistPage() {
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: 'auto' }}
                           exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.3 }}
+                          transition={{ duration: WAITLIST_MOTION_CONFIG.FAST_DURATION_S }}
                           className="px-5 pb-4 text-sm leading-relaxed text-[#527067]"
                         >
                           {item.answer}
@@ -764,41 +810,41 @@ export function WaitlistPage() {
           <div className="pointer-events-none absolute -bottom-20 -left-16 h-[180px] w-[180px] rounded-full bg-white/5" />
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_2_S }}
           >
             <div className="relative z-10">
 
               <motion.h2
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
+                transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_4_S }}
                 className="mx-auto max-w-md text-[28px] font-black leading-tight text-white sm:text-[32px]"
               >
                 {t('waitlist.finalTitle')}
               </motion.h2>
 
               <motion.p
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.6 }}
+                transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_6_S }}
                 className="mx-auto mt-3 max-w-sm text-[15px] leading-relaxed text-[#E1F5EE]/75"
               >
                 {t('waitlist.finalSubtitle')}
               </motion.p>
 
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.8 }}
+                transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_8_S }}
                 className="mt-7"
               >
-                <Link href="/register">
+                <Link href={APP_ROUTES.REGISTER}>
                   <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    transition={{ duration: 0.2 }}
+                    whileHover={{ scale: WAITLIST_MOTION_CONFIG.BUTTON_HOVER_SCALE }}
+                    whileTap={{ scale: WAITLIST_MOTION_CONFIG.BUTTON_TAP_SCALE }}
+                    transition={{ duration: WAITLIST_MOTION_CONFIG.BUTTON_DURATION_S }}
                     type="button"
                     className="h-12 rounded-xl bg-[#EF9F27] px-6 font-extrabold text-[#2C2C2A] transition-all duration-200 hover:bg-[#e6a53d] active:scale-[0.98]"
                   >

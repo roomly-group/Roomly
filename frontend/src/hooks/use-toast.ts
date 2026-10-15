@@ -1,8 +1,12 @@
 import * as React from 'react';
 import type { ToastActionElement, ToastProps } from '@/components/ui/toast';
 
-const TOAST_LIMIT = 1;
-const TOAST_REMOVE_DELAY = 1000000;
+// ===================== CONFIGURATION =====================
+
+/** Maximum number of toast notifications displayed simultaneously (toasts). */
+const TOAST_LIMIT = 1 as const;
+/** Delay before a dismissed toast is removed from state (ms). */
+const TOAST_REMOVE_DELAY_MS = 1000000 as const;
 
 type ToasterToast = ToastProps & {
   id: string;
@@ -62,7 +66,7 @@ const addToRemoveQueue = (toastId: string) => {
       type: 'REMOVE_TOAST',
       toastId: toastId,
     });
-  }, TOAST_REMOVE_DELAY);
+  }, TOAST_REMOVE_DELAY_MS);
 
   toastTimeouts.set(toastId, timeout);
 };

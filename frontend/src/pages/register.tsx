@@ -10,9 +10,23 @@ import { Label } from '@/components/ui/label';
 import { TurnstileWidget } from '@/components/shared/turnstile';
 import { supabase } from '@/lib/supabase';
 import { postAuthRoute } from '@/lib/auth-role';
+import { APP_ROUTES, PASSWORD_FIELD_PLACEHOLDER, SHARED_TEST_IDS } from '@/lib/constants';
+import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 import roomlyMark from '@assets/logo_no_background.png';
 
-const passwordPattern = `^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*()_+=[\\]{};':"\\\\|<>?,./\`~-])[A-Za-z\\d!@#$%^&*()_+=[\\]{};':"\\\\|<>?,./\`~-]{8,}`;
+// ===================== CONFIGURATION =====================
+
+/** Regular expression enforcing the registration password character rules. */
+const PASSWORD_REQUIREMENTS_PATTERN = `^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*()_+=[\\]{};':"\\\\|<>?,./\`~-])[A-Za-z\\d!@#$%^&*()_+=[\\]{};':"\\\\|<>?,./\`~-]{8,}` as const;
+/** Stable selectors specific to the registration form. */
+const REGISTER_TEST_IDS = {
+  FORM_REGISTER: 'form-register',
+  INPUT_FIRST_NAME: 'input-nome',
+  INPUT_LAST_NAME: 'input-cognome',
+  INPUT_CONFIRM_PASSWORD: 'input-confirm-password',
+  INPUT_BIRTH_DATE: 'input-data-nascita',
+  LINK_GO_LOGIN: 'link-go-login',
+} as const;
 
 export function RegisterPage() {
   const { t } = useLanguage();
@@ -67,7 +81,7 @@ export function RegisterPage() {
       return;
     }
 
-    const passwordRegex = new RegExp(passwordPattern);
+    const passwordRegex = new RegExp(PASSWORD_REQUIREMENTS_PATTERN);
     if (!passwordRegex.test(password)) {
       setError(t('auth.passwordPattern'));
       return;
@@ -89,7 +103,7 @@ export function RegisterPage() {
       // This is what actually stops a script that skips the browser and
       // hits Supabase directly - the anon key alone is not enough to pass,
       // it also needs a token that only a real Turnstile challenge produces.
-      const response = await fetch('/api/register', {
+      const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.REGISTER}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nome, cognome, email, password, dataNascita, captchaToken }),
@@ -110,7 +124,7 @@ export function RegisterPage() {
         // Email confirmation disabled in the Supabase dashboard: user data
         // was returned. Verify the session via cookies to update Supabase client
         // same as /login does.
-        const verifyResponse = await fetch('/api/verify', {
+        const verifyResponse = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.VERIFY}`, {
           method: 'POST',
           credentials: 'include',
         });
@@ -161,7 +175,7 @@ export function RegisterPage() {
             <p className="text-sm text-[#527067]">{t('auth.registerSubtitle')}</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4" data-testid="form-register">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4" data-testid={REGISTER_TEST_IDS.FORM_REGISTER}>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="register-nome">{t('auth.firstNameLabel')}</Label>
               <div className="relative">
@@ -175,7 +189,7 @@ export function RegisterPage() {
                   value={nome}
                   onChange={(event) => setNome(event.target.value)}
                   className="pl-9"
-                  data-testid="input-nome"
+                  data-testid={REGISTER_TEST_IDS.INPUT_FIRST_NAME}
                 />
               </div>
             </div>
@@ -193,7 +207,7 @@ export function RegisterPage() {
                   value={cognome}
                   onChange={(event) => setCognome(event.target.value)}
                   className="pl-9"
-                  data-testid="input-cognome"
+                  data-testid={REGISTER_TEST_IDS.INPUT_LAST_NAME}
                 />
               </div>
             </div>
@@ -211,7 +225,7 @@ export function RegisterPage() {
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   className="pl-9"
-                  data-testid="input-email"
+                  data-testid={SHARED_TEST_IDS.INPUT_EMAIL}
                 />
               </div>
             </div>
@@ -225,11 +239,11 @@ export function RegisterPage() {
                   type={showPassword ? "text" : "password"}
                   autoComplete="new-password"
                   required
-                  placeholder="••••••••"
+                  placeholder={PASSWORD_FIELD_PLACEHOLDER}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   className="pl-9 pr-10"
-                  data-testid="input-password"
+                  data-testid={SHARED_TEST_IDS.INPUT_PASSWORD}
                 />
                 <button
                   type="button"
@@ -255,11 +269,11 @@ export function RegisterPage() {
                   type={showConfirmPassword ? "text" : "password"}
                   autoComplete="new-password"
                   required
-                  placeholder="••••••••"
+                  placeholder={PASSWORD_FIELD_PLACEHOLDER}
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
                   className="pl-9 pr-10"
-                  data-testid="input-confirm-password"
+                  data-testid={REGISTER_TEST_IDS.INPUT_CONFIRM_PASSWORD}
                 />
                 <button
                   type="button"
@@ -289,7 +303,7 @@ export function RegisterPage() {
                   value={dataNascita}
                   onChange={(event) => setDataNascita(event.target.value)}
                   className="pl-9 pr-10"
-                  data-testid="input-data-nascita"
+                  data-testid={REGISTER_TEST_IDS.INPUT_BIRTH_DATE}
                 />
               </div>
             </div>
@@ -320,7 +334,7 @@ export function RegisterPage() {
                 disabled={isSubmitting || !captchaToken}
                 aria-label={t('auth.registerCta')}
                 title={t('auth.registerCta')}
-                data-testid="button-search"
+                data-testid={SHARED_TEST_IDS.BUTTON_SEARCH}
                 className="h-12 min-w-[80px] shrink-0 rounded-xl bg-[#0F6E56] px-4 font-extrabold text-white transition-all duration-200 hover:bg-[#0c5a47] active:scale-[0.98] disabled:opacity-60"
               >
                 {isSubmitting ? t('auth.registering') : t('auth.registerCta')}
@@ -331,9 +345,9 @@ export function RegisterPage() {
         <p className="mt-6 text-center text-sm font-semibold text-[#527067]">
           {t('auth.hasAccount')}{' '}
           <Link
-            href="/login"
+            href={APP_ROUTES.LOGIN}
             className="font-extrabold text-[#0F6E56] hover:text-[#085041]"
-            data-testid="link-go-login"
+            data-testid={REGISTER_TEST_IDS.LINK_GO_LOGIN}
           >
             {t('auth.loginCta')}
           </Link>

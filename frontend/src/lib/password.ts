@@ -10,11 +10,15 @@
 // password checks. Keep this file's MIN_LENGTH and REQUIREMENTS in sync with
 // whatever is configured in the Supabase dashboard.
 
-export const PASSWORD_MIN_LENGTH = 8;
+// ===================== CONFIGURATION =====================
+
+/** Minimum password length used by client-side validation (characters). */
+export const PASSWORD_MIN_LENGTH = 8 as const;
 
 // Same symbol set Supabase Auth accepts for its "Password Requirements"
 // option, so a password that passes here also passes there:
 // !@#$%^&*()_+-=[]{};'\:"|<>?,./`~
+/** Regular expression matching symbols allowed by the configured password policy. */
 const SYMBOL_REGEX = /[!@#$%^&*()_+\-=[\]{};':"\\|<>?,./`~]/;
 
 export interface PasswordCheck {

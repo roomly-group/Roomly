@@ -16,8 +16,22 @@ import { ProfileMenu } from '@/components/layout/profile-menu';
 import { supabase } from '@/lib/supabase';
 import { getRoleInfo } from '@/lib/auth-role';
 import { peekLastKnownRole, peekRoleCache } from '@/lib/role-cache';
+import { APP_ROUTES, SHARED_TEST_IDS, WAITLIST_FALLBACK_POSITION } from '@/lib/constants';
+import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 
-const STATIC_PATHS = ['/chi-siamo', '/contatti', '/privacy', '/termini', '/cookie'];
+// ===================== CONFIGURATION =====================
+
+/** Static legal and informational routes rendered with the compact navbar. */
+const STATIC_PATHS: readonly string[] = [APP_ROUTES.ABOUT, APP_ROUTES.CONTACT, APP_ROUTES.PRIVACY, APP_ROUTES.TERMS, APP_ROUTES.COOKIES] as const;
+/** Stable test selectors used by global navigation controls. */
+const NAVBAR_TEST_IDS = {
+  LINK_NAV_PREFIX: 'link-nav-',
+  LINK_SWITCH_ROLE: 'link-switch-role',
+  BUTTON_OPEN_MOBILE_MENU: 'button-open-mobile-menu',
+  LINK_MOBILE_PREFIX: 'link-mobile-',
+  LINK_MOBILE_SWITCH_ROLE: 'link-mobile-switch-role',
+  LINK_NAV_REGISTER: 'link-nav-register',
+} as const;
 
 // Nav items whose `key` is in this set are only shown to admins; plain
 // authenticated users (role: 'user') never see them.
@@ -82,34 +96,26 @@ export function Navbar() {
   const [position, setPosition] = useState<number | null>(null);
   const [positionLoading, setPositionLoading] = useState(true);
 
-  const isWaitlistConfirmed = location === '/waitlist/confirmed';
-  const isGuest = location === '/' || location === '/waitlist';
+  const isWaitlistConfirmed = location === APP_ROUTES.WAITLIST_CONFIRMED;
+  const isGuest = location === APP_ROUTES.ROOT || location === APP_ROUTES.WAITLIST;
   const isStatic = STATIC_PATHS.includes(location);
   const isApp = !isWaitlistConfirmed && !isGuest && !isStatic;
-  const owner = location.startsWith('/owner');
+  const owner = location.startsWith(APP_ROUTES.OWNER_DASHBOARD);
 
   // Define href variables for consistent usage
-  const HOME = '/home';
-  const REGISTER = '/register';
-  const MESSAGES = '/messages';
-  const PROFILE = '/profile';
-  const OWNER_OVERVIEW = '/owner';
-  const OWNER_MESSAGES = '/owner/messages';
-  const OWNER_PROFILE = '/owner/profile';
-
   // Admin switch href
-  const adminSwitchHref = owner ? HOME : OWNER_OVERVIEW;
+  const adminSwitchHref = owner ? APP_ROUTES.HOME : APP_ROUTES.OWNER_DASHBOARD;
 
   useEffect(() => {
     if (!isWaitlistConfirmed) return;
     let cancelled = false;
-    fetch('/api/waitlist/me', { credentials: 'include' })
+    fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.WAITLIST_ME}`, { credentials: 'include' })
       .then((res) => (res.ok ? res.json() : Promise.reject()))
       .then((data) => {
         if (!cancelled) setPosition(data.position);
       })
       .catch(() => {
-        if (!cancelled) setPosition(107);
+        if (!cancelled) setPosition(WAITLIST_FALLBACK_POSITION);
       })
       .finally(() => {
         if (!cancelled) setPositionLoading(false);
@@ -120,7 +126,7 @@ export function Navbar() {
   }, [isWaitlistConfirmed]);
 
   const logo = (
-    <Link href={HOME} className="flex items-center gap-2.5" data-testid="link-logo">
+    <Link href={APP_ROUTES.HOME} className="flex items-center gap-2.5" data-testid={SHARED_TEST_IDS.LINK_LOGO}>
       <img
         src={roomlyMark}
         alt={isApp ? '' : 'Roomly'}
@@ -141,14 +147,14 @@ export function Navbar() {
   if (isApp) {
     const allLinks = owner
       ? [
-          { href: OWNER_OVERVIEW, key: 'overview', label: t('nav.overview'), icon: LayoutDashboard },
-          { href: OWNER_MESSAGES, key: 'messages', label: t('nav.messages'), icon: MessageCircle },
-          { href: OWNER_PROFILE, key: 'my-profile', label: t('nav.myProfile'), icon: UserRound },
+          { href: APP_ROUTES.OWNER_DASHBOARD, key: 'overview', label: t('nav.overview'), icon: LayoutDashboard },
+          { href: APP_ROUTES.OWNER_MESSAGES, key: 'messages', label: t('nav.messages'), icon: MessageCircle },
+          { href: APP_ROUTES.OWNER_PROFILE, key: 'my-profile', label: t('nav.myProfile'), icon: UserRound },
         ]
       : [
-          { href: HOME, key: 'find-a-room', label: t('nav.findRoom'), icon: Search },
-          { href: MESSAGES, key: 'messages', label: t('nav.messages'), icon: MessageCircle },
-          { href: PROFILE, key: 'my-profile', label: t('nav.myProfile'), icon: UserRound },
+          { href: APP_ROUTES.HOME, key: 'find-a-room', label: t('nav.findRoom'), icon: Search },
+          { href: APP_ROUTES.MESSAGES, key: 'messages', label: t('nav.messages'), icon: MessageCircle },
+          { href: APP_ROUTES.PROFILE, key: 'my-profile', label: t('nav.myProfile'), icon: UserRound },
         ];
 
     // "Trova una stanza" / "Messaggi" (and their owner equivalents) are
@@ -175,7 +181,7 @@ export function Navbar() {
               const Icon = link.icon;
               const active =
                 location === link.href ||
-                (link.href !== '/' && location.startsWith(link.href));
+                (String(link.href) !== APP_ROUTES.ROOT && location.startsWith(link.href));
               return (
                 <Link
                   key={link.href}
@@ -185,7 +191,7 @@ export function Navbar() {
                       ? 'bg-[#E1F5EE] text-[#085041]'
                       : 'text-[#527067] hover:bg-[#e7eee8]'
                   }`}
-                  data-testid={`link-nav-${link.key}`}
+                  data-testid={`${NAVBAR_TEST_IDS.LINK_NAV_PREFIX}${link.key}`}
                 >
                   <Icon size={16} strokeWidth={2.4} /> {link.label}
                 </Link>
@@ -196,9 +202,9 @@ export function Navbar() {
           <div className="flex items-center gap-2">
             {showSwitch && (
               <Link
-                href={owner ? '/home' : '/owner'}
+                href={owner ? APP_ROUTES.HOME : APP_ROUTES.OWNER_DASHBOARD}
                 className="hidden rounded-xl px-3 py-2 text-sm font-extrabold text-[#0F6E56] hover:bg-[#E1F5EE] sm:inline-flex"
-                data-testid="link-switch-role"
+                data-testid={NAVBAR_TEST_IDS.LINK_SWITCH_ROLE}
               >
                 {owner ? t('nav.lookingForRoom') : ownerButtonLabel}
               </Link>
@@ -206,12 +212,12 @@ export function Navbar() {
             <button
               className="rounded-xl p-2.5 text-[#085041] hover:bg-[#E1F5EE] md:hidden"
               onClick={() => setMobileOpen(!mobileOpen)}
-              data-testid="button-open-mobile-menu"
+              data-testid={NAVBAR_TEST_IDS.BUTTON_OPEN_MOBILE_MENU}
               aria-label={t('nav.openMenu')}
             >
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
-            <ProfileMenu profileHref={owner ? OWNER_PROFILE : PROFILE} />
+            <ProfileMenu profileHref={owner ? APP_ROUTES.OWNER_PROFILE : APP_ROUTES.PROFILE} />
           </div>
         </div>
 
@@ -223,7 +229,7 @@ export function Navbar() {
                 href={link.href}
                 onClick={() => setMobileOpen(false)}
                 className="flex items-center gap-3 rounded-xl px-3 py-3 font-extrabold text-[#085041] hover:bg-[#E1F5EE]"
-                data-testid={`link-mobile-${link.key}`}
+                data-testid={`${NAVBAR_TEST_IDS.LINK_MOBILE_PREFIX}${link.key}`}
               >
                 <link.icon size={18} />
                 {link.label}
@@ -234,7 +240,7 @@ export function Navbar() {
                 href={adminSwitchHref}
                 onClick={() => setMobileOpen(false)}
                 className="mt-1 flex items-center gap-3 rounded-xl px-3 py-3 font-extrabold text-[#0F6E56]"
-                data-testid="link-mobile-switch-role"
+                data-testid={NAVBAR_TEST_IDS.LINK_MOBILE_SWITCH_ROLE}
               >
                 <MoveUpRight size={18} />
                 {owner ? t('nav.lookingForRoom') : ownerButtonLabel}
@@ -251,7 +257,7 @@ export function Navbar() {
       <div className="flex items-center justify-between gap-3">
         {logo}
         <ProfileMenu
-          profileHref="/profile"
+          profileHref={APP_ROUTES.PROFILE}
           extra={
             <div className="flex items-center justify-between rounded-xl bg-[#E1F5EE] px-3 py-2.5">
               <span className="text-xs font-bold text-[#527067]">
@@ -271,7 +277,7 @@ export function Navbar() {
     return (
       <div className="flex items-center justify-between gap-3">
         {logo}
-        <Link href={HOME} className="text-sm font-extrabold text-[#085041] hover:text-[#0F6E56]">
+        <Link href={APP_ROUTES.HOME} className="text-sm font-extrabold text-[#085041] hover:text-[#0F6E56]">
           {t('searchPage.backHome')}
         </Link>
       </div>
@@ -285,9 +291,9 @@ export function Navbar() {
       <div className="flex items-center gap-3">
         <LanguagePicker />
         <Link
-          href={REGISTER}
+          href={APP_ROUTES.REGISTER}
           className="hidden text-sm font-extrabold text-[#085041] hover:text-[#0F6E56] sm:block"
-          data-testid="link-nav-register"
+          data-testid={NAVBAR_TEST_IDS.LINK_NAV_REGISTER}
         >
           {t('waitlist.navRegister')}
         </Link>

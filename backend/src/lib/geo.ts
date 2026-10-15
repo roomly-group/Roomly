@@ -1,11 +1,14 @@
+// ===================== CONFIGURATION =====================
+
 /**
- * Raggio (km) entro cui una stanza viene associata a un'università alla
- * creazione dell'annuncio. La ricerca non lo usa: ordina tutte le stanze
- * per distanza.
+ * Radius (km) used to link a room to its nearest university when a listing is
+ * created; search ignores it and ranks every room by distance. Supplied by the
+ * deployment environment, evaluated at module load.
  */
 export const SEARCH_RADIUS_KM = Number(process.env.SEARCH_RADIUS_KM ?? 5);
 
-const EARTH_RADIUS_KM = 6371;
+/** Mean Earth radius used by the Haversine calculation (km). */
+const EARTH_RADIUS_KM = 6371 as const;
 const toRad = (deg: number) => (deg * Math.PI) / 180;
 
 /** Distanza in km tra due coordinate (formula di Haversine). */

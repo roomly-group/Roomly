@@ -2,6 +2,7 @@ import { LanguageProvider } from '@/lib/i18n';
 import { useLocation } from 'wouter';
 import { SiteFooter } from '@/components/layout/site-footer';
 import { Navbar } from '@/components/layout/navbar';
+import { APP_ROUTES } from '@/lib/constants';
 
 // Re-exported so existing imports (`import { Avatar } from '.../app-shell'`)
 // keep working now that the component lives in components/shared/avatar.tsx.
@@ -19,7 +20,7 @@ export function PersonaLanguageProvider({
   children: React.ReactNode;
 }) {
   const [location] = useLocation();
-  const userId = location.startsWith('/owner') ? 'owner' : 'student';
+  const userId = location.startsWith(APP_ROUTES.OWNER_DASHBOARD) ? 'owner' : 'student';
   return <LanguageProvider userId={userId}>{children}</LanguageProvider>;
 }
 

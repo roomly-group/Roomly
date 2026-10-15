@@ -28,13 +28,50 @@ import { QueryError } from '@/components/shared/query-error';
 import { EmptyState } from '@/components/shared/empty-state';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { APP_ROUTES } from '@/lib/constants';
+import { MESSAGE_MAX_LENGTH_CHARS, MESSAGES_PAGE_SIZE, API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
+
+// ===================== CONFIGURATION =====================
 
 // How often the open chat / the inbox are re-fetched. React Query pauses this
 // while the browser tab is in the background.
-const MESSAGES_POLL_MS = 4000;
-const CONVERSATIONS_POLL_MS = 10000;
-// Quanti messaggi arrivano per richiesta (uguale a MESSAGES_PAGE nel backend).
-const MESSAGES_PAGE = 100;
+/** Poll interval for the active conversation messages (ms). */
+const MESSAGES_POLL_MS = 4000 as const;
+/** Poll interval for inbox conversation updates (ms). */
+const CONVERSATIONS_POLL_MS = 10000 as const;
+/** Number of recent confirmed messages reread during polling (messages). */
+const POLL_OVERLAP = 5 as const;
+/** Duration before copied-listing feedback is hidden (ms). */
+const COPY_FEEDBACK_RESET_MS = 1800 as const;
+/** Number of milliseconds in one hour, used for relative message timestamps (ms/hour). */
+const HOUR_MS = 3600000 as const;
+/** Threshold below which timestamps display the just-now label (hours). */
+const JUST_NOW_THRESHOLD_HOURS = 1 as const;
+/** Threshold below which timestamps display an hours-ago label (hours). */
+const HOURS_AGO_THRESHOLD_HOURS = 24 as const;
+/** Threshold below which timestamps display the yesterday label (hours). */
+const YESTERDAY_THRESHOLD_HOURS = 48 as const;
+/** Scroll distance from the bottom that keeps the view pinned to the latest message (px). */
+const CHAT_SCROLL_BOTTOM_THRESHOLD_PX = 120 as const;
+/** Scroll position that triggers loading older messages (px). */
+const CHAT_SCROLL_TOP_THRESHOLD_PX = 80 as const;
+/** Stable selectors used by conversation and message controls. */
+const MESSAGE_TEST_IDS = {
+  MESSAGE_ROW_PREFIX: 'message-',
+  CONVERSATION_LINK_PREFIX: 'link-conversation-',
+  LINK_BACK_TO_INBOX: 'link-back-to-inbox',
+  BUTTON_ACCEPT_CONVERSATION: 'button-accept-conversation',
+  BUTTON_REJECT_CONVERSATION: 'button-reject-conversation',
+  BUTTON_CANCEL_CONVERSATION: 'button-cancel-conversation',
+  BUTTON_RELEASE_LISTING: 'button-release-listing',
+  BUTTON_CONVERSATION_MORE: 'button-conversation-more',
+  MENU_COPY_LISTING: 'menu-copy-listing',
+  MENU_DELETE_CONVERSATION: 'menu-delete-conversation',
+  STATUS_LISTING_COPIED: 'status-listing-copied',
+  INPUT_MESSAGE_BODY: 'input-message-body',
+  BUTTON_SEND_MESSAGE: 'button-send-message',
+  BUTTON_CONFIRM_DELETE_CONVERSATION: 'button-confirm-delete-conversation',
+} as const;
 
 // Ordine unico e stabile: i messaggi confermati per id (l'ordine in cui il
 // database li ha salvati), senza doppioni; quelli ancora "in volo" (id
@@ -49,17 +86,15 @@ function sortMessages(list: Message[]): Message[] {
 }
 
 // Quanti degli ultimi messaggi confermati rileggere a ogni poll.
-const POLL_OVERLAP = 5;
-
 function TimeAgo({ value }: { value: string }) {
   const { t } = useLanguage();
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return <>{value}</>;
 
-  const hours = Math.floor((Date.now() - date.getTime()) / 3600000);
-  if (hours < 1) return <>{t('messages.justNow')}</>;
-  if (hours < 24) return <>{t('messages.hoursAgo').replace('{h}', String(hours))}</>;
-  if (hours < 48) return <>{t('messages.yesterday')}</>;
+  const hours = Math.floor((Date.now() - date.getTime()) / HOUR_MS);
+  if (hours < JUST_NOW_THRESHOLD_HOURS) return <>{t('messages.justNow')}</>;
+  if (hours < HOURS_AGO_THRESHOLD_HOURS) return <>{t('messages.hoursAgo').replace('{h}', String(hours))}</>;
+  if (hours < YESTERDAY_THRESHOLD_HOURS) return <>{t('messages.yesterday')}</>;
   return <>{date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</>;
 }
 
@@ -68,13 +103,13 @@ function MessageBubble({ message, viewerRole }: { message: Message; viewerRole: 
   const isSystem = message.kind === 'system';
   if (isSystem) {
     return (
-      <div className="flex justify-center items-center py-2" data-testid={`message-${message.id}`}>
+      <div className="flex justify-center items-center py-2" data-testid={`${MESSAGE_TEST_IDS.MESSAGE_ROW_PREFIX}${message.id}`}>
         <p className="text-xs text-[#527067] italic">{message.body}</p>
       </div>
     );
   }
   return (
-    <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`} data-testid={`message-${message.id}`}>
+    <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`} data-testid={`${MESSAGE_TEST_IDS.MESSAGE_ROW_PREFIX}${message.id}`}>
       <div
         className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-6 ${
           mine ? 'rounded-br-md bg-[#0F6E56] text-[#E1F5EE]' : 'rounded-bl-md bg-[#E1F5EE] text-[#085041]'
@@ -148,12 +183,12 @@ function ConversationList({
         const { text: statusText, colorBg, colorText } = getStatusInfo(conversation.requestStatus);
         return (
           <Link
-            href={`${owner ? '/owner/messages' : '/messages'}/${conversation.id}`}
+            href={`${owner ? APP_ROUTES.OWNER_MESSAGES : APP_ROUTES.MESSAGES}/${conversation.id}`}
             key={conversation.id}
             className={`flex gap-3 p-4 transition-colors hover:bg-[#E1F5EE]/65 ${
               selectedId === conversation.id ? 'bg-[#E1F5EE]' : ''
             }`}
-            data-testid={`link-conversation-${conversation.id}`}
+            data-testid={`${MESSAGE_TEST_IDS.CONVERSATION_LINK_PREFIX}${conversation.id}`}
           >
             <Avatar name={conversation.participant} />
             <div className="min-w-0 flex-1">
@@ -203,7 +238,7 @@ function ConversationPanel({
     refetchInterval: MESSAGES_POLL_MS,
     queryFn: async ({ signal }) => {
       const previous = client.getQueryData<Message[]>(messagesKey);
-      const url = `/api/conversations/${conversationId}/messages`;
+      const url = `${API_BASE_PATH}${API_ROUTE_PATHS.CONVERSATION_MESSAGES.replace(':id', String(conversationId))}`;
       if (!previous) return sortMessages(normalizeMessages(await customFetch<Message[]>(url, { signal })));
 
       // Con invii simultanei un messaggio con id più basso può diventare visibile
@@ -332,7 +367,7 @@ function ConversationPanel({
     try {
       await deleteConversation.mutateAsync({ id: conversationId });
       setShowDeleteDialog(false);
-      setLocation(conversation?.role === 'owner' ? '/owner/messages' : '/messages');
+      setLocation(conversation?.role === 'owner' ? APP_ROUTES.OWNER_MESSAGES : APP_ROUTES.MESSAGES);
       await client.invalidateQueries({ queryKey: getListConversationsQueryKey() });
     } catch {
       setShowDeleteDialog(false);
@@ -368,7 +403,7 @@ function ConversationPanel({
   useEffect(() => {
     if (data && !firstPageSeen.current) {
       firstPageSeen.current = true;
-      setCanLoadOlder(data.filter((m) => m.id > 0).length >= MESSAGES_PAGE);
+      setCanLoadOlder(data.filter((m) => m.id > 0).length >= MESSAGES_PAGE_SIZE);
     }
   }, [data]);
 
@@ -382,9 +417,9 @@ function ConversationPanel({
     setLoadingOlder(true);
     try {
       const older = normalizeMessages(await customFetch<Message[]>(
-        `/api/conversations/${conversationId}/messages?before=${oldest}`,
+        `${API_BASE_PATH}${API_ROUTE_PATHS.CONVERSATION_MESSAGES.replace(':id', String(conversationId))}?before=${oldest}`,
       ));
-      setCanLoadOlder(older.length >= MESSAGES_PAGE);
+      setCanLoadOlder(older.length >= MESSAGES_PAGE_SIZE);
       if (older.length) {
         // Ricordo dov'ero: dopo il render riporto lo scroll sullo stesso messaggio.
         restoreScroll.current = { height: el.scrollHeight, top: el.scrollTop };
@@ -402,8 +437,8 @@ function ConversationPanel({
   const handleScroll = () => {
     const el = scrollRef.current;
     if (!el) return;
-    stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-    if (el.scrollTop < 80) void loadOlder();
+    stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < CHAT_SCROLL_BOTTOM_THRESHOLD_PX;
+    if (el.scrollTop < CHAT_SCROLL_TOP_THRESHOLD_PX) void loadOlder();
   };
 
   // Dopo aver aggiunto messaggi in cima, mantiene la posizione di lettura.
@@ -495,7 +530,7 @@ function ConversationPanel({
     if (conversation?.listingTitle) {
       void navigator.clipboard?.writeText(conversation.listingTitle);
       setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
+      window.setTimeout(() => setCopied(false), COPY_FEEDBACK_RESET_MS);
     }
   };
 
@@ -505,10 +540,10 @@ function ConversationPanel({
         <div className="flex items-center justify-between border-b border-[#e1ebe4] p-5">
           <div className="flex items-center gap-3">
             <Link
-              href={owner ? '/owner/messages' : '/messages'}
+              href={owner ? APP_ROUTES.OWNER_MESSAGES : APP_ROUTES.MESSAGES}
               className="-ml-2 rounded-lg p-2 text-[#527067] hover:bg-[#E1F5EE] lg:hidden"
               aria-label={t('messages.back')}
-              data-testid="link-back-to-inbox"
+              data-testid={MESSAGE_TEST_IDS.LINK_BACK_TO_INBOX}
             >
               <ChevronLeft size={20} />
             </Link>
@@ -541,7 +576,7 @@ function ConversationPanel({
                       disabled={actionPending}
                       aria-label={t('messages.accept')}
                       title={t('messages.accept')}
-                      data-testid="button-accept-conversation"
+                      data-testid={MESSAGE_TEST_IDS.BUTTON_ACCEPT_CONVERSATION}
                       className="h-11 rounded-full px-5"
                     >
                       <Check size={16} /> {t('messages.accept')}
@@ -552,7 +587,7 @@ function ConversationPanel({
                       disabled={actionPending}
                       aria-label={t('messages.reject')}
                       title={t('messages.reject')}
-                      data-testid="button-reject-conversation"
+                      data-testid={MESSAGE_TEST_IDS.BUTTON_REJECT_CONVERSATION}
                       className="h-11 rounded-full px-5"
                     >
                       <X size={16} /> {t('messages.reject')}
@@ -564,7 +599,7 @@ function ConversationPanel({
                     variant="outline"
                     onClick={() => setShowCancelDialog(true)}
                     disabled={actionPending}
-                    data-testid="button-cancel-conversation"
+                    data-testid={MESSAGE_TEST_IDS.BUTTON_CANCEL_CONVERSATION}
                   >
                     <X size={16} /> {t('messages.cancelRequest')}
                   </Button>
@@ -574,7 +609,7 @@ function ConversationPanel({
                     variant="outline"
                     onClick={() => setShowReleaseDialog(true)}
                     disabled={actionPending}
-                    data-testid="button-release-listing"
+                    data-testid={MESSAGE_TEST_IDS.BUTTON_RELEASE_LISTING}
                   >
                     {t('messages.releaseRoom')}
                   </Button>
@@ -587,21 +622,21 @@ function ConversationPanel({
               <DropdownMenuTrigger asChild>
                 <button
                   className="rounded-lg p-2 text-[#527067] hover:bg-[#E1F5EE]"
-                  data-testid="button-conversation-more"
+                  data-testid={MESSAGE_TEST_IDS.BUTTON_CONVERSATION_MORE}
                   aria-label={t('messages.moreOptions')}
                 >
                   <MoreHorizontal size={19} />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={copyListing} data-testid="menu-copy-listing">
+                <DropdownMenuItem onSelect={copyListing} data-testid={MESSAGE_TEST_IDS.MENU_COPY_LISTING}>
                   <Copy size={15} className="mr-2" /> {t('messages.copyListingName')}
                 </DropdownMenuItem>
                 {requestStatus === 'annullata' && (
                   <DropdownMenuItem
                     onSelect={() => setShowDeleteDialog(true)}
                     className="text-[#a74b32]"
-                    data-testid="menu-delete-conversation"
+                    data-testid={MESSAGE_TEST_IDS.MENU_DELETE_CONVERSATION}
                   >
                     <Trash2 size={15} className="mr-2" /> {t('messages.deleteChat')}
                   </DropdownMenuItem>
@@ -614,7 +649,7 @@ function ConversationPanel({
         {copied && (
           <p
             className="border-b border-[#e1ebe4] bg-[#E1F5EE] px-5 py-2 text-xs font-extrabold text-[#0F6E56]"
-            data-testid="status-listing-copied"
+            data-testid={MESSAGE_TEST_IDS.STATUS_LISTING_COPIED}
           >
             {t('messages.listingNameCopied')}
           </p>
@@ -655,18 +690,18 @@ function ConversationPanel({
                   event.currentTarget.form?.requestSubmit();
                 }
               }}
-              maxLength={2000}
+              maxLength={MESSAGE_MAX_LENGTH_CHARS}
               rows={1}
               placeholder={isClosed ? t('messages.closedChat') : t('messages.writeMessage')}
               disabled={isClosed || sendMessage.isPending}
               className="max-h-28 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none placeholder:text-[#82978e]"
-              data-testid="input-message-body"
+              data-testid={MESSAGE_TEST_IDS.INPUT_MESSAGE_BODY}
             />
             <Button
               type="submit"
               className="h-10 w-10 shrink-0 rounded-lg p-0"
               disabled={!body.trim() || isClosed || sendMessage.isPending}
-              data-testid="button-send-message"
+              data-testid={MESSAGE_TEST_IDS.BUTTON_SEND_MESSAGE}
             >
               <Send size={16} />
             </Button>
@@ -720,7 +755,7 @@ function ConversationPanel({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('messages.keepChat')}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void deleteChat()} data-testid="button-confirm-delete-conversation">
+            <AlertDialogAction onClick={() => void deleteChat()} data-testid={MESSAGE_TEST_IDS.BUTTON_CONFIRM_DELETE_CONVERSATION}>
               {t('messages.deleteChat')}
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -1,7 +1,15 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
+import { API_BASE_PATH, API_ROUTE_PATHS, SUPPORTED_LANGUAGE_CODES } from '@workspace/api-zod';
 
-export type LanguageCode = 'en' | 'it' | 'es' | 'fr' | 'de' | 'pt';
+// ===================== CONFIGURATION =====================
+
+/** Prefix for each user's saved locale preference in browser storage. */
+const STORAGE_PREFIX = 'roomly-language' as const;
+/** Locale selected when no supported saved or browser preference is available. */
+const DEFAULT_LANGUAGE: LanguageCode = 'en';
+
+export type LanguageCode = (typeof SUPPORTED_LANGUAGE_CODES)[number];
 
 export const LANGUAGES: { code: LanguageCode; label: string; flag: string }[] = [
   { code: 'en', label: 'English', flag: '🇬🇧' },
@@ -11,9 +19,6 @@ export const LANGUAGES: { code: LanguageCode; label: string; flag: string }[] = 
   { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
   { code: 'pt', label: 'Português', flag: '🇵🇹' },
 ];
-
-const STORAGE_PREFIX = 'roomly-language';
-const DEFAULT_LANGUAGE: LanguageCode = 'en';
 
 // Each signed-in persona (student / owner — Roomly's two demo users) keeps
 // its own language preference, namespaced under its own storage key. This
@@ -3043,7 +3048,7 @@ export function LanguageProvider({ userId, children }: { userId: string; childre
         const session = data?.session;
         if (!session) return;
 
-        const response = await fetch('/api/me', {
+        const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.ME}`, {
           credentials: 'include',
         });
         if (!response.ok) return;
@@ -3087,7 +3092,7 @@ export function LanguageProvider({ userId, children }: { userId: string; childre
         const session = data?.session;
         if (!session) return; // utente non loggato: cambio solo locale, non salvato
 
-        await fetch('/api/me/language', {
+        await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.ME_LANGUAGE}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',

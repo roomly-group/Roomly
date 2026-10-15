@@ -16,7 +16,23 @@ import {
   GetListingResponse,
   ListListingsResponse,
   GetOwnerDashboardResponse,
+  ROOM_PHOTO_MAX_COUNT,
+  ROOM_PHOTO_MAX_SIZE_BYTES,
+  API_ROUTE_PATHS,
 } from "@workspace/api-zod";
+
+// ===================== CONFIGURATION =====================
+
+/** Supabase storage bucket used for listing-room photos. */
+const ROOM_PHOTO_BUCKET = "foto_stanze" as const;
+/** Lifetime of generated signed room-photo URLs (seconds). */
+const ROOM_PHOTO_URL_TTL_SECONDS = 3600 as const;
+/** Maximum university matches retrieved for zone resolution (records). */
+const UNIVERSITY_MATCH_LIMIT = 10 as const;
+/** Cache lifetime used for uploaded room photos (seconds, string required by storage API). */
+const ROOM_PHOTO_CACHE_CONTROL_MAX_AGE_SECONDS = "31536000" as const;
+/** Coordinate change tolerance used when deciding whether to update a listing location (degrees). */
+const COORDINATE_CHANGE_TOLERANCE_DEGREES = 0.000001 as const;
 
 type RoomRow = {
   id: number;
@@ -36,10 +52,6 @@ type RoomRow = {
 };
 
 const router: IRouter = Router();
-const ROOM_PHOTO_BUCKET = "foto_stanze";
-const MAX_ROOM_PHOTO_BYTES = 8 * 1024 * 1024;
-const MAX_ROOM_PHOTOS = 10;
-const ROOM_PHOTO_URL_TTL_SECONDS = 60 * 60;
 
 const isValidRoomPhoto = (file: Buffer, contentType: string): boolean => {
   if (contentType === "image/png") {
@@ -159,7 +171,7 @@ const ROOM_SELECT = `
  * GET /api/listings
  * Returns a list of listings (rooms) with optional filtering.
  */
-router.get("/listings", async (req: Request, res: Response) => {
+router.get(API_ROUTE_PATHS.LISTINGS, async (req: Request, res: Response) => {
   try {
     const query = ListListingsQueryParams.parse(req.query);
 
@@ -174,7 +186,7 @@ router.get("/listings", async (req: Request, res: Response) => {
         .from("universita")
         .select("id, nome, latitudine, longitudine")
         .ilike("nome", `%${query.zone}%`)
-        .limit(10);
+        .limit(UNIVERSITY_MATCH_LIMIT);
       if (uniError) throw uniError;
       const wanted = query.zone.trim().toLowerCase();
       university =
@@ -246,7 +258,7 @@ router.get("/listings", async (req: Request, res: Response) => {
  * GET /api/listings/:id
  * Get a single listing by ID.
  */
-router.get("/listings/:id", async (req: Request, res: Response) => {
+router.get(API_ROUTE_PATHS.LISTING_BY_ID, async (req: Request, res: Response) => {
   try {
     const { id } = GetListingParams.parse({ id: Number(req.params.id) });
 
@@ -296,7 +308,7 @@ router.get("/listings/:id", async (req: Request, res: Response) => {
  * POST /api/listings
  * Create a new listing (requires authentication).
  */
-router.post("/listings", requireAuth, async (req: Request, res: Response) => {
+router.post(API_ROUTE_PATHS.LISTINGS, requireAuth, async (req: Request, res: Response) => {
   try {
     const authedReq = req as typeof req & { userId: string; userEmail?: string };
     const { data: ownerRecord, error: ownerCheckError } = await supabaseAdmin
@@ -452,9 +464,9 @@ router.post("/listings", requireAuth, async (req: Request, res: Response) => {
 });
 
 router.post(
-  "/owner/listings/:id/photos",
+  API_ROUTE_PATHS.OWNER_LISTING_PHOTOS,
   requireAuth,
-  raw({ type: () => true, limit: MAX_ROOM_PHOTO_BYTES }),
+  raw({ type: () => true, limit: ROOM_PHOTO_MAX_SIZE_BYTES }),
   async (req: Request, res: Response) => {
     let uploadedPath: string | null = null;
     try {
@@ -468,7 +480,7 @@ router.post(
         return res.status(400).json({ error: "Only PNG and JPEG images are allowed" });
       }
 
-      if (!Buffer.isBuffer(req.body) || req.body.length === 0 || req.body.length > MAX_ROOM_PHOTO_BYTES) {
+      if (!Buffer.isBuffer(req.body) || req.body.length === 0 || req.body.length > ROOM_PHOTO_MAX_SIZE_BYTES) {
         return res.status(400).json({ error: "Image must be between 1 byte and 8 MB" });
       }
       if (!isValidRoomPhoto(req.body, contentType)) {
@@ -492,8 +504,8 @@ router.post(
         .eq("stanza_id", id);
 
       if (photosError) throw photosError;
-      if ((existingPhotos ?? []).length >= MAX_ROOM_PHOTOS) {
-        return res.status(400).json({ error: `A listing can have at most ${MAX_ROOM_PHOTOS} photos` });
+      if ((existingPhotos ?? []).length >= ROOM_PHOTO_MAX_COUNT) {
+        return res.status(400).json({ error: `A listing can have at most ${ROOM_PHOTO_MAX_COUNT} photos` });
       }
 
       const extension = contentType === "image/png" ? "png" : "jpg";
@@ -502,7 +514,7 @@ router.post(
         .from(ROOM_PHOTO_BUCKET)
         .upload(uploadedPath, req.body, {
           contentType,
-          cacheControl: "31536000",
+          cacheControl: ROOM_PHOTO_CACHE_CONTROL_MAX_AGE_SECONDS,
           upsert: false,
         });
 
@@ -536,7 +548,7 @@ router.post(
 
 // Conversations and messages live in ./chat.ts
 
-router.get("/dashboard/owner", requireAuth, async (req: Request, res: Response) => {
+router.get(API_ROUTE_PATHS.OWNER_DASHBOARD, requireAuth, async (req: Request, res: Response) => {
   // This endpoint also uses mock data; we'll leave it as is for now.
   // TODO: Implement with real data.
   const authedReq = req as typeof req & { userId: string; userEmail?: string };
@@ -554,7 +566,7 @@ router.get("/dashboard/owner", requireAuth, async (req: Request, res: Response) 
 
 // GET /api/owner/listings
 // Get listings for the current owner
-router.get("/owner/listings", requireAuth, async (req: Request, res: Response) => {
+router.get(API_ROUTE_PATHS.OWNER_LISTINGS, requireAuth, async (req: Request, res: Response) => {
   try {
     const authedReq = req as typeof req & { userId: string };
 
@@ -593,7 +605,7 @@ router.get("/owner/listings", requireAuth, async (req: Request, res: Response) =
 
 // GET /api/owner/listings/:id
 // Get a single listing for the current owner (for editing).
-router.get("/owner/listings/:id", requireAuth, async (req: Request, res: Response) => {
+router.get(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
@@ -663,7 +675,7 @@ router.get("/owner/listings/:id", requireAuth, async (req: Request, res: Respons
 
 // POST /api/listings/:id/release
   // Release a room (set stato to disponibile)
-  router.post("/listings/:id/release", requireAuth, async (req: Request, res: Response) => {
+  router.post(API_ROUTE_PATHS.LISTING_RELEASE, requireAuth, async (req: Request, res: Response) => {
     try {
       const id = Number(req.params.id);
       if (!Number.isInteger(id) || id <= 0) {
@@ -715,7 +727,7 @@ router.get("/owner/listings/:id", requireAuth, async (req: Request, res: Respons
 
 // PUT /api/owner/listings/:id
 // Update a listing for the current owner.
-router.put("/owner/listings/:id", requireAuth, async (req: Request, res: Response) => {
+router.put(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
@@ -788,8 +800,10 @@ router.put("/owner/listings/:id", requireAuth, async (req: Request, res: Respons
       !(Number(currentRow.latitudine) === 0 && Number(currentRow.longitudine) === 0);
 
     if (hasCoords) {
-      const latDiff = Math.abs(Number(currentRow.latitudine || 0) - latitude) > 0.000001;
-      const lngDiff = Math.abs(Number(currentRow.longitudine || 0) - longitude) > 0.000001;
+      const latDiff =
+        Math.abs(Number(currentRow.latitudine || 0) - latitude) > COORDINATE_CHANGE_TOLERANCE_DEGREES;
+      const lngDiff =
+        Math.abs(Number(currentRow.longitudine || 0) - longitude) > COORDINATE_CHANGE_TOLERANCE_DEGREES;
       if (latDiff || lngDiff) {
         // Update address-related fields and recompute university
         updateData.indirizzo = address ?? null;

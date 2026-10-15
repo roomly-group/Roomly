@@ -3,8 +3,24 @@ import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { supabaseAuthClient } from "../lib/supabase-auth.js";
 import { loginLimiter, refreshLimiter, signupLimiter } from "../middleware/rateLimit.js";
 import { logger } from "../lib/logger.js";
+import { API_ROUTE_PATHS, CSRF_TOKEN_COOKIE_NAME } from "@workspace/api-zod";
 
 import crypto from 'crypto';
+
+// ===================== CONFIGURATION =====================
+
+/** Cookie key carrying the authenticated access token. */
+const ACCESS_TOKEN_COOKIE_NAME = 'sb-token' as const;
+/** Cookie key carrying the refresh token. */
+const REFRESH_TOKEN_COOKIE_NAME = 'sb-refresh-token' as const;
+/** Path scope shared by authentication and CSRF cookies. */
+const AUTH_COOKIE_PATH = '/' as const;
+/** Access-token cookie lifetime (seconds). */
+const ACCESS_TOKEN_COOKIE_MAX_AGE_SECONDS = 604800 as const;
+/** Refresh-token cookie lifetime (seconds). */
+const REFRESH_TOKEN_COOKIE_MAX_AGE_SECONDS = 2592000 as const;
+/** Random byte length used to create CSRF cookie values (bytes). */
+const CSRF_TOKEN_RANDOM_BYTES = 32 as const;
 
 const router: IRouter = Router();
 
@@ -16,11 +32,11 @@ function setAuthCookie(res: Response, token: string, options: { httpOnly?: boole
     httpOnly: true,
     secure: isProd, // true in production, false in dev
     sameSite: 'lax' as const,
-    maxAge: 60 * 60 * 24 * 7, // 1 week
-    path: '/',
+    maxAge: ACCESS_TOKEN_COOKIE_MAX_AGE_SECONDS, // 1 week
+    path: AUTH_COOKIE_PATH,
   };
   const opts = { ...defaults, ...options };
-  res.cookie('sb-token', token, opts);
+  res.cookie(ACCESS_TOKEN_COOKIE_NAME, token, opts);
 }
 
 // Helper to set the refresh-token cookie. Without this, the frontend never
@@ -33,17 +49,17 @@ function setRefreshCookie(res: Response, refreshToken: string, options: { maxAge
     httpOnly: true,
     secure: isProd,
     sameSite: 'lax' as const,
-    maxAge: 60 * 60 * 24 * 30, // refresh tokens live longer than access tokens
-    path: '/',
+    maxAge: REFRESH_TOKEN_COOKIE_MAX_AGE_SECONDS, // refresh tokens live longer than access tokens
+    path: AUTH_COOKIE_PATH,
   };
   const opts = { ...defaults, ...options };
-  res.cookie('sb-refresh-token', refreshToken, opts);
+  res.cookie(REFRESH_TOKEN_COOKIE_NAME, refreshToken, opts);
 }
 
 function clearAuthCookies(res: Response) {
-  const base = { path: '/', httpOnly: true, secure: isProd, sameSite: 'lax' as const };
-  res.clearCookie('sb-token', base);
-  res.clearCookie('sb-refresh-token', base);
+  const base = { path: AUTH_COOKIE_PATH, httpOnly: true, secure: isProd, sameSite: 'lax' as const };
+  res.clearCookie(ACCESS_TOKEN_COOKIE_NAME, base);
+  res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, base);
 }
 
 // Helper to set the CSRF token cookie (not HttpOnly, so frontend can read it)
@@ -53,15 +69,15 @@ function setCsrfCookie(res: Response, token: string, options: { maxAge?: number 
     httpOnly: false, // Frontend needs to read this cookie
     secure: isProd,
     sameSite: 'strict' as const,
-    maxAge: 60 * 60 * 24 * 7, // 1 week, same as access token
-    path: '/',
+    maxAge: ACCESS_TOKEN_COOKIE_MAX_AGE_SECONDS, // 1 week, same as access token
+    path: AUTH_COOKIE_PATH,
   };
   const opts = { ...defaults, ...options };
-  res.cookie('csrf-token', token, opts);
+  res.cookie(CSRF_TOKEN_COOKIE_NAME, token, opts);
 }
 
 // Login endpoint
-router.post('/login', loginLimiter, async (req: Request, res: Response) => {
+router.post(API_ROUTE_PATHS.LOGIN, loginLimiter, async (req: Request, res: Response) => {
 const { password, captchaToken } = req.body as { password?: string; captchaToken?: string };
   // Trim/lowercase defensively: a leading/trailing space from copy-paste or
   // browser autofill makes Supabase treat it as a different address (or, for
@@ -120,7 +136,7 @@ const { password, captchaToken } = req.body as { password?: string; captchaToken
     );
     setRefreshCookie(res, refresh_token);
     // Set CSRF token cookie
-    const csrfToken = crypto.randomBytes(32).toString('hex');
+    const csrfToken = crypto.randomBytes(CSRF_TOKEN_RANDOM_BYTES).toString('hex');
     setCsrfCookie(res, csrfToken);
 
     // Return session data for frontend to set Supabase client session
@@ -142,9 +158,9 @@ const { password, captchaToken } = req.body as { password?: string; captchaToken
 // Refresh endpoint - called to get a new cookie pair with a genuinely fresh
 // access token, using the stored refresh token (real refresh, not just a
 // cookie re-set of the same access token as before).
-router.post('/refresh', refreshLimiter, async (req: Request, res: Response) => {
+router.post(API_ROUTE_PATHS.REFRESH, refreshLimiter, async (req: Request, res: Response) => {
   // CSRF protection: require custom header to prevent cross-site requests
-  const csrfTokenCookie = req.cookies?.['csrf-token'];
+  const csrfTokenCookie = req.cookies?.[CSRF_TOKEN_COOKIE_NAME];
   const csrfTokenHeader = req.headers['x-csrf-token'];
   if (!csrfTokenCookie || !csrfTokenHeader || csrfTokenCookie !== csrfTokenHeader) {
     return res.status(403).json({ error: 'CSRF token missing or invalid' });
@@ -169,7 +185,7 @@ router.post('/refresh', refreshLimiter, async (req: Request, res: Response) => {
     setAuthCookie(res, access_token);
     setRefreshCookie(res, refresh_token);
     // Set new CSRF token cookie
-    const newCsrfToken = crypto.randomBytes(32).toString('hex');
+    const newCsrfToken = crypto.randomBytes(CSRF_TOKEN_RANDOM_BYTES).toString('hex');
     setCsrfCookie(res, newCsrfToken);
 
     return res.json({ ok: true });
@@ -180,9 +196,9 @@ router.post('/refresh', refreshLimiter, async (req: Request, res: Response) => {
 });
 
 // Verify endpoint - checks if cookie is valid and returns session data
-router.post('/verify', async (req: Request, res: Response) => {
-  const token = req.cookies?.['sb-token'];
-  const refreshToken = req.cookies?.['sb-refresh-token'];
+router.post(API_ROUTE_PATHS.VERIFY, async (req: Request, res: Response) => {
+  const token = req.cookies?.[ACCESS_TOKEN_COOKIE_NAME];
+  const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME];
 
   if (!token) {
     return res.status(401).json({ error: 'No token cookie' });
@@ -242,7 +258,7 @@ router.post('/verify', async (req: Request, res: Response) => {
 });
 
 // Logout endpoint
-router.post('/logout', async (_req: Request, res: Response) => {
+router.post(API_ROUTE_PATHS.LOGOUT, async (_req: Request, res: Response) => {
   try {
     // Invalidate tokens on Supabase side
     await supabaseAuthClient.auth.signOut();
@@ -256,7 +272,7 @@ router.post('/logout', async (_req: Request, res: Response) => {
 });
 
 // Config endpoint - lets frontend know if email confirmation is required
-router.get('/config', (_req: Request, res: Response) => {
+router.get(API_ROUTE_PATHS.AUTH_CONFIG, (_req: Request, res: Response) => {
   res.json({ requireEmailConfirmation: true });
 });
 
@@ -280,7 +296,7 @@ router.get('/config', (_req: Request, res: Response) => {
 // whether the call came through this route or hit Supabase directly with
 // the anon key, like a script such as test.py does. Requires "Enable
 // Captcha protection" to actually be turned on in Supabase; see chat.
-router.post('/register', signupLimiter, async (req: Request, res: Response) => {
+router.post(API_ROUTE_PATHS.REGISTER, signupLimiter, async (req: Request, res: Response) => {
   const { nome, cognome, password, dataNascita, captchaToken } = req.body as {
     nome?: string;
     cognome?: string;
@@ -347,9 +363,9 @@ router.post('/register', signupLimiter, async (req: Request, res: Response) => {
 // Idrata i cookie di sessione da un access_token/refresh_token Supabase
 // ottenuti lato client (es. subito dopo signUp(), o dopo il redirect di
 // conferma email), quando quel flusso non passa da /login.
-router.post('/session', async (req: Request, res: Response) => {
+router.post(API_ROUTE_PATHS.SESSION, async (req: Request, res: Response) => {
   // CSRF protection: require custom header to prevent cross-site requests
-  const csrfTokenCookie = req.cookies?.['csrf-token'];
+  const csrfTokenCookie = req.cookies?.[CSRF_TOKEN_COOKIE_NAME];
   const csrfTokenHeader = req.headers['x-csrf-token'];
   if (!csrfTokenCookie || !csrfTokenHeader || csrfTokenCookie !== csrfTokenHeader) {
     return res.status(403).json({ error: 'CSRF token missing or invalid' });
@@ -370,7 +386,7 @@ router.post('/session', async (req: Request, res: Response) => {
     setAuthCookie(res, access_token);
     setRefreshCookie(res, refresh_token);
     // Set CSRF token cookie
-    const csrfToken = crypto.randomBytes(32).toString('hex');
+    const csrfToken = crypto.randomBytes(CSRF_TOKEN_RANDOM_BYTES).toString('hex');
     setCsrfCookie(res, csrfToken);
     return res.json({ ok: true });
   } catch (error) {

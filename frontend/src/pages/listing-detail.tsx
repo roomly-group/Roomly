@@ -25,11 +25,12 @@ import {
   useStartConversation,
 } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
-import { formatPrice, gradients } from '@/lib/constants';
+import { APP_ROUTES, formatPrice, gradients, LISTING_DETAIL_TEST_IDS } from '@/lib/constants';
 import { AppShell, Avatar } from '@/components/layout/app-shell';
 import { Button } from '@/components/shared/button';
 import { QueryError } from '@/components/shared/query-error';
 import { supabase } from '@/lib/supabase';
+import { MESSAGE_MAX_LENGTH_CHARS } from '@workspace/api-zod';
 
 function Feature({ icon: Icon, label }: { icon: typeof BedDouble; label: string }) {
   return (
@@ -157,7 +158,7 @@ export function ListingDetail() {
           void client.invalidateQueries({ queryKey: getGetListingQueryKey(listingId) });
           setShowContact(false);
           setFirstMessage('');
-          navigate(`/messages/${returnedConversation.id}`);
+          navigate(`${APP_ROUTES.MESSAGES}/${returnedConversation.id}`);
         },
       },
     );
@@ -196,9 +197,9 @@ export function ListingDetail() {
     <AppShell>
       <div className="mx-auto max-w-[1120px] px-5 py-8 lg:px-8 lg:py-12">
         <Link
-          href="/search"
+          href={APP_ROUTES.SEARCH}
           className="mb-6 inline-flex items-center gap-2 text-sm font-black text-[#0F6E56]"
-          data-testid="link-back-search"
+          data-testid={LISTING_DETAIL_TEST_IDS.LINK_BACK_SEARCH}
         >
           <ChevronLeft size={16} /> {t('listingDetail.allRooms')}
         </Link>
@@ -213,7 +214,7 @@ export function ListingDetail() {
                 onClick={() => setSelectedPhotoIndex(Math.max(0, photoUrls.indexOf(listing.coverPhotoUrl!)))}
                 aria-label="View cover photo full screen"
                 className="absolute inset-0 z-0 cursor-zoom-in"
-                data-testid="button-listing-cover-photo"
+                data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_LISTING_COVER_PHOTO}
               >
                 <img src={listing.coverPhotoUrl} alt={listing.title} crossOrigin="anonymous" className="h-full w-full object-cover" />
               </button>
@@ -236,7 +237,7 @@ export function ListingDetail() {
             className={`absolute right-5 top-5 z-20 rounded-full p-3 backdrop-blur ${
               saved ? 'bg-[#0F6E56] text-[#E1F5EE]' : 'bg-[#F1EFE8]/80 text-[#085041]'
             }`}
-            data-testid="button-save-detail"
+            data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_SAVE_DETAIL}
             aria-label={t('common.saveRoom')}
           >
             <Heart size={19} fill={saved ? 'currentColor' : 'none'} />
@@ -247,7 +248,7 @@ export function ListingDetail() {
           <div
             className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-3"
             aria-label={`${listing.title} photos`}
-            data-testid="gallery-listing-photos"
+            data-testid={LISTING_DETAIL_TEST_IDS.GALLERY_LISTING_PHOTOS}
           >
             {photoUrls.map((photoUrl, index) => (
               <button
@@ -256,7 +257,7 @@ export function ListingDetail() {
                 onClick={() => setSelectedPhotoIndex(index)}
                 aria-label={`View photo ${index + 1} full screen`}
                 className="group relative aspect-[4/3] w-[82vw] max-w-[360px] shrink-0 snap-start overflow-hidden rounded-xl bg-[#e1ebe4] sm:w-[320px]"
-                data-testid={`button-listing-photo-${index + 1}`}
+                data-testid={`${LISTING_DETAIL_TEST_IDS.BUTTON_LISTING_PHOTO_PREFIX}${index + 1}`}
               >
                 <img
                   src={photoUrl}
@@ -279,7 +280,7 @@ export function ListingDetail() {
             onClick={(event) => {
               if (event.target === event.currentTarget) setSelectedPhotoIndex(null);
             }}
-            data-testid="lightbox-listing-photo"
+            data-testid={LISTING_DETAIL_TEST_IDS.LIGHTBOX_LISTING_PHOTO}
           >
             <button
               type="button"
@@ -287,7 +288,7 @@ export function ListingDetail() {
               aria-label="Close full-screen photo"
               title="Close"
               className="absolute right-4 top-4 z-10 rounded-full bg-white/10 p-3 text-white transition hover:bg-white/20"
-              data-testid="button-close-photo-lightbox"
+              data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_CLOSE_PHOTO_LIGHTBOX}
             >
               <X size={22} />
             </button>
@@ -299,7 +300,7 @@ export function ListingDetail() {
                 aria-label="Previous photo"
                 title="Previous photo"
                 className="absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white transition hover:bg-white/20 sm:left-6"
-                data-testid="button-previous-photo"
+                data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_PREVIOUS_PHOTO}
               >
                 <ChevronLeft size={24} />
               </button>
@@ -311,7 +312,7 @@ export function ListingDetail() {
                 alt={`${listing.title} ${selectedPhotoIndex + 1}`}
                 crossOrigin="anonymous"
                 className="max-h-[calc(100dvh-7rem)] max-w-[calc(100vw-2rem)] object-contain sm:max-w-[calc(100vw-8rem)]"
-                data-testid="image-photo-lightbox-full"
+                data-testid={LISTING_DETAIL_TEST_IDS.IMAGE_PHOTO_LIGHTBOX_FULL}
               />
               <figcaption className="text-sm font-bold text-white/80">
                 {selectedPhotoIndex + 1} / {photoCount}
@@ -325,7 +326,7 @@ export function ListingDetail() {
                 aria-label="Next photo"
                 title="Next photo"
                 className="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white transition hover:bg-white/20 sm:right-6"
-                data-testid="button-next-photo"
+                data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_NEXT_PHOTO}
               >
                 <ChevronRight size={24} />
               </button>
@@ -392,9 +393,9 @@ export function ListingDetail() {
                     {t('listingDetail.alreadyHaveRoom')}
                   </p>
                   <Link
-                    href={`/messages/${acceptedConversation.id}`}
+                    href={`${APP_ROUTES.MESSAGES}/${acceptedConversation.id}`}
                     className="mt-2 block text-sm font-medium text-[#0F6E56] hover:underline"
-                    data-testid="link-accepted-chat"
+                    data-testid={LISTING_DETAIL_TEST_IDS.LINK_ACCEPTED_CHAT}
                   >
                     {t('listingDetail.goToChat')}
                   </Link>
@@ -407,15 +408,15 @@ export function ListingDetail() {
               )}
               {existingListingConversation && !acceptedConversation && (
                 <Link
-                  href={`/messages/${existingListingConversation.id}`}
+                  href={`${APP_ROUTES.MESSAGES}/${existingListingConversation.id}`}
                   className="mt-4 block text-sm font-bold text-[#0F6E56] hover:underline"
-                  data-testid="link-existing-chat"
+                  data-testid={LISTING_DETAIL_TEST_IDS.LINK_EXISTING_CHAT}
                 >
                   {t('listingDetail.openExistingChat')}
                 </Link>
               )}
               {isOwnListing && (
-                <p className="mt-4 text-sm font-bold text-[#527067]" data-testid="status-own-listing">
+                <p className="mt-4 text-sm font-bold text-[#527067]" data-testid={LISTING_DETAIL_TEST_IDS.STATUS_OWN_LISTING}>
                   {t('listingDetail.cannotMessageSelf')}
                 </p>
               )}
@@ -425,7 +426,7 @@ export function ListingDetail() {
                   onClick={() => setShowContact(true)}
                   aria-label={t('listingDetail.contactOwner')}
                   title={t('listingDetail.contactOwner')}
-                  data-testid="button-contact-owner"
+                  data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_CONTACT_OWNER}
                   disabled={startConversation.isPending || isLoadingConversations}
                   className="mt-4 h-12 w-full min-w-[80px] shrink-0 rounded-xl bg-[#EF9F27] px-4 font-extrabold text-[#2C2C2A] transition-all duration-200 hover:bg-[#e6a53d] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -437,7 +438,7 @@ export function ListingDetail() {
                   type="button"
                   disabled
                   aria-label={t('listingDetail.contactOwner')}
-                  data-testid="button-contact-owner"
+                  data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_CONTACT_OWNER}
                   className="mt-4 h-12 w-full rounded-xl bg-[#EF9F27] px-4 font-extrabold text-[#2C2C2A] opacity-50"
                 >
                   {t('listingDetail.contactOwner')}
@@ -465,7 +466,7 @@ export function ListingDetail() {
                 <button
                   onClick={closeContact}
                   className="rounded-lg p-2 text-[#527067] hover:bg-[#E1F5EE]"
-                  data-testid="button-close-contact"
+                  data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_CLOSE_CONTACT}
                 >
                   <X size={18} />
                 </button>
@@ -481,14 +482,14 @@ export function ListingDetail() {
                   value={firstMessage}
                   onChange={(event) => setFirstMessage(event.target.value)}
                   rows={4}
-                  maxLength={2000}
+                  maxLength={MESSAGE_MAX_LENGTH_CHARS}
                   autoFocus
                   placeholder={t('listingDetail.firstMessagePlaceholder')}
                   className="mt-4 w-full resize-none rounded-xl border border-[#c8ddd2] bg-[#F1EFE8] p-3 text-sm outline-none placeholder:text-[#82978e] focus:border-[#0F6E56]"
-                  data-testid="input-first-message"
+                  data-testid={LISTING_DETAIL_TEST_IDS.INPUT_FIRST_MESSAGE}
                 />
                 {startConversation.isError && (
-                  <p className="mt-2 text-xs font-bold text-[#a74b32]" data-testid="status-contact-error">
+                  <p className="mt-2 text-xs font-bold text-[#a74b32]" data-testid={LISTING_DETAIL_TEST_IDS.STATUS_CONTACT_ERROR}>
                     {getStartConversationErrorMessage()}
                   </p>
                 )}
@@ -496,7 +497,7 @@ export function ListingDetail() {
                   type="submit"
                   className="mt-4 w-full"
                   disabled={!firstMessage.trim() || startConversation.isPending}
-                  data-testid="button-contact-send"
+                  data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_CONTACT_SEND}
                 >
                   <Send size={16} /> {t('listingDetail.sendMessage')}
                 </Button>

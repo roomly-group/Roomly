@@ -8,6 +8,13 @@ import AddressAutocomplete from '@/components/AddressAutocomplete';
 import { customFetch } from '../../local-libs/api-client-react/src/custom-fetch';
 import { useListOwnerListings } from '@/hooks/use-list-owner-listings';
 import { getOwnerListingsQueryKey } from '@/hooks/use-list-owner-listings';
+import {
+  APP_ROUTES,
+  LISTING_FORM_TEST_IDS,
+  LISTING_PRICE_INPUT_PADDING_LEFT_PX,
+  LISTING_PRICE_PLACEHOLDER,
+} from '@/lib/constants';
+import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 
 type ListingForm = {
   title: string;
@@ -66,7 +73,7 @@ export function EditListingPage() {
   const { t } = useLanguage();
   const [, setLocation] = useLocation();
   // wouter v3: useRoute returns a [match, params] tuple.
-  const [, params] = useRoute('/owner/listings/:id/edit');
+  const [, params] = useRoute(APP_ROUTES.OWNER_LISTING_EDIT);
   const listingId = Number(params?.id ?? NaN);
 
   const [listing, setListing] = useState<ListingForm | null>(null);
@@ -108,7 +115,7 @@ export function EditListingPage() {
 
     setLoading(true);
     setError(null);
-    customFetch(`/api/owner/listings/${listingId}`, {
+    customFetch(`${API_BASE_PATH}${API_ROUTE_PATHS.OWNER_LISTINGS}/${listingId}`, {
       method: 'GET',
       credentials: 'include',
     })
@@ -195,7 +202,7 @@ export function EditListingPage() {
       longitude: form.longitude,
     };
 
-    customFetch(`/api/owner/listings/${listingId}`, {
+    customFetch(`${API_BASE_PATH}${API_ROUTE_PATHS.OWNER_LISTINGS}/${listingId}`, {
       method: 'PUT',
       credentials: 'include',
       headers: {
@@ -216,7 +223,7 @@ export function EditListingPage() {
         }
         // Invalidate owner listings and redirect
         refetchOwnerListings();
-        setLocation('/owner');
+        setLocation(APP_ROUTES.OWNER_DASHBOARD);
       })
       .catch((err: unknown) => {
         console.error('Error updating listing:', err);
@@ -250,7 +257,7 @@ export function EditListingPage() {
             description={error}
             action={
               <Link
-                href="/owner"
+                href={APP_ROUTES.OWNER_DASHBOARD}
                 className="inline-flex items-center gap-2 rounded-xl bg-[#EF9F27] px-4 py-2.5 text-sm font-black text-[#2C2C2A] transition hover:bg-[#e6a53d]"
               >
                 <CircleAlert size={17} /> {t('dashboard.addListing')}
@@ -266,9 +273,9 @@ export function EditListingPage() {
     <AppShell>
       <div className="mx-auto max-w-[920px] px-5 py-8 lg:px-8 lg:py-12">
         <Link
-          href="/owner"
+          href={APP_ROUTES.OWNER_DASHBOARD}
           className="mb-6 inline-flex items-center gap-2 text-sm font-black text-[#0F6E56]"
-          data-testid="link-back-owner"
+          data-testid={LISTING_FORM_TEST_IDS.LINK_BACK_OWNER}
         >
           <ChevronLeft size={16} /> {t('newListing.dashboardLink')}
         </Link>
@@ -287,7 +294,7 @@ export function EditListingPage() {
                 onChange={(event) => update('title', event.target.value)}
                 placeholder={t('newListing.titlePlaceholder')}
                 className="form-input"
-                data-testid="input-listing-title"
+                data-testid={LISTING_FORM_TEST_IDS.INPUT_LISTING_TITLE}
               />
             </Field>
 
@@ -314,10 +321,10 @@ export function EditListingPage() {
                   min="1"
                   value={form.price || ''}
                   onChange={(event) => update('price', event.target.value)}
-                  placeholder="720"
+                  placeholder={LISTING_PRICE_PLACEHOLDER}
                   className="form-input"
-                  style={{ paddingLeft: 36 }}
-                  data-testid="input-listing-price"
+                  style={{ paddingLeft: LISTING_PRICE_INPUT_PADDING_LEFT_PX }}
+                  data-testid={LISTING_FORM_TEST_IDS.INPUT_LISTING_PRICE}
                 />
               </div>
             </Field>
@@ -329,7 +336,7 @@ export function EditListingPage() {
                 rows={6}
                 placeholder={t('newListing.detailsPlaceholder')}
                 className="form-input resize-none"
-                data-testid="textarea-listing-description"
+                data-testid={LISTING_FORM_TEST_IDS.TEXTAREA_LISTING_DESCRIPTION}
               />
             </Field>
 
@@ -356,7 +363,7 @@ export function EditListingPage() {
 
             <button
               type="submit"
-              data-testid="button-update-listing"
+              data-testid={LISTING_FORM_TEST_IDS.BUTTON_UPDATE_LISTING}
               className="mt-2 h-12 w-full rounded-xl bg-[#EF9F27] px-6 font-extrabold text-[#2C2C2A] transition-all duration-200 hover:bg-[#e6a53d] active:scale-[0.98]"
             >
               {t('editListing.save')}

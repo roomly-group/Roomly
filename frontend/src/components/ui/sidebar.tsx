@@ -23,12 +23,20 @@ import { cn } from '@/lib/utils';
 import { cva, VariantProps } from 'class-variance-authority';
 import { PanelLeftIcon } from 'lucide-react';
 
-const SIDEBAR_COOKIE_NAME = 'sidebar_state';
-const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
-const SIDEBAR_WIDTH = '16rem';
-const SIDEBAR_WIDTH_MOBILE = '18rem';
-const SIDEBAR_WIDTH_ICON = '3rem';
-const SIDEBAR_KEYBOARD_SHORTCUT = 'b';
+// ===================== CONFIGURATION =====================
+
+/** Cookie key used to persist the sidebar's expanded/collapsed state. */
+const SIDEBAR_COOKIE_NAME = 'sidebar_state' as const;
+/** Lifetime of the sidebar state cookie (seconds). */
+const SIDEBAR_COOKIE_MAX_AGE_SECONDS = 604800 as const;
+/** Expanded sidebar width on desktop (rem). */
+const SIDEBAR_WIDTH_REM = '16rem' as const;
+/** Expanded sidebar width on mobile (rem). */
+const SIDEBAR_MOBILE_WIDTH_REM = '18rem' as const;
+/** Collapsed icon-only sidebar width (rem). */
+const SIDEBAR_ICON_WIDTH_REM = '3rem' as const;
+/** Keyboard key toggling the sidebar with the modifier shortcut. */
+const SIDEBAR_KEYBOARD_SHORTCUT = 'b' as const;
 
 type SidebarContextProps = {
   state: 'expanded' | 'collapsed';
@@ -81,7 +89,7 @@ function SidebarProvider({
       }
 
       // This sets the cookie to keep the sidebar state.
-      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE_SECONDS}`;
     },
     [setOpenProp, open],
   );
@@ -131,8 +139,8 @@ function SidebarProvider({
           data-slot="sidebar-wrapper"
           style={
             {
-              '--sidebar-width': SIDEBAR_WIDTH,
-              '--sidebar-width-icon': SIDEBAR_WIDTH_ICON,
+              '--sidebar-width': SIDEBAR_WIDTH_REM,
+              '--sidebar-width-icon': SIDEBAR_ICON_WIDTH_REM,
               ...style,
             } as React.CSSProperties
           }
@@ -188,7 +196,7 @@ function Sidebar({
           className="bg-sidebar text-sidebar-foreground w-[var(--sidebar-width)] p-0 [&>button]:hidden"
           style={
             {
-              '--sidebar-width': SIDEBAR_WIDTH_MOBILE,
+              '--sidebar-width': SIDEBAR_MOBILE_WIDTH_REM,
             } as React.CSSProperties
           }
           side={side}

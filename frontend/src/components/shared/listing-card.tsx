@@ -3,7 +3,16 @@ import { ArrowRight, Heart, MapPin, Star } from 'lucide-react';
 import { Link } from 'wouter';
 import type { Listing } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
-import { formatPrice, gradients } from '@/lib/constants';
+import { APP_ROUTES, formatPrice, gradients, MAX_PAGE_ENTRY_DELAY_INDEX } from '@/lib/constants';
+
+// ===================== CONFIGURATION =====================
+
+/** Stable test selector prefixes for listing cards and their actions. */
+const LISTING_CARD_TEST_IDS = {
+  CARD_LISTING_PREFIX: 'card-listing-',
+  BUTTON_SAVE_LISTING_PREFIX: 'button-save-listing-',
+  LINK_VIEW_LISTING_PREFIX: 'link-view-listing-',
+} as const;
 
 export function ListingCard({
   listing,
@@ -27,10 +36,10 @@ export function ListingCard({
 
   if (isClickable) {
     return (
-      <Link href={`/listings/${listing.id}`}>
+      <Link href={`${APP_ROUTES.LISTINGS}/${listing.id}`}>
         <article
-          className={`surface page-enter delay-${Math.min(index + 1, 3)} group overflow-hidden rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-md)]`}
-          data-testid={`card-listing-${listing.id}`}
+          className={`surface page-enter delay-${Math.min(index + 1, MAX_PAGE_ENTRY_DELAY_INDEX)} group overflow-hidden rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-md)]`}
+          data-testid={`${LISTING_CARD_TEST_IDS.CARD_LISTING_PREFIX}${listing.id}`}
         >
           <div
             className={`relative flex h-48 items-end bg-gradient-to-br ${gradients[index % gradients.length]} p-4`}
@@ -48,7 +57,7 @@ export function ListingCard({
                   saved ? 'bg-[#0F6E56] text-[#E1F5EE]' : 'bg-[#F1EFE8]/75 text-[#085041] hover:bg-[#F1EFE8]'
                 }`}
                 aria-label={saved ? t('common.removeSavedRoom') : t('common.saveRoom')}
-                data-testid={`button-save-listing-${listing.id}`}
+                data-testid={`${LISTING_CARD_TEST_IDS.BUTTON_SAVE_LISTING_PREFIX}${listing.id}`}
               >
                 <Heart size={17} fill={saved ? 'currentColor' : 'none'} />
               </button>
@@ -89,7 +98,7 @@ export function ListingCard({
               </p>
               <span
                 className="flex items-center gap-1 text-sm font-black text-[#085041] hover:text-[#EF9F27]"
-                data-testid={`link-view-listing-${listing.id}`}
+                data-testid={`${LISTING_CARD_TEST_IDS.LINK_VIEW_LISTING_PREFIX}${listing.id}`}
               >
                 {t('common.viewRoom')}{' '}
                 <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />
@@ -103,8 +112,8 @@ export function ListingCard({
 
   return (
     <article
-      className={`surface page-enter delay-${Math.min(index + 1, 3)} group overflow-hidden rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-md)]`}
-      data-testid={`card-listing-${listing.id}`}
+      className={`surface page-enter delay-${Math.min(index + 1, MAX_PAGE_ENTRY_DELAY_INDEX)} group overflow-hidden rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-md)]`}
+      data-testid={`${LISTING_CARD_TEST_IDS.CARD_LISTING_PREFIX}${listing.id}`}
     >
       <div
         className={`relative flex h-48 items-end bg-gradient-to-br ${gradients[index % gradients.length]} p-4`}
@@ -122,7 +131,7 @@ export function ListingCard({
               saved ? 'bg-[#0F6E56] text-[#E1F5EE]' : 'bg-[#F1EFE8]/75 text-[#085041] hover:bg-[#F1EFE8]'
             }`}
             aria-label={saved ? t('common.removeSavedRoom') : t('common.saveRoom')}
-            data-testid={`button-save-listing-${listing.id}`}
+            data-testid={`${LISTING_CARD_TEST_IDS.BUTTON_SAVE_LISTING_PREFIX}${listing.id}`}
           >
             <Heart size={17} fill={saved ? 'currentColor' : 'none'} />
           </button>
@@ -162,9 +171,9 @@ export function ListingCard({
             <span className="text-xs font-bold text-[#527067]">{t('common.perMonth')}</span>
           </p>
           <Link
-            href={`/listings/${listing.id}`}
+            href={`${APP_ROUTES.LISTINGS}/${listing.id}`}
             className="flex items-center gap-1 text-sm font-black text-[#085041] hover:text-[#EF9F27]"
-            data-testid={`link-view-listing-${listing.id}`}
+            data-testid={`${LISTING_CARD_TEST_IDS.LINK_VIEW_LISTING_PREFIX}${listing.id}`}
           >
             {t('common.viewRoom')}{' '}
             <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />
