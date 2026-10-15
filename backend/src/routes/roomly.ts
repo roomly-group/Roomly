@@ -210,7 +210,10 @@ router.get(API_ROUTE_PATHS.LISTINGS, async (req: Request, res: Response) => {
     if (query.maxPrice !== undefined) {
       dbQuery = dbQuery.lte("prezzo", query.maxPrice);
     }
-    // TODO: filtro `furnished` (non è una colonna: si ricava da `servizi`).
+    // `furnished` non è una colonna: si ricava da `servizi`, quindi si filtra
+    // dopo la mappatura. Si confronta la stringa grezza perché z.coerce.boolean()
+    // trasforma anche "false" in true.
+    const furnishedOnly = String(req.query.furnished) === "true";
 
     dbQuery = dbQuery.eq("attiva", true).eq("stato", "disponibile");
 
@@ -262,6 +265,8 @@ router.get(API_ROUTE_PATHS.LISTINGS, async (req: Request, res: Response) => {
         (listing) => !query.zone || listing.zone.toLowerCase().includes(query.zone.toLowerCase()),
       );
     }
+
+    if (furnishedOnly) listings = listings.filter((listing) => listing.furnished);
 
     return res.json(ListListingsResponse.parse(listings));
   } catch (error) {
@@ -838,9 +843,9 @@ router.put(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
               longitude,
               (universities as unknown as UniversityPoint[]),
             );
-            if (match) {
-              updateData.universita_id = match.university.id;
-            }
+            // Nessuna università nel raggio: si scollega quella vecchia, altrimenti
+            // la stanza continuerebbe a comparire nelle ricerche di quella zona.
+            updateData.universita_id = match ? match.university.id : null;
           }
         }
       }

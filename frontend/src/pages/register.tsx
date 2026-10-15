@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { clearRoleCache } from '@/lib/role-cache';
+import { clearAccountCache } from '@/lib/account-cache';
 import { Link, useLocation } from 'wouter';
 import { Sparkles, Mail, Lock, User, EyeOff, Eye, Calendar } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
@@ -140,6 +141,7 @@ export function RegisterPage() {
         const { error: setSessionError } = await supabase.auth.setSession(session);
         if (setSessionError) throw setSessionError;
         clearRoleCache();
+        clearAccountCache();
 
         setLocation(await postAuthRoute(body.user));
         return;

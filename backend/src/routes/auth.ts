@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
-import { supabaseAuthClient } from "../lib/supabase-auth.js";
+import { createRequestAuthClient, supabaseAuthClient } from "../lib/supabase-auth.js";
 import { loginLimiter, refreshLimiter, signupLimiter } from "../middleware/rateLimit.js";
 import { logger } from "../lib/logger.js";
 import { API_ROUTE_PATHS, CSRF_TOKEN_COOKIE_NAME } from "@workspace/api-zod";
@@ -26,13 +26,21 @@ const router: IRouter = Router();
 
 const isProd = process.env.NODE_ENV === "production";
 
+// Express's res.cookie() takes `maxAge` in MILLISECONDS. Passing the *_SECONDS
+// constants directly made the session cookies expire ~1000x too early
+// (access ≈ 10 min, refresh ≈ 43 min, the one set at login ≈ 3.6 s).
+const secondsToMs = (seconds: number) => seconds * 1000;
+
+// Remaining lifetime of a Supabase session (`expires_at` is in epoch seconds), in ms.
+const msUntil = (expiresAtSeconds: number) => Math.max(0, expiresAtSeconds * 1000 - Date.now());
+
 // Helper to set the access-token cookie
 function setAuthCookie(res: Response, token: string, options: { httpOnly?: boolean; secure?: boolean; sameSite?: 'strict' | 'lax' | 'none'; maxAge?: number } = {}) {
   const defaults = {
     httpOnly: true,
     secure: isProd, // true in production, false in dev
     sameSite: 'lax' as const,
-    maxAge: ACCESS_TOKEN_COOKIE_MAX_AGE_SECONDS, // 1 week
+    maxAge: secondsToMs(ACCESS_TOKEN_COOKIE_MAX_AGE_SECONDS), // 1 week
     path: AUTH_COOKIE_PATH,
   };
   const opts = { ...defaults, ...options };
@@ -49,7 +57,7 @@ function setRefreshCookie(res: Response, refreshToken: string, options: { maxAge
     httpOnly: true,
     secure: isProd,
     sameSite: 'lax' as const,
-    maxAge: REFRESH_TOKEN_COOKIE_MAX_AGE_SECONDS, // refresh tokens live longer than access tokens
+    maxAge: secondsToMs(REFRESH_TOKEN_COOKIE_MAX_AGE_SECONDS), // refresh tokens live longer than access tokens
     path: AUTH_COOKIE_PATH,
   };
   const opts = { ...defaults, ...options };
@@ -69,7 +77,7 @@ function setCsrfCookie(res: Response, token: string, options: { maxAge?: number 
     httpOnly: false, // Frontend needs to read this cookie
     secure: isProd,
     sameSite: 'strict' as const,
-    maxAge: ACCESS_TOKEN_COOKIE_MAX_AGE_SECONDS, // 1 week, same as access token
+    maxAge: secondsToMs(ACCESS_TOKEN_COOKIE_MAX_AGE_SECONDS), // 1 week, same as access token
     path: AUTH_COOKIE_PATH,
   };
   const opts = { ...defaults, ...options };
@@ -132,7 +140,7 @@ const { password, captchaToken } = req.body as { password?: string; captchaToken
 
     // Set HTTP-only cookies with the access token and refresh token
     setAuthCookie(res, access_token,
-      expires_at ? { maxAge: Math.floor((new Date(expires_at * 1000).getTime() - Date.now()) / 1000) } : {}
+      expires_at ? { maxAge: msUntil(expires_at) } : {}
     );
     setRefreshCookie(res, refresh_token);
     // Set CSRF token cookie
@@ -200,17 +208,46 @@ router.post(API_ROUTE_PATHS.VERIFY, async (req: Request, res: Response) => {
   const token = req.cookies?.[ACCESS_TOKEN_COOKIE_NAME];
   const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME];
 
-  if (!token) {
+  if (!token && !refreshToken) {
     return res.status(401).json({ error: 'No token cookie' });
   }
 
   try {
     // Validate the token with Supabase admin (only gets user data)
-    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+    const { data: userData, error: userError } = token
+      ? await supabaseAdmin.auth.getUser(token)
+      : { data: null, error: null };
 
-    // Check if userData is valid and contains user information
-    if (userError || !userData || typeof userData !== 'object' || !userData.user) {
-      return res.status(401).json({ error: 'Invalid or expired token' });
+    // Access token missing or expired (e.g. the tab was closed for more than an
+    // hour): mint a new session from the refresh cookie instead of logging the
+    // user out while their refresh token is still valid.
+    if (!token || userError || !userData || typeof userData !== 'object' || !userData.user) {
+      if (!refreshToken) {
+        return res.status(401).json({ error: 'Invalid or expired token' });
+      }
+      const { data: refreshed, error: refreshError } = await createRequestAuthClient().auth.refreshSession({
+        refresh_token: refreshToken,
+      });
+      if (refreshError || !refreshed.session || !refreshed.user) {
+        clearAuthCookies(res);
+        return res.status(401).json({ error: 'Invalid or expired token' });
+      }
+
+      const { access_token, refresh_token, expires_at } = refreshed.session;
+      setAuthCookie(res, access_token, expires_at ? { maxAge: msUntil(expires_at) } : {});
+      setRefreshCookie(res, refresh_token);
+      setCsrfCookie(res, crypto.randomBytes(CSRF_TOKEN_RANDOM_BYTES).toString('hex'));
+      return res.json({
+        session: {
+          access_token,
+          refresh_token,
+          expires_at: expires_at ? expires_at * 1000 : undefined, // Convert seconds to milliseconds
+          user: {
+            id: refreshed.user.id,
+            email: refreshed.user.email,
+          },
+        },
+      });
     }
 
     // Decode JWT token to get expiration time
@@ -258,14 +295,21 @@ router.post(API_ROUTE_PATHS.VERIFY, async (req: Request, res: Response) => {
 });
 
 // Logout endpoint
-router.post(API_ROUTE_PATHS.LOGOUT, async (_req: Request, res: Response) => {
-  try {
-    // Invalidate tokens on Supabase side
-    await supabaseAuthClient.auth.signOut();
-  } catch (error) {
-    // Log the error but continue with cookie clearance
-    // We still want to clear cookies even if signOut fails
-    console.error('Error during signOut:', error);
+router.post(API_ROUTE_PATHS.LOGOUT, async (req: Request, res: Response) => {
+  const token = req.cookies?.[ACCESS_TOKEN_COOKIE_NAME];
+  if (token) {
+    try {
+      // Revoke only the caller's session, identified by their own access token.
+      // Never call signOut() on supabaseAuthClient: it is shared by the whole
+      // process and holds whichever user logged in last, so it signed out
+      // somebody else instead of the caller.
+      const { error } = await supabaseAdmin.auth.admin.signOut(token, 'local');
+      if (error) console.error('Error during signOut:', error);
+    } catch (error) {
+      // Log the error but continue with cookie clearance
+      // We still want to clear cookies even if signOut fails
+      console.error('Error during signOut:', error);
+    }
   }
   clearAuthCookies(res);
   res.json({ ok: true });
@@ -343,7 +387,7 @@ router.post(API_ROUTE_PATHS.REGISTER, signupLimiter, async (req: Request, res: R
       const { access_token, refresh_token, user, expires_at } = data.session;
 
       setAuthCookie(res, access_token,
-        expires_at ? { maxAge: Math.floor((new Date(expires_at * 1000).getTime() - Date.now()) / 1000) } : {}
+        expires_at ? { maxAge: msUntil(expires_at) } : {}
       );
       setRefreshCookie(res, refresh_token);
 

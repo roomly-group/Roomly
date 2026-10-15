@@ -110,6 +110,20 @@ const toConversation = (row: ConversationRow, userId: string, unreadCount: numbe
   };
 };
 
+// Una singola chat nel formato di GET /conversations, con l'ULTIMO messaggio
+// come anteprima (senza order/limit PostgREST restituiva il primo).
+async function conversationResponseFor(conversationId: number, userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("conversazioni")
+    .select(CONVERSATION_SELECT)
+    .eq("id", conversationId)
+    .order("created_at", { referencedTable: "messaggi", ascending: false })
+    .limit(1, { referencedTable: "messaggi" })
+    .single();
+  if (error) throw error;
+  return toConversation(data as unknown as ConversationRow, userId, 0);
+}
+
 const toMessage = (row: MessageRow, ownerId: string | undefined) => ({
   id: row.id,
   conversationId: row.conversazione_id,
@@ -253,6 +267,24 @@ router.post(API_ROUTE_PATHS.CONVERSATIONS, requireAuth, messageLimiter, async (r
     if (room.proprietario_id === userId) {
       return res.status(400).json({ error: "Non puoi scrivere a te stesso" });
     }
+    // Chat già esistente tra questo studente e questa stanza: la si restituisce
+    // (senza nuovo messaggio) PRIMA dei controlli sulle nuove richieste,
+    // altrimenti chi ha già una chat aperta su una stanza "piena" o già
+    // accettata riceveva un 409 invece della propria chat.
+    const { data: existingChat, error: existingError } = await supabaseAdmin
+      .from("conversazioni")
+      .select("id")
+      .eq("stanza_id", listingId)
+      .eq("studente_id", userId)
+      .maybeSingle();
+    if (existingError) throw existingError;
+    if (existingChat) {
+      await ensureConversationParticipants(existingChat.id, userId, room.proprietario_id);
+      return res
+        .status(200)
+        .json(ListConversationsResponse.parse([await conversationResponseFor(existingChat.id, userId)]));
+    }
+
     // Check if room is not disponibile
     if (room.stato !== "disponibile") {
       return res.status(409).json({ error: "Room not available" });
@@ -261,9 +293,10 @@ router.post(API_ROUTE_PATHS.CONVERSATIONS, requireAuth, messageLimiter, async (r
     // Check if student already has an accettata chat (any room)
     const { data: acceptedChats, error: acceptedError } = await supabaseAdmin
       .from("conversazioni")
-      .select("id, stanza_id")
+      .select("id")
       .eq("studente_id", userId)
-      .eq("stato_richiesta", "accettata");
+      .eq("stato_richiesta", "accettata")
+      .limit(1);
     if (acceptedError) throw acceptedError;
     if (acceptedChats && acceptedChats.length > 0) {
       return res.status(409).json({ error: "Student already has an accepted chat" });
@@ -272,7 +305,7 @@ router.post(API_ROUTE_PATHS.CONVERSATIONS, requireAuth, messageLimiter, async (r
     // Check if room has more than MAX_PENDING_REQUESTS_PER_ROOM chats with stato_richiesta = 'in_attesa'
     const { count, error: countError } = await supabaseAdmin
       .from("conversazioni")
-      .select("id", { count: "exact" })
+      .select("id", { count: "exact", head: true })
       .eq("stanza_id", listingId)
       .eq("stato_richiesta", "in_attesa");
     if (countError) throw countError;
@@ -280,148 +313,11 @@ router.post(API_ROUTE_PATHS.CONVERSATIONS, requireAuth, messageLimiter, async (r
       return res.status(409).json({ error: "Too many pending requests for this room" });
     }
 
-    // Find existing chat between this student and this room
-    const { data: existingChat, error: existingError } = await supabaseAdmin
-      .from("conversazioni")
-      .select("id, stato_richiesta, stanza:stanza_id(stato)")
-      .eq("stanza_id", listingId)
-      .eq("studente_id", userId)
-      .maybeSingle();
-    if (existingError) throw existingError;
-    if (existingChat) {
-      await ensureConversationParticipants(existingChat.id, userId, room.proprietario_id);
-      // If existing chat is rifiutata or annullata, return it unchanged with no new message
-      if (existingChat.stato_richiesta === "rifiutata" || existingChat.stato_richiesta === "annullata") {
-        // Return the existing conversation without creating a new message
-        // We need to return conversation data similar to GET /conversations response
-        // For now, we just return the conversationId and let the client fetch details?
-        // But we should return the conversation object with the new fields.
-        // We'll fetch the conversation details to return.
-        const convId = existingChat.id;
-        // We'll load the conversation for the user to return the same format as GET /conversations
-        const found = await loadConversationFor(convId, userId);
-        if (found.status !== 200) {
-          // This should not happen, but if it does, return 404
-          return res.status(404).json({ error: "Conversation not found" });
-        }
-        // We need to map the conversation to the response format.
-        // We'll reuse the toConversation function but we need to pass the userId and unread count.
-        // For simplicity, we'll return a basic object with the new fields.
-        // However, to keep changes minimal, we'll just return the conversationId and let the client handle it.
-        // But the user expects the response to gain new fields.
-        // We'll update the response to include the new fields.
-        // We'll compute the response similar to GET /conversations.
-        // We'll need to get the participant, listingTitle, preview, unread, updatedAt, role.
-        // Let's call a helper function to build the conversation response.
-        // We'll create a temporary function or reuse existing logic.
-        // Since we are already in the file, we can use the toConversation function but we need the row and unread count.
-        // We'll fetch the conversation row again with the necessary data.
-        const { data: convRow, error: convError } = await supabaseAdmin
-          .from("conversazioni")
-          .select(`
-            id,
-            stanza_id,
-            updated_at,
-            stato_richiesta,
-            stanza:stanza_id(titolo, proprietario_id, stato),
-            partecipanti:conversazioni_utenti(utente_id, utente:utente_id(nome_utente, nome, cognome)),
-            messaggi(testo, mittente_id, created_at)
-          `)
-          .eq("id", convId)
-          .single();
-        if (convError) throw convError;
-        const row = convRow as unknown as {
-          id: number;
-          stanza_id: number;
-          updated_at: string;
-          stato_richiesta: string;
-          stanza: { titolo?: string | null; proprietario_id: string; stato: string } | null;
-          partecipanti: { utente_id: string; utente: { nome_utente?: string | null; nome?: string | null; cognome?: string | null } | null }[] | null;
-          messaggi: { testo: string; mittente_id: string; created_at: string }[] | null;
-        };
-        const other = (row.partecipanti ?? []).find((p) => p.utente_id !== userId);
-        const last = row.messaggi?.[0];
-        const preview = last?.testo ?? "";
-        const trimmedPreview =
-          preview.length > MESSAGE_PREVIEW_LENGTH_CHARS
-            ? `${preview.slice(0, MESSAGE_PREVIEW_LENGTH_CHARS - 1)}…`
-            : preview;
-        const unreadCount = 0; // We don't compute unread here for simplicity, but we should.
-        // We'll compute unread by checking messages from the other party not read.
-        // For now, we set to 0.
-        const conversationResponse = {
-          id: row.id,
-          participant: displayName(other?.utente),
-          listingTitle: row.stanza?.titolo ?? "",
-          preview: trimmedPreview,
-          unread: unreadCount > 0,
-          updatedAt: last?.created_at ?? row.updated_at,
-          role: roleOf(row, userId),
-          requestStatus: existingChat.stato_richiesta,
-          roomId: row.stanza_id,
-          roomStatus: (row.stanza as { stato?: string | null } | null)?.stato ?? "disponibile",
-        };
-        return res.status(200).json(ListConversationsResponse.parse([conversationResponse]));
-      }
-      // If existing chat is in_attesa or accettata, we just return the existing chat without new message.
-      // But accettata should have been caught above.
-      // We'll return the existing conversation details.
-      const convId = existingChat.id;
-      const found = await loadConversationFor(convId, userId);
-      if (found.status !== 200) {
-        return res.status(404).json({ error: "Conversation not found" });
-      }
-      const { data: convRow, error: convError } = await supabaseAdmin
-        .from("conversazioni")
-        .select(`
-          id,
-          stanza_id,
-          updated_at,
-          stato_richiesta,
-          stanza:stanza_id(titolo, proprietario_id, stato),
-          partecipanti:conversazioni_utenti(utente_id, utente:utente_id(nome_utente, nome, cognome)),
-          messaggi(testo, mittente_id, created_at)
-        `)
-        .eq("id", convId)
-        .single();
-      if (convError) throw convError;
-      const row = convRow as unknown as {
-        id: number;
-        stanza_id: number;
-        updated_at: string;
-        stato_richiesta: string;
-        stanza: { titolo?: string | null; proprietario_id: string; stato: string } | null;
-        partecipanti: { utente_id: string; utente: { nome_utente?: string | null; nome?: string | null; cognome?: string | null } | null }[] | null;
-        messaggi: { testo: string; mittente_id: string; created_at: string }[] | null;
-      };
-      const other = (row.partecipanti ?? []).find((p) => p.utente_id !== userId);
-      const last = row.messaggi?.[0];
-      const preview = last?.testo ?? "";
-      const trimmedPreview =
-        preview.length > MESSAGE_PREVIEW_LENGTH_CHARS
-          ? `${preview.slice(0, MESSAGE_PREVIEW_LENGTH_CHARS - 1)}…`
-          : preview;
-      const unreadCount = 0; // TODO: compute unread
-      const conversationResponse = {
-        id: row.id,
-        participant: displayName(other?.utente),
-        listingTitle: row.stanza?.titolo ?? "",
-        preview: trimmedPreview,
-        unread: unreadCount > 0,
-        updatedAt: last?.created_at ?? row.updated_at,
-        role: roleOf(row, userId),
-        requestStatus: existingChat.stato_richiesta,
-        roomId: row.stanza_id,
-        roomStatus: (row.stanza as { stato?: string | null } | null)?.stato ?? "disponibile",
-      };
-      return res.status(200).json(ListConversationsResponse.parse([conversationResponse]));
-    }
-
     // No existing chat, create a new one
     const { data: created, error: createError } = await supabaseAdmin
       .from("conversazioni")
       .insert({ stanza_id: listingId, studente_id: userId, stato_richiesta: "in_attesa" })
-      .select("id, stato_richiesta, stanza_id")
+      .select("id")
       .single();
 
     if (createError) {
@@ -430,114 +326,25 @@ router.post(API_ROUTE_PATHS.CONVERSATIONS, requireAuth, messageLimiter, async (r
       if ((createError as { code?: string }).code !== "23505") throw createError;
       const { data: existing, error: existingError2 } = await supabaseAdmin
         .from("conversazioni")
-        .select("id, stato_richiesta, stanza_id")
+        .select("id")
         .eq("stanza_id", listingId)
         .eq("studente_id", userId)
         .single();
       if (existingError2) throw existingError2;
       if (!existing) throw createError;
       await ensureConversationParticipants(existing.id, userId, room.proprietario_id);
-      // Return the existing conversation (should be in_attesa)
-      const convId = existing.id;
-      const found = await loadConversationFor(convId, userId);
-      if (found.status !== 200) {
-        return res.status(404).json({ error: "Conversation not found" });
-      }
-      const { data: convRow, error: convError } = await supabaseAdmin
-        .from("conversazioni")
-        .select(`
-          id,
-          stanza_id,
-          updated_at,
-          stato_richiesta,
-          stanza:stanza_id(titolo, proprietario_id, stato),
-          partecipanti:conversazioni_utenti(utente_id, utente:utente_id(nome_utente, nome, cognome)),
-          messaggi(testo, mittente_id, created_at)
-        `)
-        .eq("id", convId)
-        .single();
-      if (convError) throw convError;
-      const row = convRow as unknown as {
-        id: number;
-        stanza_id: number;
-        updated_at: string;
-        stato_richiesta: string;
-        stanza: { titolo?: string | null; proprietario_id: string; stato: string } | null;
-        partecipanti: { utente_id: string; utente: { nome_utente?: string | null; nome?: string | null; cognome?: string | null } | null }[] | null;
-        messaggi: { testo: string; mittente_id: string; created_at: string }[] | null;
-      };
-      const other = (row.partecipanti ?? []).find((p) => p.utente_id !== userId);
-      const last = row.messaggi?.[0];
-      const preview = last?.testo ?? "";
-      const trimmedPreview =
-        preview.length > MESSAGE_PREVIEW_LENGTH_CHARS
-          ? `${preview.slice(0, MESSAGE_PREVIEW_LENGTH_CHARS - 1)}…`
-          : preview;
-      const unreadCount = 0; // TODO: compute unread
-      const conversationResponse = {
-        id: row.id,
-        participant: displayName(other?.utente),
-        listingTitle: row.stanza?.titolo ?? "",
-        preview: trimmedPreview,
-        unread: unreadCount > 0,
-        updatedAt: last?.created_at ?? row.updated_at,
-        role: roleOf(row, userId),
-        requestStatus: existing.stato_richiesta,
-        roomId: existing.stanza_id,
-        roomStatus: (row.stanza as { stato?: string | null } | null)?.stato ?? "disponibile",
-      };
-      return res.status(200).json(ListConversationsResponse.parse([conversationResponse]));
+      return res
+        .status(200)
+        .json(ListConversationsResponse.parse([await conversationResponseFor(existing.id, userId)]));
     }
 
-    let conversationId = created.id as number;
+    const conversationId = created.id as number;
     await ensureConversationParticipants(conversationId, userId, room.proprietario_id);
     await insertMessage(conversationId, userId, body);
 
-    // Return the created conversation with the new fields
-    const { data: convRow, error: convError } = await supabaseAdmin
-      .from("conversazioni")
-      .select(`
-        id,
-        stanza_id,
-        updated_at,
-        stato_richiesta,
-        stanza:stanza_id(titolo, proprietario_id, stato),
-        partecipanti:conversazioni_utenti(utente_id, utente:utente_id(nome_utente, nome, cognome)),
-        messaggi(testo, mittente_id, created_at)
-      `)
-      .eq("id", conversationId)
-      .single();
-    if (convError) throw convError;
-    const row = convRow as unknown as {
-      id: number;
-      stanza_id: number;
-      updated_at: string;
-      stato_richiesta: string;
-      stanza: { titolo?: string | null; proprietario_id: string; stato: string } | null;
-      partecipanti: { utente_id: string; utente: { nome_utente?: string | null; nome?: string | null; cognome?: string | null } | null }[] | null;
-      messaggi: { testo: string; mittente_id: string; created_at: string }[] | null;
-    };
-    const other = (row.partecipanti ?? []).find((p) => p.utente_id !== userId);
-    const last = row.messaggi?.[0];
-    const preview = last?.testo ?? "";
-    const trimmedPreview =
-      preview.length > MESSAGE_PREVIEW_LENGTH_CHARS
-        ? `${preview.slice(0, MESSAGE_PREVIEW_LENGTH_CHARS - 1)}…`
-        : preview;
-    const unreadCount = 0; // TODO: compute unread
-    const conversationResponse = {
-      id: row.id,
-      participant: displayName(other?.utente),
-      listingTitle: row.stanza?.titolo ?? "",
-      preview: trimmedPreview,
-      unread: unreadCount > 0,
-      updatedAt: last?.created_at ?? row.updated_at,
-      role: roleOf(row, userId),
-      requestStatus: created.stato_richiesta,
-      roomId: created.stanza_id,
-      roomStatus: (row.stanza as { stato?: string | null } | null)?.stato ?? "disponibile",
-    };
-    return res.status(201).json(ListConversationsResponse.parse([conversationResponse]));
+    return res
+      .status(201)
+      .json(ListConversationsResponse.parse([await conversationResponseFor(conversationId, userId)]));
   } catch (error) {
     return serverError(res, "Error starting conversation:", error);
   }

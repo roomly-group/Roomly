@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Redirect } from 'wouter';
 import { supabase } from '@/lib/supabase';
-import { peekRoleCache } from '@/lib/role-cache';
+import { peekLastKnownRole, peekRoleCache } from '@/lib/role-cache';
 import NotFound from '@/pages/not-found';
 import { useLanguage } from '@/lib/i18n';
 import { APP_ROUTES } from '@/lib/constants';
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {
-  // Se il ruolo è già in cache l'utente è autenticato: niente schermata di caricamento.
-  const known = peekRoleCache() !== null;
+  // Se il ruolo è già noto l'utente è autenticato: niente schermata di caricamento.
+  // (Il ruolo salvato viene cancellato da main.tsx se all'avvio non c'è più sessione.)
+  const [known] = useState(() => (peekRoleCache() ?? peekLastKnownRole()) !== null);
   const [loading, setLoading] = useState(!known);
   const [authenticated, setAuthenticated] = useState(known);
   const { t } = useLanguage();

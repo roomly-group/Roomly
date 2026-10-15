@@ -38,3 +38,14 @@ export const supabaseAuthClient = createClient(supabaseUrl, anonKey, {
     persistSession: false,
   },
 });
+
+// Fresh client for a single request (e.g. refreshSession from a cookie): the
+// session it ends up holding is never shared with other users' requests.
+export function createRequestAuthClient() {
+  return createClient(supabaseUrl!, anonKey!, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}

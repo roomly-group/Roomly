@@ -1,12 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Settings, ShieldCheck } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { AppShell, Avatar } from '@/components/layout/app-shell';
 import { PageIntro } from '@/components/shared/page-intro';
 import { LanguageSetting } from '@/components/language-selector';
 import { Skeleton } from '@/components/ui/skeleton';
-import { supabase } from '@/lib/supabase';
-import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
+import { useAccount } from '@/lib/account-cache';
 
 // ===================== CONFIGURATION =====================
 
@@ -29,47 +28,11 @@ function InfoRow({ label, value, loading }: { label: string; value: string; load
   );
 }
 
-type RealProfile = {
-  nome: string;
-  cognome: string;
-  full_name: string;
-  email: string;
-  posizione: number;
-};
-
 export function ProfilePage({ owner = false }: { owner?: boolean }) {
   const { t } = useLanguage();
   const [editing, setEditing] = useState(false);
-  const [profile, setProfile] = useState<RealProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchProfile() {
-      try {
-        const { data } = await supabase.auth.getSession();
-        if (!data.session) {
-          setLoading(false);
-          return;
-        }
-
-        const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.ME}`, {
-          // No Authorization header needed - relying on HttpOnly cookie
-          credentials: 'include',
-        });
-
-        if (response.ok) {
-          const json = await response.json();
-          setProfile(json);
-        }
-      } catch (error) {
-        console.error('Failed to fetch profile:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchProfile();
-  }, []);
+  // Same shared /api/me cache as the header: shown instantly after the first load.
+  const { account: profile, loading } = useAccount();
 
   const displayName = profile?.full_name?.trim() || profile?.email || 'Utente';
 
@@ -136,7 +99,7 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
                 <InfoRow label="Cognome" value={profile?.cognome || '—'} loading={loading} />
                 <InfoRow
                   label="Posizione in waitlist"
-                  value={profile ? `#${profile.posizione}` : '—'}
+                  value={profile?.posizione != null ? `#${profile.posizione}` : '—'}
                   loading={loading}
                 />
               </div>

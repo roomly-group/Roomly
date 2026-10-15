@@ -239,7 +239,7 @@ export function EditListingPage() {
       <AppShell>
         <div className="mx-auto max-w-[920px] px-5 py-8 lg:px-8 lg:py-12">
           <PageIntro
-            eyebrow={t('newListing.eyebrow')}
+            eyebrow={t('nav.dashboard')}
             title={t('editListing.title')}
             description={error}
             action={
@@ -247,7 +247,7 @@ export function EditListingPage() {
                 href={APP_ROUTES.OWNER_DASHBOARD}
                 className="inline-flex items-center gap-2 rounded-xl bg-[#EF9F27] px-4 py-2.5 text-sm font-black text-[#2C2C2A] transition hover:bg-[#e6a53d]"
               >
-                <CircleAlert size={17} /> {t('dashboard.addListing')}
+                <ChevronLeft size={17} /> {t('newListing.dashboardLink')}
               </Link>
             }
           />
@@ -268,7 +268,7 @@ export function EditListingPage() {
         </Link>
 
         <PageIntro
-          eyebrow={t('newListing.eyebrow')}
+          eyebrow={t('nav.dashboard')}
           title={t('editListing.title')}
           description={t('newListing.description')}
         />

@@ -152,6 +152,7 @@ router.get(API_ROUTE_PATHS.ME, requireAuth, async (req: AuthenticatedRequest, re
       cognome: created.cognome,
       email: created.email,
       posizione: created.posizione,
+      lingua: created.lingua,
       data_nascita: created.data_nascita,
       full_name: `${created.nome ?? ""} ${created.cognome ?? ""}`.trim(),
     });

@@ -16,8 +16,8 @@ import { ProfileMenu } from '@/components/layout/profile-menu';
 import { supabase } from '@/lib/supabase';
 import { getRoleInfo } from '@/lib/auth-role';
 import { peekLastKnownRole, peekRoleCache } from '@/lib/role-cache';
+import { useAccount } from '@/lib/account-cache';
 import { APP_ROUTES, SHARED_TEST_IDS, WAITLIST_FALLBACK_POSITION } from '@/lib/constants';
-import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 
 // ===================== CONFIGURATION =====================
 
@@ -93,8 +93,9 @@ export function Navbar() {
   const { t } = useLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { isAdmin, isOwner } = useRoleFlags();
-  const [position, setPosition] = useState<number | null>(null);
-  const [positionLoading, setPositionLoading] = useState(true);
+  // Waitlist position comes from the shared /api/me cache (same value as /api/waitlist/me).
+  const { account, loading: positionLoading } = useAccount();
+  const position = account?.posizione ?? null;
 
   const isWaitlistConfirmed = location === APP_ROUTES.WAITLIST_CONFIRMED;
   const isGuest = location === APP_ROUTES.ROOT || location === APP_ROUTES.WAITLIST;
@@ -105,25 +106,6 @@ export function Navbar() {
   // Define href variables for consistent usage
   // Admin switch href
   const adminSwitchHref = owner ? APP_ROUTES.HOME : APP_ROUTES.OWNER_DASHBOARD;
-
-  useEffect(() => {
-    if (!isWaitlistConfirmed) return;
-    let cancelled = false;
-    fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.WAITLIST_ME}`, { credentials: 'include' })
-      .then((res) => (res.ok ? res.json() : Promise.reject()))
-      .then((data) => {
-        if (!cancelled) setPosition(data.position);
-      })
-      .catch(() => {
-        if (!cancelled) setPosition(WAITLIST_FALLBACK_POSITION);
-      })
-      .finally(() => {
-        if (!cancelled) setPositionLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isWaitlistConfirmed]);
 
   const logo = (
     <Link href={APP_ROUTES.HOME} className="flex items-center gap-2.5" data-testid={SHARED_TEST_IDS.LINK_LOGO}>
@@ -264,7 +246,7 @@ export function Navbar() {
                 {t('waitlistConfirmed.menuPositionLabel')}
               </span>
               <span className="text-sm font-black text-[#085041]">
-                {positionLoading ? '…' : `#${position ?? '--'}`}
+                {positionLoading ? '…' : `#${position ?? WAITLIST_FALLBACK_POSITION}`}
               </span>
             </div>
           }

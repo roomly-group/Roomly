@@ -1,39 +1,16 @@
-import { useState, useEffect } from 'react';
 import { Check, Bell, KeyRound } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { Navbar } from '@/components/layout/navbar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { WAITLIST_FALLBACK_POSITION } from '@/lib/constants';
-import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
+import { useAccount } from '@/lib/account-cache';
 
 export function WaitlistConfirmedPage() {
   const { t } = useLanguage();
 
-  const [position, setPosition] = useState<number | null>(null);
-  const [positionLoading, setPositionLoading] = useState<boolean>(true);
-
-  useEffect(() => {
-    async function fetchPosition() {
-      try {
-        const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.WAITLIST_ME}`, {
-          credentials: 'include',
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setPosition(data.position);
-        } else {
-          setPosition(WAITLIST_FALLBACK_POSITION);
-        }
-      } catch (error) {
-        console.error('Failed to fetch waitlist position:', error);
-        setPosition(WAITLIST_FALLBACK_POSITION);
-      } finally {
-        setPositionLoading(false);
-      }
-    }
-
-    fetchPosition();
-  }, []);
+  // Same shared /api/me cache as the navbar (posizione = /api/waitlist/me position).
+  const { account, loading: positionLoading } = useAccount();
+  const position = account?.posizione ?? WAITLIST_FALLBACK_POSITION;
 
   return (
     <div className="min-h-screen bg-[#F1EFE8]">

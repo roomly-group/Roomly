@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { clearRoleCache } from '@/lib/role-cache';
+import { clearAccountCache, useAccount } from '@/lib/account-cache';
 import { Link, useLocation } from 'wouter';
 import { ArrowRight, LogOut, Mail, UserRound } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -38,41 +39,24 @@ export function ProfileMenu({
 }) {
   const { t } = useLanguage();
   const [, setLocation] = useLocation();
-  const [account, setAccount] = useState<{ full_name?: string; email?: string } | null>(null);
-  const [accountLoading, setAccountLoading] = useState(true);
+  // Shared /api/me cache: fetched once per app load and kept across pages and
+  // reloads, so the header never shows a skeleton again after the first time.
+  const { account, loading: accountLoading } = useAccount();
+  const [fallbackEmail, setFallbackEmail] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (accountLoading || account) return;
     let cancelled = false;
-
-    async function loadAccount() {
-      try {
-        const { data } = await supabase.auth.getSession();
-        if (!data.session) return;
-
-        const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.ME}`, { credentials: 'include' });
-        if (response.ok) {
-          const json = await response.json();
-          if (!cancelled) setAccount({ full_name: json.full_name, email: json.email });
-          return;
-        }
-      } catch {
-        // fall through to the supabase-only fallback below
-      } finally {
-        if (!cancelled) setAccountLoading(false);
-      }
-
-      // Fallback: at least show the auth email if /api/me isn't available.
-      const { data: userData } = await supabase.auth.getUser();
-      if (!cancelled) setAccount((prev) => prev ?? { email: userData.user?.email ?? undefined });
-    }
-
-    loadAccount();
+    // Fallback: at least show the auth email if /api/me isn't available.
+    void supabase.auth.getSession().then(({ data }) => {
+      if (!cancelled) setFallbackEmail(data.session?.user.email ?? null);
+    });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [account, accountLoading]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -86,11 +70,15 @@ export function ProfileMenu({
 
   async function handleLogout() {
     await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.LOGOUT}`, { method: 'POST', credentials: 'include' });
+    // Drop the in-memory Supabase session too: otherwise auto-refresh keeps
+    // running and its TOKEN_REFRESHED handler re-creates the session cookies.
+    await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
     clearRoleCache();
+    clearAccountCache();
     setLocation(logoutRedirect);
   }
 
-  const userEmail = account?.email ?? null;
+  const userEmail = account?.email ?? fallbackEmail;
   const displayName =
     account?.full_name?.trim() ||
     (userEmail ? userEmail.split('@')[0] : t('waitlistConfirmed.defaultDisplayName'));

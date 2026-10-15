@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Redirect } from 'wouter';
 import { getRoleInfo, UserRole } from '@/lib/auth-role';
-import { peekRoleCache } from '@/lib/role-cache';
+import { peekLastKnownRole, peekRoleCache } from '@/lib/role-cache';
 import { supabase } from '@/lib/supabase';
 import NotFound from '@/pages/not-found';
 import { useLanguage } from '@/lib/i18n';
@@ -13,37 +13,44 @@ export function RequireAdmin({
   children: React.ReactNode;
   allowOwner?: boolean;
 }) {
-  const cached = peekRoleCache();
-  const [role, setRole] = useState<UserRole | null>(cached ? cached.role : null);
-  const [isOwner, setIsOwner] = useState(cached ? cached.owner : false);
-  const [loading, setLoading] = useState(!cached);
+  // Ruolo fresco o, in mancanza, l'ultimo noto (anche dopo un ricaricamento):
+  // la pagina compare subito e il ruolo si verifica in background.
+  const [known] = useState(() => peekRoleCache() ?? peekLastKnownRole());
+  const [role, setRole] = useState<UserRole | null>(known ? known.role : null);
+  const [isOwner, setIsOwner] = useState(known ? known.owner : false);
+  const [loading, setLoading] = useState(!known);
   const { t } = useLanguage();
 
   useEffect(() => {
-    if (cached) return;
+    if (peekRoleCache()) return;
+    let cancelled = false;
     async function loadRole() {
       try {
         const { data } = await supabase.auth.getSession();
         const user = data?.session?.user;
         if (!user) {
-          setRole('user'); // treat as normal user if no session
-          setLoading(false);
+          if (!cancelled) setRole('user'); // treat as normal user if no session
           return;
         }
         // Una sola chiamata: ruolo e owner arrivano insieme.
         const info = await getRoleInfo(user);
+        // Verifica fallita (nulla in cache): non si declassa chi era già noto.
+        if (cancelled || (!peekRoleCache() && known)) return;
         setRole(info.role);
         setIsOwner(info.owner);
       } catch (err) {
         console.error('Failed to fetch user role:', err);
-        setRole('user'); // fallback to normal user
+        if (!cancelled && !known) setRole('user'); // fallback to normal user
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
     loadRole();
-  }, [allowOwner, cached]);
+    return () => {
+      cancelled = true;
+    };
+  }, [known]);
 
   if (loading) {
     return (

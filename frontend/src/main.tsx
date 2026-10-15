@@ -3,6 +3,8 @@ import App from './App';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { supabase } from '@/lib/supabase';
 import { APP_ROUTES } from '@/lib/constants';
+import { clearRoleCache } from '@/lib/role-cache';
+import { clearAccountCache } from '@/lib/account-cache';
 import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 import './index.css';
 
@@ -31,9 +33,25 @@ async function initializeApp() {
   }
 }
 
+// Public entry pages a logged-in user is sent away from on load. Every other
+// route is left alone: redirecting all of them sent any reload (or any full
+// page navigation) of /home, /owner, /listings/... to the waitlist.
+const LOGGED_OUT_ONLY_PATHS: readonly string[] = [
+  APP_ROUTES.ROOT,
+  APP_ROUTES.WAITLIST,
+  APP_ROUTES.LOGIN,
+  APP_ROUTES.REGISTER,
+];
+
 initializeApp().then((session) => {
-  // If we have a session and we're not already on the waitinglist/confirmed page, redirect there
-  if (session && window.location.pathname !== APP_ROUTES.WAITLIST_CONFIRMED) {
+  if (!session) {
+    // No valid session: role/profile saved by a previous session must not be shown.
+    clearRoleCache();
+    clearAccountCache();
+    return;
+  }
+  // Logged in and on a public entry page: go to the waitlist confirmation page
+  if (LOGGED_OUT_ONLY_PATHS.includes(window.location.pathname)) {
     window.location.href = APP_ROUTES.WAITLIST_CONFIRMED;
   }
 }).finally(() => {

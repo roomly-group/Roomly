@@ -35,9 +35,6 @@ router.get(API_ROUTE_PATHS.WAITLIST_COUNT, async (_req, res) => {
 router.get(API_ROUTE_PATHS.WAITLIST_ME, requireAuth, async (req: AuthenticatedRequest, res) => {
   const { userId } = req;
 
-  // Debug logging
-  console.log(`[waitlist/me] Fetching position for userId: ${userId}`);
-
   try {
     const { data, error } = await supabaseAdmin
       .from("utenti")
@@ -52,12 +49,10 @@ router.get(API_ROUTE_PATHS.WAITLIST_ME, requireAuth, async (req: AuthenticatedRe
     }
 
     if (!data) {
-      console.log(`[waitlist/me] No user record found for userId: ${userId}`);
       res.status(404).json({ error: "User not found in waitlist" });
       return;
     }
 
-    console.log(`[waitlist/me] Found position ${data.posizione} for userId: ${userId}`);
     res.json({ position: data.posizione });
   } catch (err) {
     console.error("Error fetching waitlist position:", err);

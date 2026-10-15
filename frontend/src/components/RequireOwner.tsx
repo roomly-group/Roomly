@@ -1,41 +1,48 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getIsOwner } from '@/lib/auth-role';
-import { peekRoleCache } from '@/lib/role-cache';
+import { peekLastKnownRole, peekRoleCache } from '@/lib/role-cache';
 import NotFound from '@/pages/not-found';
 import { useLanguage } from '@/lib/i18n';
 
 export function RequireOwner({ children }: { children: React.ReactNode }) {
-  const cached = peekRoleCache();
-  const [isOwner, setIsOwner] = useState<boolean | null>(cached ? cached.owner : null);
-  const [loading, setLoading] = useState(!cached);
+  // Ruolo fresco o, in mancanza, l'ultimo noto (anche dopo un ricaricamento):
+  // la pagina compare subito e lo stato owner si verifica in background.
+  const [known] = useState(() => peekRoleCache() ?? peekLastKnownRole());
+  const [isOwner, setIsOwner] = useState<boolean | null>(known ? known.owner : null);
+  const [loading, setLoading] = useState(!known);
   const { t } = useLanguage();
 
   useEffect(() => {
-    if (cached) return;
+    if (peekRoleCache()) return;
+    let cancelled = false;
     async function checkOwnerStatus() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const user = session?.user;
 
         if (!user) {
-          setIsOwner(false);
-          setLoading(false);
+          if (!cancelled) setIsOwner(false);
           return;
         }
 
         const owner = await getIsOwner(user);
+        // Verifica fallita (nulla in cache): non si declassa chi era già noto.
+        if (cancelled || (!peekRoleCache() && known)) return;
         setIsOwner(owner);
       } catch (err) {
         console.error('Failed to check owner status:', err);
-        setIsOwner(false);
+        if (!cancelled && !known) setIsOwner(false);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
     checkOwnerStatus();
-  }, [cached]);
+    return () => {
+      cancelled = true;
+    };
+  }, [known]);
 
   if (loading) {
     return (

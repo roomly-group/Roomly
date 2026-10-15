@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
+import { patchAccount, useAccount } from '@/lib/account-cache';
 import { API_BASE_PATH, API_ROUTE_PATHS, SUPPORTED_LANGUAGE_CODES } from '@workspace/api-zod';
 
 // ===================== CONFIGURATION =====================
@@ -549,6 +550,7 @@ export const translations = {
     'messages.rejectConversationDescription': 'Are you sure you want to reject this room request?',
     'messages.roomRented': 'Rented',
     'messages.releaseRoom': 'Free the room',
+    'messages.moreOptions': 'More options',
     'messages.releaseListing': 'Release listing',
     'messages.releaseListingDescription': 'Are you sure you want to release this room?',
     'dashboard.rented': 'Rented',
@@ -1041,6 +1043,7 @@ export const translations = {
     'messages.rejectConversationDescription': 'Sei sicuro di voler rifiutare questa richiesta di stanza?',
     'messages.roomRented': 'Affittata',
     'messages.releaseRoom': 'Libera la stanza',
+    'messages.moreOptions': 'Altre opzioni',
     "messages.releaseListing": "Libera l'annuncio",
     'messages.releaseListingDescription': 'Sei sicuro di voler liberare questa stanza?',
     'dashboard.rented': 'Affittata',
@@ -1532,6 +1535,7 @@ export const translations = {
     'messages.rejectConversationDescription': 'Are you sure you want to reject this room request?',
     'messages.roomRented': 'Rented',
     'messages.releaseRoom': 'Free the room',
+    'messages.moreOptions': 'Más opciones',
     'messages.releaseListing': 'Release listing',
     'messages.releaseListingDescription': 'Are you sure you want to release this room?',
     'dashboard.rented': 'Rented',
@@ -2022,6 +2026,7 @@ export const translations = {
     'messages.rejectConversationDescription': 'Are you sure you want to reject this room request?',
     'messages.roomRented': 'Rented',
     'messages.releaseRoom': 'Free the room',
+    'messages.moreOptions': 'Plus d’options',
     'messages.releaseListing': 'Release listing',
     'messages.releaseListingDescription': 'Are you sure you want to release this room?',
     'dashboard.rented': 'Rented',
@@ -2512,6 +2517,7 @@ export const translations = {
     'messages.rejectConversationDescription': 'Are you sure you want to reject this room request?',
     'messages.roomRented': 'Rented',
     'messages.releaseRoom': 'Free the room',
+    'messages.moreOptions': 'Weitere Optionen',
     'messages.releaseListing': 'Release listing',
     'messages.releaseListingDescription': 'Are you sure you want to release this room?',
     'dashboard.rented': 'Rented',
@@ -2993,6 +2999,7 @@ export const translations = {
     'messages.rejectConversationDescription': 'Are you sure you want to reject this room request?',
     'messages.roomRented': 'Rented',
     'messages.releaseRoom': 'Free the room',
+    'messages.moreOptions': 'Mais opções',
     'messages.releaseListing': 'Release listing',
     'messages.releaseListingDescription': 'Are you sure you want to release this room?',
     'dashboard.rented': 'Rented',
@@ -3037,38 +3044,17 @@ export function LanguageProvider({ userId, children }: { userId: string; childre
   );
   const [isAuto, setIsAuto] = useState(() => loadStoredLanguage(userId) === null);
 
-  // Se l'utente è loggato, carica la lingua salvata nel database.
-  // Altrimenti resta sulla lingua rilevata dal browser/regione.
+  // Se l'utente è loggato, usa la lingua salvata nel database (dalla cache
+  // condivisa di /api/me, senza una richiesta in più). Altrimenti resta sulla
+  // lingua rilevata dal browser/regione.
+  const { account } = useAccount();
+  const savedLanguage = account?.lingua;
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadSavedLanguage() {
-      try {
-        const { data } = await supabase.auth.getSession();
-        const session = data?.session;
-        if (!session) return;
-
-        const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.ME}`, {
-          credentials: 'include',
-        });
-        if (!response.ok) return;
-
-        const json = await response.json();
-        if (!cancelled && json.lingua && LANGUAGES.some((l) => l.code === json.lingua)) {
-          setLanguageState(json.lingua as LanguageCode);
-          setIsAuto(false);
-        }
-      } catch (err) {
-        // In caso di errore resta sulla lingua rilevata dal browser.
-        console.error('Failed to load language from database:', err);
-      }
+    if (savedLanguage && LANGUAGES.some((l) => l.code === savedLanguage)) {
+      setLanguageState(savedLanguage as LanguageCode);
+      setIsAuto(false);
     }
-
-    loadSavedLanguage();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  }, [savedLanguage]);
 
   useEffect(() => {
     if (typeof document !== 'undefined') document.documentElement.lang = language;
@@ -3077,6 +3063,7 @@ export function LanguageProvider({ userId, children }: { userId: string; childre
   const setLanguage = (code: LanguageCode) => {
     setLanguageState(code);
     setIsAuto(false);
+    patchAccount({ lingua: code });
 
     // Persist locally right away so the choice survives a page reload even
     // for guests (login/register/waitlist) who have no account yet.
