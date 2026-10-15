@@ -18,6 +18,9 @@ export function ListingCard({
   const [saved, setSaved] = useState(false);
 
   const handleSaveClick = (event: React.MouseEvent) => {
+    // The button sits inside the card <Link>: without preventDefault the
+    // browser follows the anchor with a full page reload.
+    event.preventDefault();
     event.stopPropagation();
     setSaved(!saved);
   };

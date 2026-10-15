@@ -65,8 +65,9 @@ function Toggle({
 export function EditListingPage() {
   const { t } = useLanguage();
   const [, setLocation] = useLocation();
-  const match = useRoute('/owner/listings/:id/edit') as { params?: { id?: string } } | null;
-  const listingId = Number(match?.params?.id ?? NaN);
+  // wouter v3: useRoute returns a [match, params] tuple.
+  const [, params] = useRoute('/owner/listings/:id/edit');
+  const listingId = Number(params?.id ?? NaN);
 
   const [listing, setListing] = useState<ListingForm | null>(null);
   const [loading, setLoading] = useState(true);

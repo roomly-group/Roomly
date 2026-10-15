@@ -108,7 +108,7 @@ export function SearchPage() {
         ) : listings.length ? (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {listings.map((listing, index) => (
-              <ListingCard listing={listing} index={index} key={listing.id} />
+              <ListingCard listing={listing} index={index} key={listing.id} isClickable={true} />
             ))}
           </div>
         ) : (

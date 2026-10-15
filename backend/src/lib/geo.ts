@@ -1,6 +1,7 @@
 /**
- * Raggio (km) entro cui una stanza viene considerata "vicina" a un'università
- * e quindi mostrata quando si cerca quell'università.
+ * Raggio (km) entro cui una stanza viene associata a un'università alla
+ * creazione dell'annuncio. La ricerca non lo usa: ordina tutte le stanze
+ * per distanza.
  */
 export const SEARCH_RADIUS_KM = Number(process.env.SEARCH_RADIUS_KM ?? 5);
 
