@@ -170,6 +170,42 @@ router.get(API_ROUTE_PATHS.ME, requireAuth, async (req: AuthenticatedRequest, re
     full_name: `${data.nome ?? ""} ${data.cognome ?? ""}`.trim(),
   });
 });
+
+const profileUpdateSchema = z.object({
+  nome: z.string().trim().min(1).max(50),
+  cognome: z.string().trim().min(1).max(50),
+});
+
+router.patch(API_ROUTE_PATHS.ME_PROFILE, requireAuth, async (req: AuthenticatedRequest, res) => {
+  const parsedProfile = profileUpdateSchema.safeParse(req.body);
+
+  if (!parsedProfile.success) {
+    res.status(400).json({ error: "Nome e cognome devono contenere da 1 a 50 caratteri" });
+    return;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("utenti")
+    .update({
+      ...parsedProfile.data,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", req.userId)
+    .select("nome, cognome, email, posizione, lingua")
+    .single();
+
+  if (error || !data) {
+    console.error("Failed to update user profile:", error);
+    res.status(500).json({ error: "Impossibile salvare il profilo" });
+    return;
+  }
+
+  res.json({
+    ...data,
+    full_name: `${data.nome} ${data.cognome}`.trim(),
+  });
+});
+
 // Salva la lingua scelta manualmente dall'utente.
 router.patch(API_ROUTE_PATHS.ME_LANGUAGE, requireAuth, async (req: AuthenticatedRequest, res) => {
   const { userId } = req;

@@ -21,6 +21,7 @@ export const API_ROUTE_PATHS = {
   OWNER_LISTING_PHOTOS: "/owner/listings/:id/photos",
   ME_ROLE: "/me/role",
   ME: "/me",
+  ME_PROFILE: "/me/profile",
   ME_LANGUAGE: "/me/language",
   ME_PREFERENCES: "/me/preferences",
   WAITLIST_COUNT: "/waitlist/count",
