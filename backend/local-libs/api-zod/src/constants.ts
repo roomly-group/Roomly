@@ -19,6 +19,7 @@ export const API_ROUTE_PATHS = {
   OWNER_LISTINGS: "/owner/listings",
   OWNER_LISTING_BY_ID: "/owner/listings/:id",
   OWNER_LISTING_PHOTOS: "/owner/listings/:id/photos",
+  OWNER_LISTING_PHOTO_BY_ID: "/owner/listings/:id/photos/:photoId",
   ME_ROLE: "/me/role",
   ME: "/me",
   ME_PROFILE: "/me/profile",
@@ -38,6 +39,20 @@ export const API_ROUTE_PATHS = {
 
 /** Language codes accepted by backend profile settings and frontend localization (locale codes). */
 export const SUPPORTED_LANGUAGE_CODES = ["en", "it", "es", "fr", "de", "pt"] as const;
+
+/** Additional listing amenities stored in `stanze.servizi`. */
+export const LISTING_AMENITY_OPTIONS = [
+  "lavatrice",
+  "aria_condizionata",
+  "riscaldamento",
+  "balcone",
+  "bagno_privato",
+  "cucina",
+  "spese_incluse",
+  "animali",
+  "scrivania",
+  "ascensore",
+] as const;
 
 /** Values accepted by the public preference enums. */
 export const USER_PREFERENCE_OPTIONS = {

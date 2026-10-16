@@ -1,18 +1,26 @@
 import { useEffect, useState } from 'react';
 import {
+  AirVent,
   Bath,
   BedDouble,
   ChevronLeft,
   ChevronRight,
   CircleCheck,
+  CookingPot,
+  Fence,
+  Heater,
   Heart,
   LampDesk,
   MapPin,
   MessageCircle,
+  MoveVertical,
+  PawPrint,
+  ReceiptText,
   Send,
   ShieldCheck,
   Star,
   Wifi,
+  WashingMachine,
   X,
 } from 'lucide-react';
 import { Link, useLocation, useParams } from 'wouter';
@@ -25,7 +33,7 @@ import {
   useStartConversation,
 } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
-import { APP_ROUTES, formatPrice, gradients, LISTING_DETAIL_TEST_IDS } from '@/lib/constants';
+import { APP_ROUTES, formatPrice, gradients, LISTING_AMENITIES, LISTING_DETAIL_TEST_IDS } from '@/lib/constants';
 import { AppShell, Avatar } from '@/components/layout/app-shell';
 import { Button } from '@/components/shared/button';
 import { QueryError } from '@/components/shared/query-error';
@@ -40,6 +48,19 @@ function Feature({ icon: Icon, label }: { icon: typeof BedDouble; label: string 
     </div>
   );
 }
+
+const AMENITY_ICONS: Record<string, typeof BedDouble> = {
+  lavatrice: WashingMachine,
+  aria_condizionata: AirVent,
+  riscaldamento: Heater,
+  balcone: Fence,
+  bagno_privato: Bath,
+  cucina: CookingPot,
+  spese_incluse: ReceiptText,
+  animali: PawPrint,
+  scrivania: LampDesk,
+  ascensore: MoveVertical,
+};
 
 export function ListingDetail() {
   const { t } = useLanguage();
@@ -357,18 +378,28 @@ export function ListingDetail() {
               </p>
             </div>
 
-            <div className="mt-8 grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-4">
-              <Feature
-                icon={BedDouble}
-                label={listing.furnished ? t('common.furnished') : t('common.unfurnished')}
-              />
-              <Feature
-                icon={Wifi}
-                label={listing.wifi ? t('listingDetail.featureWifi') : t('listingDetail.featureNoWifi')}
-              />
-              <Feature icon={Bath} label={t('listingDetail.featureBathroom')} />
-              <Feature icon={LampDesk} label={t('listingDetail.featureStudy')} />
-            </div>
+            {(listing.furnished || listing.wifi || listing.amenities.length > 0) && (
+              <div className="mt-8">
+                <p className="eyebrow mb-3">{t('newListing.amenitiesTitle')}</p>
+                <div className="grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-3">
+                  {listing.furnished && (
+                    <Feature icon={BedDouble} label={t('common.furnished')} />
+                  )}
+                  {listing.wifi && (
+                    <Feature icon={Wifi} label={t('newListing.wifiToggle')} />
+                  )}
+                  {listing.amenities
+                    .filter((amenity) => LISTING_AMENITIES.includes(amenity as (typeof LISTING_AMENITIES)[number]))
+                    .map((amenity) => (
+                      <Feature
+                        key={amenity}
+                        icon={AMENITY_ICONS[amenity]}
+                        label={t(`newListing.amenity.${amenity}` as any)}
+                      />
+                    ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <aside className="surface h-fit rounded-2xl p-5 sm:p-6">

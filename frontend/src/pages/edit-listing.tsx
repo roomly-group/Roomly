@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, CircleAlert, CircleCheck, ImagePlus, ShieldCheck } from 'lucide-react';
+import { ChevronLeft, CircleAlert, CircleCheck, ShieldCheck, Upload, X } from 'lucide-react';
 import { Link, useLocation, useRoute } from 'wouter';
 import { useLanguage } from '@/lib/i18n';
 import { AppShell } from '@/components/layout/app-shell';
@@ -7,14 +7,25 @@ import { PageIntro } from '@/components/shared/page-intro';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import { ApiError, customFetch } from '../../local-libs/api-client-react/src/custom-fetch';
 import { useListOwnerListings } from '@/hooks/use-list-owner-listings';
-import { getOwnerListingsQueryKey } from '@/hooks/use-list-owner-listings';
 import {
   APP_ROUTES,
+  LISTING_AMENITIES,
   LISTING_FORM_TEST_IDS,
   LISTING_PRICE_INPUT_PADDING_LEFT_PX,
   LISTING_PRICE_PLACEHOLDER,
 } from '@/lib/constants';
-import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
+import {
+  API_BASE_PATH,
+  API_ROUTE_PATHS,
+  ROOM_PHOTO_MAX_COUNT,
+  ROOM_PHOTO_MAX_SIZE_BYTES,
+} from '@workspace/api-zod';
+
+type EditableListingPhoto = {
+  id: number;
+  url: string | null;
+  cover: boolean;
+};
 
 type ListingForm = {
   title: string;
@@ -22,6 +33,7 @@ type ListingForm = {
   description: string;
   furnished: boolean;
   wifi: boolean;
+  amenities: string[];
   address: string;
   city: string;
   postcode: string;
@@ -76,17 +88,23 @@ export function EditListingPage() {
   const [, params] = useRoute(APP_ROUTES.OWNER_LISTING_EDIT);
   const listingId = Number(params?.id ?? NaN);
 
-  const [listing, setListing] = useState<ListingForm | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [addressError, setAddressError] = useState(false);
   const [fieldsError, setFieldsError] = useState(false);
+  const [existingPhotos, setExistingPhotos] = useState<EditableListingPhoto[]>([]);
+  const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [photoActionError, setPhotoActionError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState<ListingForm>({
     title: '',
     price: 0,
     description: '',
     furnished: false,
     wifi: false,
+    amenities: [],
     address: '',
     city: '',
     postcode: '',
@@ -94,7 +112,13 @@ export function EditListingPage() {
     longitude: 0,
   });
 
-  const { data: ownerListingsData, refetch: refetchOwnerListings } = useListOwnerListings();
+  const { refetch: refetchOwnerListings } = useListOwnerListings();
+
+  useEffect(() => {
+    const previews = selectedPhotos.map((photo) => URL.createObjectURL(photo));
+    setPhotoPreviews(previews);
+    return () => previews.forEach((preview) => URL.revokeObjectURL(preview));
+  }, [selectedPhotos]);
 
   const update = <K extends keyof ListingForm>(key: K, value: ListingForm[K] | string) =>
     setForm((current) => ({
@@ -116,7 +140,7 @@ export function EditListingPage() {
     setLoading(true);
     setError(null);
     // customFetch resolves with the parsed JSON body and throws ApiError on non-2xx.
-    customFetch<Partial<ListingForm>>(`${API_BASE_PATH}${API_ROUTE_PATHS.OWNER_LISTINGS}/${listingId}`, {
+    customFetch<Partial<ListingForm> & { photos?: EditableListingPhoto[] }>(`${API_BASE_PATH}${API_ROUTE_PATHS.OWNER_LISTINGS}/${listingId}`, {
       method: 'GET',
       credentials: 'include',
     })
@@ -128,14 +152,15 @@ export function EditListingPage() {
           description: data.description ?? '',
           furnished: data.furnished ?? false,
           wifi: data.wifi ?? false,
+          amenities: data.amenities ?? [],
           address: data.address ?? '',
           city: data.city ?? '',
           postcode: data.postcode ?? '',
           latitude: Number(data.latitude ?? 0),
           longitude: Number(data.longitude ?? 0),
         };
-        setListing(listingData);
         setForm(listingData);
+        setExistingPhotos(data.photos ?? []);
         setLoading(false);
       })
       .catch((err: unknown) => {
@@ -172,13 +197,55 @@ export function EditListingPage() {
         : current
     );
 
-  const submit = (event: React.FormEvent) => {
+  const handlePhotoSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const incoming = Array.from(event.target.files ?? []);
+    event.target.value = '';
+    const validType = incoming.filter((photo) => {
+      const extension = photo.name.split('.').pop()?.toLowerCase();
+      return (photo.type === 'image/png' && extension === 'png') ||
+        (photo.type === 'image/jpeg' && ['jpg', 'jpeg'].includes(extension ?? ''));
+    });
+    const validSize = validType.filter((photo) => photo.size > 0 && photo.size <= ROOM_PHOTO_MAX_SIZE_BYTES);
+    const remaining = Math.max(0, ROOM_PHOTO_MAX_COUNT - existingPhotos.length - selectedPhotos.length);
+
+    if (validType.length !== incoming.length) setPhotoError(t('newListing.photosInvalidType'));
+    else if (validSize.length !== validType.length) setPhotoError(t('newListing.photosTooLarge'));
+    else if (validSize.length > remaining) setPhotoError(t('newListing.photosLimit'));
+    else setPhotoError(null);
+
+    setSelectedPhotos((current) => [...current, ...validSize.slice(0, remaining)]);
+    setPhotoActionError(null);
+  };
+
+  const handleRemovePhoto = async (photo: EditableListingPhoto) => {
+    setPhotoActionError(null);
+    try {
+      await customFetch(
+        `${API_BASE_PATH}${API_ROUTE_PATHS.OWNER_LISTING_PHOTO_BY_ID
+          .replace(':id', String(listingId))
+          .replace(':photoId', String(photo.id))}`,
+        { method: 'DELETE', credentials: 'include' },
+      );
+      setExistingPhotos((current) => {
+        const remaining = current.filter((item) => item.id !== photo.id);
+        if (photo.cover && remaining.length > 0) {
+          return remaining.map((item, index) => ({ ...item, cover: index === 0 }));
+        }
+        return remaining;
+      });
+    } catch (photoError) {
+      console.error('Error removing listing photo:', photoError);
+      setPhotoActionError(t('editListing.photosError'));
+    }
+  };
+
+  const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     const fieldsOk = !!form.title.trim() && !!form.description.trim() && form.price >= 1;
     const addressOk = !!form.latitude && !!form.longitude;
     setFieldsError(!fieldsOk);
     setAddressError(!addressOk);
-    if (!fieldsOk || !addressOk) return;
+    if (!fieldsOk || !addressOk || isSaving) return;
 
     const payload: ListingForm = {
       title: form.title.trim(),
@@ -186,6 +253,7 @@ export function EditListingPage() {
       price: Number(form.price),
       furnished: form.furnished,
       wifi: form.wifi,
+      amenities: form.amenities,
       address: form.address,
       city: form.city,
       postcode: form.postcode,
@@ -193,29 +261,50 @@ export function EditListingPage() {
       longitude: form.longitude,
     };
 
-    customFetch(`${API_BASE_PATH}${API_ROUTE_PATHS.OWNER_LISTINGS}/${listingId}`, {
-      method: 'PUT',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    })
-      .then(() => {
-        // Invalidate owner listings and redirect
-        refetchOwnerListings();
-        setLocation(APP_ROUTES.OWNER_DASHBOARD);
-      })
-      .catch((err: unknown) => {
-        console.error('Error updating listing:', err);
-        let errorMsg = 'Failed to update listing';
-        if (err instanceof ApiError && err.status === 404) {
-          errorMsg = 'Listing not found';
-        } else if (err instanceof ApiError && err.status === 400) {
-          errorMsg = 'Invalid data';
-        }
-        setError(errorMsg);
+    setIsSaving(true);
+    setPhotoActionError(null);
+    let isUploadingPhotos = false;
+    try {
+      await customFetch(`${API_BASE_PATH}${API_ROUTE_PATHS.OWNER_LISTINGS}/${listingId}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
       });
+
+      isUploadingPhotos = selectedPhotos.length > 0;
+      for (const photo of selectedPhotos) {
+        const response = await fetch(
+          `${API_BASE_PATH}${API_ROUTE_PATHS.OWNER_LISTING_PHOTOS.replace(':id', String(listingId))}`,
+          {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': photo.type },
+            body: photo,
+          },
+        );
+        if (!response.ok) throw new Error(`Photo upload failed with status ${response.status}`);
+        const uploadedPhoto = await response.json() as EditableListingPhoto;
+        setExistingPhotos((current) => [...current, uploadedPhoto]);
+        setSelectedPhotos((current) => current.filter((selectedPhoto) => selectedPhoto !== photo));
+      }
+
+      await refetchOwnerListings();
+      setLocation(APP_ROUTES.OWNER_DASHBOARD);
+    } catch (err: unknown) {
+      console.error('Error updating listing or uploading photos:', err);
+      if (err instanceof ApiError && err.status === 404) {
+        setError('Listing not found');
+      } else if (err instanceof ApiError && err.status === 400) {
+        setError('Invalid data');
+      } else {
+        setPhotoActionError(isUploadingPhotos ? t('editListing.photosError') : t('messages.actionFailed'));
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (loading) {
@@ -342,6 +431,26 @@ export function EditListingPage() {
               />
             </div>
 
+            <p className="mb-2 mt-6 text-sm font-black text-[#085041]">{t('newListing.amenitiesTitle')}</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {LISTING_AMENITIES.map((key) => (
+                <Toggle
+                  key={key}
+                  label={t(`newListing.amenity.${key}` as any)}
+                  checked={form.amenities.includes(key)}
+                  onChange={(value) =>
+                    setForm((current) => ({
+                      ...current,
+                      amenities: value
+                        ? [...current.amenities, key]
+                        : current.amenities.filter((item) => item !== key),
+                    }))
+                  }
+                  testId={`toggle-listing-amenity-${key}`}
+                />
+              ))}
+            </div>
+
             {fieldsError && (
               <p className="mt-5 flex items-center gap-2 rounded-xl bg-[#f7ddd1] px-4 py-3 text-sm font-bold text-[#a74b32]">
                 <CircleAlert size={16} /> {t('newListing.fieldsRequired')}
@@ -350,10 +459,11 @@ export function EditListingPage() {
 
             <button
               type="submit"
+              disabled={isSaving}
               data-testid={LISTING_FORM_TEST_IDS.BUTTON_UPDATE_LISTING}
-              className="mt-2 h-12 w-full rounded-xl bg-[#EF9F27] px-6 font-extrabold text-[#2C2C2A] transition-all duration-200 hover:bg-[#e6a53d] active:scale-[0.98]"
+              className="mt-2 h-12 w-full rounded-xl bg-[#EF9F27] px-6 font-extrabold text-[#2C2C2A] transition-all duration-200 hover:bg-[#e6a53d] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {t('editListing.save')}
+              {isSaving ? t('editListing.saving') : t('editListing.save')}
             </button>
           </div>
 
@@ -361,11 +471,65 @@ export function EditListingPage() {
             <div className="surface rounded-2xl p-5">
               <p className="eyebrow">{t('newListing.photosLabel')}</p>
               <h2 className="mt-1 font-black text-[#085041]">{t('newListing.photosHeadline')}</h2>
-              <div className="mt-4 flex h-36 flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#b7d7ca] bg-[#E1F5EE] text-center">
-                <ImagePlus size={24} className="text-[#0F6E56]" />
-                <p className="mt-2 text-xs font-extrabold text-[#527067]">{t('newListing.photosComingSoon')}</p>
-                <p className="mt-1 text-[11px] text-[#82978e]">{t('newListing.photosNote')}</p>
-              </div>
+              <p className="mt-1 text-[11px] text-[#82978e]">{t('newListing.photosNote')}</p>
+              <label className={`mt-4 flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#b7d7ca] bg-[#E1F5EE] p-3 text-center transition hover:bg-[#d6f0e6] ${isSaving ? 'cursor-not-allowed opacity-60' : ''}`}>
+                <Upload size={20} className="text-[#0F6E56]" />
+                <span className="mt-2 text-xs font-extrabold text-[#527067]">{t('newListing.photosSelect')}</span>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,.png,.jpg,.jpeg"
+                  multiple
+                  disabled={isSaving || existingPhotos.length + selectedPhotos.length >= ROOM_PHOTO_MAX_COUNT}
+                  onChange={handlePhotoSelect}
+                  className="sr-only"
+                  data-testid={`${LISTING_FORM_TEST_IDS.INPUT_LISTING_PHOTOS}-edit`}
+                />
+              </label>
+
+              {photoError && <p className="mt-2 text-xs font-bold text-[#a74b32]">{photoError}</p>}
+              {photoActionError && <p className="mt-2 text-xs font-bold text-[#a74b32]" role="alert">{photoActionError}</p>}
+              {(existingPhotos.length > 0 || selectedPhotos.length > 0) && (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {existingPhotos.map((photo) => (
+                    <div key={`existing-${photo.id}`} className="relative aspect-square overflow-hidden rounded-lg bg-[#E1F5EE]">
+                      {photo.url && <img src={photo.url} alt={t('newListing.photosLabel')} className="h-full w-full object-cover" />}
+                      {photo.cover && (
+                        <span className="absolute bottom-1 left-1 rounded bg-[#085041]/90 px-1.5 py-1 text-[10px] font-black text-white">
+                          {t('newListing.photosCover')}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => void handleRemovePhoto(photo)}
+                        disabled={isSaving}
+                        className="absolute right-1 top-1 rounded-full bg-white/90 p-1 text-[#a74b32] disabled:opacity-50"
+                        aria-label={t('newListing.photosRemove')}
+                        title={t('newListing.photosRemove')}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  {selectedPhotos.map((photo, index) => (
+                    <div key={`${photo.name}-${photo.lastModified}-${index}`} className="relative aspect-square overflow-hidden rounded-lg bg-[#E1F5EE]">
+                      <img src={photoPreviews[index]} alt={photo.name} className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedPhotos((current) => current.filter((_, itemIndex) => itemIndex !== index));
+                          setPhotoError(null);
+                        }}
+                        disabled={isSaving}
+                        className="absolute right-1 top-1 rounded-full bg-white/90 p-1 text-[#a74b32] disabled:opacity-50"
+                        aria-label={t('newListing.photosRemove')}
+                        title={t('newListing.photosRemove')}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="rounded-2xl bg-[#EF9F27] p-5">

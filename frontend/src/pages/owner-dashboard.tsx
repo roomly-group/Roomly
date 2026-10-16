@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowRight, Check, Clock3, House, MessageCircle, MoreHorizontal, PenLine, Plus, Sparkles, Star } from 'lucide-react';
+import { ArrowRight, Check, Clock3, House, MessageCircle, MoreHorizontal, PenLine, Plus, Sparkles, Star, Trash2 } from 'lucide-react';
 import { Link } from 'wouter';
 import {
   getGetOwnerDashboardQueryKey,
@@ -18,6 +18,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { useListOwnerListings } from '@/hooks/use-list-owner-listings';
 import { useQueryClient } from '@tanstack/react-query';
 import { getOwnerListingsQueryKey } from '@/hooks/use-list-owner-listings';
+import { useDeleteOwnerListing } from '@/hooks/use-delete-owner-listing';
 import { AppShell } from '@/components/layout/app-shell';
 import { PageIntro } from '@/components/shared/page-intro';
 import { QueryError } from '@/components/shared/query-error';
@@ -30,6 +31,7 @@ import { useToast } from '@/hooks/use-toast';
 const OWNER_DASHBOARD_TEST_IDS = {
   BUTTON_RELEASE_LISTING_PREFIX: 'button-release-listing-',
   LINK_EDIT_LISTING_PREFIX: 'link-edit-listing-',
+  BUTTON_DELETE_LISTING_PREFIX: 'button-delete-listing-',
   LINK_CREATE_LISTING: 'link-create-listing',
   STAT_OWNER_PREFIX: 'stat-owner-',
   BUTTON_LISTINGS_MORE: 'button-listings-more',
@@ -60,7 +62,9 @@ function OwnerListingRow({
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isReleaseDialogOpen, setIsReleaseDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const releaseListing = useReleaseListing();
+  const deleteListing = useDeleteOwnerListing();
 
   const safeTitle = title ?? '';
   const safeZone = zone ?? '';
@@ -87,6 +91,25 @@ function OwnerListingRow({
     }
   };
 
+  const handleConfirmDelete = async () => {
+    try {
+      await deleteListing.mutateAsync({ id });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getOwnerListingsQueryKey() }),
+        queryClient.invalidateQueries({ queryKey: getGetOwnerDashboardQueryKey() }),
+        queryClient.invalidateQueries({ queryKey: getGetListingQueryKey(id) }),
+        queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() }),
+      ]);
+      setIsDeleteDialogOpen(false);
+    } catch {
+      toast({
+        title: t('messages.actionFailed'),
+        description: t('dashboard.deleteListingFailed'),
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="flex items-center gap-3 rounded-xl border border-[#dbe8e0] p-3">
       <div className="relative h-12 w-16 shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-[#a6dfca] to-[#efc68e]">
@@ -98,47 +121,74 @@ function OwnerListingRow({
           {safeZone} · {safePrice}
           {t('common.perMonth')}
         </p>
-      </div>
-      <span className="hidden rounded-full bg-[#E1F5EE] px-2.5 py-1 text-[11px] font-black text-[#0F6E56] sm:inline-flex">
-        <Check size={12} className="mr-1" />
-        {statusText}
-      </span>
-      {rented && (
-        <>
-          <Button
-            variant="outline"
-            onClick={() => setIsReleaseDialogOpen(true)}
-            disabled={releaseListing.isPending}
-            className="ml-2"
-            data-testid={`${OWNER_DASHBOARD_TEST_IDS.BUTTON_RELEASE_LISTING_PREFIX}${id}`}
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className="inline-flex rounded-full bg-[#E1F5EE] px-2.5 py-1 text-[11px] font-black text-[#0F6E56]">
+            <Check size={12} className="mr-1" />
+            {statusText}
+          </span>
+          <Link
+            href={`${APP_ROUTES.OWNER_LISTINGS}/${id}/edit`}
+            aria-label={t('dashboard.editListing')}
+            title={t('dashboard.editListing')}
+            data-testid={`${OWNER_DASHBOARD_TEST_IDS.LINK_EDIT_LISTING_PREFIX}${id}`}
+            className="rounded-lg p-2 text-[#9ab8ab] hover:bg-[#E1F5EE] hover:text-[#0F6E56]"
           >
-            {t('messages.releaseRoom')}
-          </Button>
-          <AlertDialog open={isReleaseDialogOpen} onOpenChange={setIsReleaseDialogOpen}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>{t('messages.releaseListing')}</AlertDialogTitle>
-                <AlertDialogDescription>{t('messages.releaseListingDescription')}</AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>{t('common.tryAgain')}</AlertDialogCancel>
-                <AlertDialogAction onClick={() => void handleConfirmRelease()} disabled={releaseListing.isPending}>
-                  {t('messages.releaseRoom')}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </>
+            <PenLine size={16} />
+          </Link>
+          {rented && (
+            <Button
+              variant="outline"
+              onClick={() => setIsReleaseDialogOpen(true)}
+              disabled={releaseListing.isPending}
+              className="px-2.5 py-1.5 text-xs"
+              data-testid={`${OWNER_DASHBOARD_TEST_IDS.BUTTON_RELEASE_LISTING_PREFIX}${id}`}
+            >
+              {t('messages.releaseRoom')}
+            </Button>
+          )}
+        </div>
+      </div>
+      {rented && (
+        <AlertDialog open={isReleaseDialogOpen} onOpenChange={setIsReleaseDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('messages.releaseListing')}</AlertDialogTitle>
+              <AlertDialogDescription>{t('messages.releaseListingDescription')}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+              <AlertDialogAction onClick={() => void handleConfirmRelease()} disabled={releaseListing.isPending}>
+                {t('messages.releaseRoom')}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
-      <Link
-        href={`${APP_ROUTES.OWNER_LISTINGS}/${id}/edit`}
-        aria-label={t('dashboard.editListing')}
-        title={t('dashboard.editListing')}
-        data-testid={`${OWNER_DASHBOARD_TEST_IDS.LINK_EDIT_LISTING_PREFIX}${id}`}
-        className="rounded-lg p-2 text-[#9ab8ab]"
+      <button
+        type="button"
+        onClick={() => setIsDeleteDialogOpen(true)}
+        aria-label={t('dashboard.deleteListing')}
+        title={t('dashboard.deleteListing')}
+        disabled={deleteListing.isPending}
+        data-testid={`${OWNER_DASHBOARD_TEST_IDS.BUTTON_DELETE_LISTING_PREFIX}${id}`}
+        className="shrink-0 rounded-lg p-2 text-[#b45a4b] transition hover:bg-[#fbe9e6] disabled:opacity-50"
       >
-        <PenLine size={16} />
-      </Link>
+        <Trash2 size={16} />
+      </button>
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('dashboard.deleteListingTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('dashboard.deleteListingDescription')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void handleConfirmDelete()} disabled={deleteListing.isPending}>
+              {t('dashboard.deleteListing')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

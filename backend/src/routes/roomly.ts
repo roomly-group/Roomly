@@ -20,6 +20,7 @@ import {
   GetOwnerDashboardResponse,
   ROOM_PHOTO_MAX_COUNT,
   ROOM_PHOTO_MAX_SIZE_BYTES,
+  LISTING_AMENITY_OPTIONS,
   API_ROUTE_PATHS,
 } from "@workspace/api-zod";
 
@@ -51,6 +52,11 @@ type RoomRow = {
   stanze_foto?: Array<{ url?: string | null; copertina?: boolean | null; ordine?: number | null }> | null;
   universita?: { nome?: string | null } | null;
   utenti?: { nome_utente?: string | null; nome?: string | null; cognome?: string | null } | null;
+};
+
+const getListingAmenities = (services: string[] | null | undefined): string[] => {
+  const serviceSet = new Set(services ?? []);
+  return LISTING_AMENITY_OPTIONS.filter((amenity) => serviceSet.has(amenity));
 };
 
 const router: IRouter = Router();
@@ -146,6 +152,7 @@ const mapRoomRowToListing = async (
     ...(includeGallery ? { photoUrls: signedPhotoUrls.filter((url): url is string => Boolean(url)) } : {}),
     furnished,
     wifi,
+    amenities: getListingAmenities(serviziArray),
     description: row.descrizione ?? "",
     available: Boolean(row.attiva) && row.stato === "disponibile",
     ...(distanceKm !== undefined ? { distanceKm } : {}),
@@ -472,6 +479,7 @@ router.post(API_ROUTE_PATHS.LISTINGS, requireAuth, async (req: Request, res: Res
       photos: 0,
       furnished: input.furnished ?? false,
       wifi: input.wifi ?? false,
+      amenities: input.amenities ?? [],
       description: newListing.descrizione ?? "",
       available: newListing.attiva && newListing.stato === "disponibile",
     };
@@ -555,13 +563,99 @@ router.post(
 
       if (insertError) throw insertError;
 
-      return res.status(201).json({ id: photo.id, url: uploadedPath, cover: isCover });
+      return res.status(201).json({
+        id: photo.id,
+        url: await createRoomPhotoSignedUrl(uploadedPath),
+        cover: isCover,
+      });
     } catch (error) {
       if (uploadedPath) {
         await supabaseAdmin.storage.from(ROOM_PHOTO_BUCKET).remove([uploadedPath]);
       }
       console.error("Error uploading room photo:", error);
       return res.status(500).json({ error: "Unable to upload photo" });
+    }
+  },
+);
+
+router.delete(
+  API_ROUTE_PATHS.OWNER_LISTING_PHOTO_BY_ID,
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const photoId = Number(req.params.photoId);
+      if (!Number.isInteger(id) || id <= 0 || !Number.isInteger(photoId) || photoId <= 0) {
+        return res.status(400).json({ error: "Invalid listing or photo ID" });
+      }
+
+      const authedReq = req as typeof req & { userId: string };
+      const { data: listing, error: listingError } = await supabaseAdmin
+        .from("stanze")
+        .select("id")
+        .eq("id", id)
+        .eq("proprietario_id", authedReq.userId)
+        .maybeSingle();
+
+      if (listingError) throw listingError;
+      if (!listing) return res.status(404).json({ error: "Listing not found" });
+
+      const { data: photo, error: photoError } = await supabaseAdmin
+        .from("stanze_foto")
+        .select("id, url, copertina")
+        .eq("id", photoId)
+        .eq("stanza_id", id)
+        .maybeSingle();
+
+      if (photoError) throw photoError;
+      if (!photo) return res.status(404).json({ error: "Photo not found" });
+
+      const { error: deleteError } = await supabaseAdmin
+        .from("stanze_foto")
+        .delete()
+        .eq("id", photoId)
+        .eq("stanza_id", id);
+
+      if (deleteError) throw deleteError;
+
+      if (photo.copertina) {
+        const { data: remainingPhotos, error: remainingPhotosError } = await supabaseAdmin
+          .from("stanze_foto")
+          .select("id")
+          .eq("stanza_id", id)
+          .order("ordine", { ascending: true })
+          .limit(1);
+
+        if (remainingPhotosError) {
+          console.warn("Photo was deleted, but a replacement cover could not be selected:", remainingPhotosError.message);
+        }
+        if (remainingPhotos?.[0]) {
+          const { error: updateCoverError } = await supabaseAdmin
+            .from("stanze_foto")
+            .update({ copertina: true })
+            .eq("id", remainingPhotos[0].id);
+
+          if (updateCoverError) {
+            console.warn("Photo was deleted, but its replacement cover could not be updated:", updateCoverError.message);
+          }
+        }
+      }
+
+      const photoPath = getRoomPhotoPath(photo.url);
+      if (photoPath) {
+        const { error: storageError } = await supabaseAdmin.storage
+          .from(ROOM_PHOTO_BUCKET)
+          .remove([photoPath]);
+
+        if (storageError) {
+          console.warn("Photo record was deleted, but its file could not be removed from storage:", storageError.message);
+        }
+      }
+
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting listing photo:", error);
+      return res.status(500).json({ error: "Unable to delete photo" });
     }
   },
 );
@@ -646,7 +740,8 @@ router.get(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
         cap,
         latitudine,
         longitudine,
-        servizi
+        servizi,
+        stanze_foto(id, url, copertina, ordine)
       `)
       .eq("id", id)
       .eq("proprietario_id", authedReq.userId)
@@ -684,6 +779,16 @@ router.get(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
       longitude: data.longitudine ?? 0,
       furnished,
       wifi,
+      amenities: getListingAmenities(serviziArray),
+      photos: await Promise.all(
+        [...(data.stanze_foto ?? [])]
+          .sort((left, right) => (left.ordine ?? 0) - (right.ordine ?? 0))
+          .map(async (photo) => ({
+            id: photo.id,
+            url: await createRoomPhotoSignedUrl(photo.url),
+            cover: photo.copertina ?? false,
+          })),
+      ),
     };
 
     return res.json(response);
@@ -757,7 +862,7 @@ router.put(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
     const authedReq = req as typeof req & { userId: string };
 
     // Validate request body
-    const { title, description, price, furnished, wifi, address, city, postcode, latitude, longitude } = req.body;
+    const { title, description, price, furnished, wifi, amenities, address, city, postcode, latitude, longitude } = req.body;
 
     if (typeof title !== "string" || title.trim() === "") {
       return res.status(400).json({ error: "Title is required" });
@@ -767,6 +872,17 @@ router.put(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
     }
     if (typeof price !== "number" || !Number.isFinite(price) || price < 1) {
       return res.status(400).json({ error: "Price must be a number greater than or equal to 1" });
+    }
+    if (
+      amenities !== undefined &&
+      (!Array.isArray(amenities) ||
+        amenities.some(
+          (amenity: unknown) =>
+            typeof amenity !== "string" ||
+            !LISTING_AMENITY_OPTIONS.includes(amenity as (typeof LISTING_AMENITY_OPTIONS)[number]),
+        ))
+    ) {
+      return res.status(400).json({ error: "Invalid listing amenities" });
     }
 
     // Load current row to verify ownership and get existing services
@@ -792,10 +908,13 @@ router.put(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
     const existingServizi = Array.isArray(currentRow.servizi) ? currentRow.servizi : [];
     const serviziWithoutFlags = existingServizi.filter(
       (servizio: string) =>
-        servizio.toLowerCase() !== "arredato" && servizio.toLowerCase() !== "internet"
+        servizio.toLowerCase() !== "arredato" &&
+        servizio.toLowerCase() !== "internet" &&
+        (amenities === undefined || !LISTING_AMENITY_OPTIONS.includes(servizio as (typeof LISTING_AMENITY_OPTIONS)[number]))
     );
     const serviziToUpdate = [
       ...serviziWithoutFlags,
+      ...(Array.isArray(amenities) ? amenities : []),
       ...(furnished ? ["arredato"] : []),
       ...(wifi ? ["internet"] : []),
     ];
@@ -866,6 +985,103 @@ router.put(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
     return res.json({ id });
   } catch (error) {
     console.error("Error updating listing for owner:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.delete(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid listing ID" });
+    }
+
+    const authedReq = req as typeof req & { userId: string };
+    const { data: listing, error: listingError } = await supabaseAdmin
+      .from("stanze")
+      .select("id")
+      .eq("id", id)
+      .eq("proprietario_id", authedReq.userId)
+      .maybeSingle();
+
+    if (listingError) throw listingError;
+    if (!listing) return res.status(404).json({ error: "Listing not found" });
+
+    const { data: photos, error: photosError } = await supabaseAdmin
+      .from("stanze_foto")
+      .select("url")
+      .eq("stanza_id", id);
+
+    if (photosError) throw photosError;
+
+    const { data: conversations, error: conversationsError } = await supabaseAdmin
+      .from("conversazioni")
+      .select("id")
+      .eq("stanza_id", id);
+
+    if (conversationsError) throw conversationsError;
+
+    const conversationIds = (conversations ?? []).map((conversation) => conversation.id);
+    if (conversationIds.length > 0) {
+      const { error: messagesError } = await supabaseAdmin
+        .from("messaggi")
+        .delete()
+        .in("conversazione_id", conversationIds);
+
+      if (messagesError) throw messagesError;
+
+      const { error: participantsError } = await supabaseAdmin
+        .from("conversazioni_utenti")
+        .delete()
+        .in("conversazione_id", conversationIds);
+
+      if (participantsError) throw participantsError;
+
+      const { error: conversationsDeleteError } = await supabaseAdmin
+        .from("conversazioni")
+        .delete()
+        .in("id", conversationIds);
+
+      if (conversationsDeleteError) throw conversationsDeleteError;
+    }
+
+    const { error: photosDeleteError } = await supabaseAdmin
+      .from("stanze_foto")
+      .delete()
+      .eq("stanza_id", id);
+
+    if (photosDeleteError) throw photosDeleteError;
+
+    const { data: deletedListing, error: deleteError } = await supabaseAdmin
+      .from("stanze")
+      .delete()
+      .eq("id", id)
+      .eq("proprietario_id", authedReq.userId)
+      .select("id")
+      .maybeSingle();
+
+    if (deleteError) throw deleteError;
+    if (!deletedListing) return res.status(404).json({ error: "Listing not found" });
+
+    const photoPaths = [...new Set(
+      (photos ?? [])
+        .map((photo) => getRoomPhotoPath(photo.url))
+        .filter((path): path is string => path !== null),
+    )];
+
+    if (photoPaths.length > 0) {
+      const { error: storageError } = await supabaseAdmin.storage
+        .from(ROOM_PHOTO_BUCKET)
+        .remove(photoPaths);
+
+      if (storageError) {
+        console.warn("Listing was deleted, but its photos could not be removed from storage:", storageError.message);
+      }
+    }
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting owner listing:", error);
     return res.status(500).json({ error: "Internal server error" });
   }
 });

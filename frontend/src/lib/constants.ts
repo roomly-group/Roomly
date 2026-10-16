@@ -1,3 +1,5 @@
+import { LISTING_AMENITY_OPTIONS } from '@workspace/api-zod';
+
 // ===================== CONFIGURATION =====================
 
 /** Frontend navigation paths used by the Wouter router and page links. */
@@ -146,4 +148,4 @@ export function initials(name: string) {
 }
 
 // Caratteristiche selezionabili in 'Aggiungi annuncio' (valore salvato in `servizi`).
-export const LISTING_AMENITIES = ['lavatrice', 'aria_condizionata', 'riscaldamento', 'balcone', 'bagno_privato', 'cucina', 'spese_incluse', 'animali', 'scrivania', 'ascensore'] as const;
+export const LISTING_AMENITIES = LISTING_AMENITY_OPTIONS;

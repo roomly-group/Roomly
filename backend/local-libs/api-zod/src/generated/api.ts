@@ -41,6 +41,7 @@ export const ListListingsResponseItem = zod.object({
   "coverPhotoUrl": zod.string().optional(),
   "furnished": zod.boolean(),
   "wifi": zod.boolean(),
+  "amenities": zod.array(zod.string()),
   "description": zod.string(),
   "available": zod.boolean(),
   "distanceKm": zod.number().optional()
@@ -86,6 +87,7 @@ export const CreateListingResponse = zod.object({
   "coverPhotoUrl": zod.string().optional(),
   "furnished": zod.boolean(),
   "wifi": zod.boolean(),
+  "amenities": zod.array(zod.string()),
   "description": zod.string(),
   "available": zod.boolean()
 })
@@ -111,6 +113,7 @@ export const GetListingResponse = zod.object({
   "photoUrls": zod.array(zod.string()).optional(),
   "furnished": zod.boolean(),
   "wifi": zod.boolean(),
+  "amenities": zod.array(zod.string()),
   "description": zod.string(),
   "available": zod.boolean()
 })
@@ -247,5 +250,3 @@ export const ReleaseListingParams = zod.object({
 export const ReleaseListingResponse = zod.object({
   "success": zod.boolean()
 })
-
-

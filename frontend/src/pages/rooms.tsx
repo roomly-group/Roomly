@@ -9,6 +9,7 @@ import { LoadingCards } from '@/components/shared/loading-cards';
 import { QueryError } from '@/components/shared/query-error';
 import { EmptyState } from '@/components/shared/empty-state';
 import { listRooms, listUniversities, RoomFilters } from '@/lib/rooms';
+import { LISTING_AMENITIES } from '@/lib/constants';
 
 // ===================== CONFIGURATION =====================
 
@@ -181,6 +182,9 @@ export function RoomsPage() {
                 coverPhotoUrl: room.coverPhotoUrl,
                 furnished: room.servizi.some((s: string) => ['arredato', 'mobilio', 'letto', 'armadio'].includes(s.toLowerCase())),
                 wifi: room.servizi.some((s: string) => s.toLowerCase().includes('internet')),
+                amenities: room.servizi.filter((service: string) =>
+                  LISTING_AMENITIES.includes(service as (typeof LISTING_AMENITIES)[number]),
+                ),
                 description: room.description,
                 available: room.attiva && room.stato === 'disponibile',
                 distanceKm: room.distanceKm,
