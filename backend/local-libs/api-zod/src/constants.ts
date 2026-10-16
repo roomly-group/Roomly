@@ -22,6 +22,7 @@ export const API_ROUTE_PATHS = {
   ME_ROLE: "/me/role",
   ME: "/me",
   ME_LANGUAGE: "/me/language",
+  ME_PREFERENCES: "/me/preferences",
   WAITLIST_COUNT: "/waitlist/count",
   WAITLIST_ME: "/waitlist/me",
   LOGIN: "/login",
@@ -36,6 +37,36 @@ export const API_ROUTE_PATHS = {
 
 /** Language codes accepted by backend profile settings and frontend localization (locale codes). */
 export const SUPPORTED_LANGUAGE_CODES = ["en", "it", "es", "fr", "de", "pt"] as const;
+
+/** Values accepted by the public preference enums. */
+export const USER_PREFERENCE_OPTIONS = {
+  noise: ["silenzioso", "medio", "tollerante"],
+  cleanliness: ["molto_ordinato", "abbastanza_ordinato", "tollerante"],
+  schedule: ["notturno", "diurno", "flessibile"],
+  studyHabits: ["silenzioso", "con_musica", "flessibile"],
+} as const;
+
+/** User-owned roommate preferences persisted in `public.preferenze_utenti`. */
+export type UserPreferences = {
+  budget_max: number | null;
+  animali: boolean | null;
+  fumatori: boolean | null;
+  livello_rumore_preferito: (typeof USER_PREFERENCE_OPTIONS.noise)[number];
+  ordine_pulizia: (typeof USER_PREFERENCE_OPTIONS.cleanliness)[number];
+  orari_sosta: (typeof USER_PREFERENCE_OPTIONS.schedule)[number];
+  abitudini_studio: (typeof USER_PREFERENCE_OPTIONS.studyHabits)[number];
+};
+
+/** Matches the defaults on `public.preferenze_utenti` for a new preference row. */
+export const DEFAULT_USER_PREFERENCES: UserPreferences = {
+  budget_max: null,
+  animali: null,
+  fumatori: null,
+  livello_rumore_preferito: "medio",
+  ordine_pulizia: "abbastanza_ordinato",
+  orari_sosta: "flessibile",
+  abitudini_studio: "flessibile",
+};
 
 /** Cookie name read by the frontend CSRF header synchronizer and set by the backend (cookie key). */
 export const CSRF_TOKEN_COOKIE_NAME = "csrf-token" as const;

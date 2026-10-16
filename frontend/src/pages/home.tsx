@@ -25,7 +25,7 @@ import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 /** Cache freshness duration for the health-check query (ms). */
 const HEALTH_CHECK_STALE_TIME_MS = 60000 as const;
 /** Number of listings shown in the featured listings section. */
-const FEATURED_LISTING_COUNT = 3 as const;
+const FEATURED_LISTING_COUNT = 6 as const;
 /** Stable selectors for the homepage search and featured-listing controls. */
 const HOME_TEST_IDS = {
   FORM_SEARCH: 'form-search',

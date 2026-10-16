@@ -1,7 +1,13 @@
 import { Router, type IRouter } from "express";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
-import { API_ROUTE_PATHS, SUPPORTED_LANGUAGE_CODES } from "@workspace/api-zod";
+import {
+  API_ROUTE_PATHS,
+  DEFAULT_USER_PREFERENCES,
+  SUPPORTED_LANGUAGE_CODES,
+  USER_PREFERENCE_OPTIONS,
+} from "@workspace/api-zod";
+import { z } from "zod";
 
 const router: IRouter = Router();
 
@@ -186,6 +192,62 @@ router.patch(API_ROUTE_PATHS.ME_LANGUAGE, requireAuth, async (req: Authenticated
   }
 
   res.json({ language });
+});
+
+const userPreferencesSchema = z.object({
+  budget_max: z.number().min(0).max(99_999_999.99).multipleOf(0.01).nullable(),
+  animali: z.boolean().nullable(),
+  fumatori: z.boolean().nullable(),
+  livello_rumore_preferito: z.enum(USER_PREFERENCE_OPTIONS.noise),
+  ordine_pulizia: z.enum(USER_PREFERENCE_OPTIONS.cleanliness),
+  orari_sosta: z.enum(USER_PREFERENCE_OPTIONS.schedule),
+  abitudini_studio: z.enum(USER_PREFERENCE_OPTIONS.studyHabits),
+});
+
+router.get(API_ROUTE_PATHS.ME_PREFERENCES, requireAuth, async (req: AuthenticatedRequest, res) => {
+  const { data, error } = await supabaseAdmin
+    .from("preferenze_utenti")
+    .select("budget_max, animali, fumatori, livello_rumore_preferito, ordine_pulizia, orari_sosta, abitudini_studio")
+    .eq("utente_id", req.userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Failed to fetch user preferences:", error);
+    res.status(500).json({ error: "Impossibile caricare le preferenze" });
+    return;
+  }
+
+  res.json(data ?? DEFAULT_USER_PREFERENCES);
+});
+
+router.put(API_ROUTE_PATHS.ME_PREFERENCES, requireAuth, async (req: AuthenticatedRequest, res) => {
+  const parsedPreferences = userPreferencesSchema.safeParse(req.body);
+
+  if (!parsedPreferences.success) {
+    res.status(400).json({ error: "Preferenze non valide" });
+    return;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("preferenze_utenti")
+    .upsert(
+      {
+        utente_id: req.userId,
+        ...parsedPreferences.data,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "utente_id" },
+    )
+    .select("budget_max, animali, fumatori, livello_rumore_preferito, ordine_pulizia, orari_sosta, abitudini_studio")
+    .single();
+
+  if (error || !data) {
+    console.error("Failed to save user preferences:", error);
+    res.status(500).json({ error: "Impossibile salvare le preferenze" });
+    return;
+  }
+
+  res.json(data);
 });
 
 export default router;

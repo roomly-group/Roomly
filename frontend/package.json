@@ -11,6 +11,9 @@
     "audit": "npm audit",
     "audit:fix": "npm audit fix"
   },
+  "overrides": {
+  "postcss-selector-parser": "^7.1.6"
+  },
   "dependencies": {
     "@geoapify/geocoder-autocomplete": "^3.1.0",
     "@geoapify/react-geocoder-autocomplete": "^3.1.0",

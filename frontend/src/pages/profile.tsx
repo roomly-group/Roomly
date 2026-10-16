@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Settings, ShieldCheck } from 'lucide-react';
+import { Link } from 'wouter';
+import { Settings, ShieldCheck, SlidersHorizontal } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { AppShell, Avatar } from '@/components/layout/app-shell';
 import { PageIntro } from '@/components/shared/page-intro';
 import { LanguageSetting } from '@/components/language-selector';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAccount } from '@/lib/account-cache';
+import { APP_ROUTES } from '@/lib/constants';
 
 // ===================== CONFIGURATION =====================
 
@@ -66,6 +68,14 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
             <div className="flex items-center justify-center gap-1 text-xs font-extrabold text-[#0F6E56]">
               <ShieldCheck size={14} /> {t('profile.identityChecked')}
             </div>
+            <Link
+              href={owner ? APP_ROUTES.OWNER_PROFILE_PREFERENCES : APP_ROUTES.PROFILE_PREFERENCES}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-[#0850411a] px-4 py-3 text-sm font-extrabold text-[#085041] transition-colors hover:border-[#08504140] hover:bg-[#E1F5EE]"
+              data-testid="link-profile-preferences"
+            >
+              <SlidersHorizontal size={16} />
+              {t('preferences.open')}
+            </Link>
 
             {editing && (
               <p

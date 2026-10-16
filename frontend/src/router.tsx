@@ -10,6 +10,7 @@ import { RoomsPage } from '@/pages/rooms';
 import { RoomDetailPage } from '@/pages/room-detail';
 import { StudentMessagesRoute, OwnerMessagesRoute } from '@/pages/messages';
 import { StudentProfileRoute, OwnerProfileRoute } from '@/pages/profile';
+import { UserPreferencesPage } from '@/pages/user-preferences';
 import { OwnerDashboard } from '@/pages/owner-dashboard';
 import { NewListingPage } from '@/pages/new-listing';
 import { EditListingPage } from '@/pages/edit-listing';
@@ -70,6 +71,11 @@ export function Router() {
             <StudentProfileRoute />
           </RequireAuth>
         </Route>
+        <Route path={APP_ROUTES.PROFILE_PREFERENCES}>
+          <RequireAuth>
+            <UserPreferencesPage />
+          </RequireAuth>
+        </Route>
         <Route path={APP_ROUTES.OWNER_LISTING_NEW}>
           <RequireAuth>
             <RequireOwner>
@@ -86,6 +92,13 @@ export function Router() {
           <RequireAuth>
             <RequireOwner>
               <OwnerProfileRoute />
+            </RequireOwner>
+          </RequireAuth>
+        </Route>
+        <Route path={APP_ROUTES.OWNER_PROFILE_PREFERENCES}>
+          <RequireAuth>
+            <RequireOwner>
+              <UserPreferencesPage owner />
             </RequireOwner>
           </RequireAuth>
         </Route>
