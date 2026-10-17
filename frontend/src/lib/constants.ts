@@ -133,7 +133,7 @@ export const gradients = [
 export function formatPrice(value: number) {
   return new Intl.NumberFormat('en-GB', {
     style: 'currency',
-    currency: 'GBP',
+    currency: 'EUR',
     maximumFractionDigits: 0,
   }).format(value);
 }

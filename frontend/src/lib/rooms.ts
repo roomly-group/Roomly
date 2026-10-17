@@ -1,10 +1,18 @@
 import { supabase } from './supabase';
-import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
+import {
+  API_BASE_PATH,
+  API_ROUTE_PATHS,
+  ROOM_FEATURE_COLUMNS,
+  roomColumnsToListingFeatures,
+  type RoomFeatureColumns,
+} from '@workspace/api-zod';
 
 // ===================== CONFIGURATION =====================
 
 /** Default number of rooms fetched when callers omit pagination settings (rooms). */
 const ROOMS_DEFAULT_PAGE_SIZE = 20 as const;
+/** Labels kept in `Room.servizi` for the Furnished / Wi-Fi toggles (read by the rooms pages). */
+const ROOM_SERVICE_LABELS = { furnished: 'arredato', wifi: 'internet' } as const;
 
 export interface RoomFilters {
   universityId?: string;
@@ -40,6 +48,21 @@ export interface Room {
   ownerName?: string;
   ownerAvatarUrl?: string;
   ownerBio?: string;
+}
+
+/**
+ * Builds `Room.servizi` from the feature columns of `stanze` (mobili_inclusi,
+ * spese_incluse, elettrodomestici, arredi, animali_consentiti, servizi), in the
+ * same format the rooms pages already read.
+ */
+function toRoomServices(row: Partial<RoomFeatureColumns>): string[] {
+  const { furnished, wifi, amenities } = roomColumnsToListingFeatures(row);
+  return [...new Set([
+    ...(furnished ? [ROOM_SERVICE_LABELS.furnished] : []),
+    ...(wifi ? [ROOM_SERVICE_LABELS.wifi] : []),
+    ...amenities,
+    ...(Array.isArray(row.servizi) ? row.servizi : []),
+  ])];
 }
 
 async function fetchListingMedia(): Promise<Map<number, { coverPhotoUrl?: string; photoUrls?: string[]; photos?: number }>> {
@@ -78,7 +101,7 @@ export async function listRooms(options: RoomListOptions = {}) {
       descrizione,
       attiva,
       stato,
-      servizi,
+      ${ROOM_FEATURE_COLUMNS},
       universita_id,
       proprietario_id,
       latitudine,
@@ -125,7 +148,7 @@ export async function listRooms(options: RoomListOptions = {}) {
       universityName: university?.nome ?? null,
       latitude: room.latitudine,
       longitude: room.longitudine,
-      servizi: Array.isArray(room.servizi) ? room.servizi : [],
+      servizi: toRoomServices(room),
       attiva: room.attiva,
       stato: room.stato ?? '',
       universita_id: room.universita_id,
@@ -156,7 +179,7 @@ export async function getRoom(id: number): Promise<Room | null> {
       descrizione,
       attiva,
       stato,
-      servizi,
+      ${ROOM_FEATURE_COLUMNS},
       universita_id,
       latitudine,
       longitudine,
@@ -219,7 +242,7 @@ export async function getRoom(id: number): Promise<Room | null> {
     universityName: university?.nome ?? null,
     latitude: roomData.latitudine,
     longitude: roomData.longitudine,
-    servizi: Array.isArray(roomData.servizi) ? roomData.servizi : [],
+    servizi: toRoomServices(roomData as Partial<RoomFeatureColumns>),
     attiva: roomData.attiva,
     stato: roomData.stato ?? '',
     universita_id: roomData.universita_id,
@@ -266,7 +289,7 @@ export async function listNearbyRooms(universityId: string, radiusKm: number): P
       descrizione,
       attiva,
       stato,
-      servizi,
+      ${ROOM_FEATURE_COLUMNS},
       universita_id,
       proprietario_id,
       latitudine,
@@ -309,7 +332,7 @@ export async function listNearbyRooms(universityId: string, radiusKm: number): P
       universityName: university?.nome ?? null,
       latitude: room.latitudine,
       longitude: room.longitudine,
-      servizi: Array.isArray(room.servizi) ? room.servizi : [],
+      servizi: toRoomServices(room),
       attiva: room.attiva,
       stato: room.stato ?? '',
       universita_id: room.universita_id,

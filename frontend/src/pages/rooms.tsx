@@ -129,7 +129,7 @@ export function RoomsPage() {
             />
 
             <label className="flex items-center gap-2 rounded-xl border border-[#bedbcd] bg-[#F1EFE8] px-3 py-2 text-sm font-bold text-[#527067]">
-              <span className="font-black">£</span>
+              <span className="font-black">€</span>
               <input
                 value={maxPrice}
                 onChange={(e) => setMaxPrice(e.target.value)}

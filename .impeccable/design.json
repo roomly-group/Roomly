@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-17T00:00:00Z",
+  "title": "Design System: Roomly",
+  "extensions": {
+    "colorMeta": {
+      "deep-pine": { "role": "primary", "displayName": "Deep Pine", "canonical": "#085041", "tonalRamp": ["#074639", "#0c7962", "#11ac8b", "#16dfb5", "#46ecca", "#7df2da", "#b5f8ea", "#e8fdf8"] },
+      "shutter-green": { "role": "primary", "displayName": "Shutter Green", "canonical": "#0f6e56", "tonalRamp": ["#094335", "#10755b", "#17a682", "#1dd7a8", "#4be7bf", "#81eed2", "#b7f5e6", "#e9fcf7"] },
+      "mint-wash": { "role": "secondary", "displayName": "Mint Wash", "canonical": "#9fe1cb", "tonalRamp": ["#123a2d", "#20654e", "#2d906f", "#3abb90", "#64ceab", "#92ddc4", "#c1ecdd", "#ecf9f4"] },
+      "mint-mist": { "role": "secondary", "displayName": "Mint Mist", "canonical": "#e1f5ee", "tonalRamp": ["#13392c", "#21634c", "#2f8e6d", "#3db88d", "#66cca8", "#94dbc2", "#c2ebdc", "#ecf9f4"] },
+      "sun-amber": { "role": "tertiary", "displayName": "Sun Amber", "canonical": "#ef9f27", "tonalRamp": ["#472d06", "#7b4e0a", "#af6e0e", "#e28f12", "#f0aa42", "#f4c47b", "#f9ddb4", "#fdf4e7"] },
+      "terracotta": { "role": "tertiary", "displayName": "Terracotta", "canonical": "#a74b32", "tonalRamp": ["#3b1a12", "#662e1f", "#91412b", "#bc5538", "#d07a62", "#dea291", "#eccac0", "#f9eeeb"] },
+      "plaster-cream": { "role": "neutral", "displayName": "Plaster Cream", "canonical": "#f1efe8", "tonalRamp": ["#302b1d", "#524b32", "#756b47", "#988b5d", "#b2a780", "#c9c1a6", "#e0dccc", "#f5f4ef"] },
+      "card-paper": { "role": "neutral", "displayName": "Card Paper", "canonical": "hsl(50 33% 97%)", "tonalRamp": ["#353018", "#5b5329", "#82763b", "#a8994d", "#bfb273", "#d2c99d", "#e5e0c7", "#f7f5ed"] },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#2c2c2a", "tonalRamp": ["#272725", "#444441", "#61615c", "#7d7d78", "#9b9b97", "#b9b9b6", "#d7d7d5", "#f3f3f2"] },
+      "sage-gray": { "role": "neutral", "displayName": "Sage Gray", "canonical": "#527067", "tonalRamp": ["#202c29", "#384d46", "#506d64", "#678d82", "#89a99f", "#adc3bc", "#d0ddd9", "#f0f4f3"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "One per page, hero panels only; second line may switch to Shutter Green." },
+      "headline": { "displayName": "Headline", "purpose": "Page intros and section titles, always Deep Pine." },
+      "title": { "displayName": "Title", "purpose": "Card titles, panel headings, listing names." },
+      "body": { "displayName": "Body", "purpose": "Intros and descriptions, max ~65ch." },
+      "body-sm": { "displayName": "Body small", "purpose": "Card text, helper text, messages." },
+      "label": { "displayName": "Label", "purpose": "Buttons, nav links, form labels." },
+      "eyebrow": { "displayName": "Eyebrow", "purpose": "Uppercase Shutter Green kicker above every page intro and section title." }
+    },
+    "shadows": [
+      { "name": "shadow-sm", "value": "0 2px 7px hsl(166 81% 17% / 0.06)", "purpose": "Rest: cards, empty states, panels at rest." },
+      { "name": "shadow-md", "value": "0 10px 28px hsl(166 81% 17% / 0.09)", "purpose": "Lift: card hover and raised menus." },
+      { "name": "shadow-lg", "value": "0 20px 48px hsl(166 81% 17% / 0.13)", "purpose": "Float: hero search bar, floating hero card, dialogs." }
+    ],
+    "motion": [
+      { "name": "rise", "value": "rise .45s ease-out both (translateY 12px to 0, fade in)", "purpose": "Page and card entrance; staggered by .08s steps (delay-1..3)." },
+      { "name": "floaty", "value": "floaty 5s ease-in-out infinite (±7px, -2deg to 1deg)", "purpose": "Single decorative floating card in hero panels, desktop only." },
+      { "name": "hover-lift", "value": "translateY(-4px) over 300ms", "purpose": "Card hover, paired with shadow-md." },
+      { "name": "press", "value": "scale(.98), 200ms", "purpose": "Button active state." },
+      { "name": "shimmer", "value": "shimmer 1.4s infinite", "purpose": "Skeleton loading cards." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "container", "value": "1320px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Default action; Shutter Green that deepens to Deep Pine.",
+      "html": "<button class=\"ds-btn-primary\">Cerca stanze</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 8px; background: #0f6e56; color: #e1f5ee; border: none; border-radius: 12px; padding: 10px 16px; font-family: 'Nunito Sans', sans-serif; font-size: 14px; font-weight: 800; cursor: pointer; transition: all .2s; } .ds-btn-primary:hover { background: #085041; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px #9fe1cb66; } .ds-btn-primary:active { transform: scale(.98); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Quiet companion action on a Mint Mist fill.",
+      "html": "<button class=\"ds-btn-secondary\">Salva</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; gap: 8px; background: #e1f5ee; color: #085041; border: none; border-radius: 12px; padding: 10px 16px; font-family: 'Nunito Sans', sans-serif; font-size: 14px; font-weight: 800; cursor: pointer; transition: all .2s; } .ds-btn-secondary:hover { background: #9fe1cb; } .ds-btn-secondary:focus-visible { outline: none; box-shadow: 0 0 0 3px #9fe1cb66; } .ds-btn-secondary:active { transform: scale(.98); }"
+    },
+    {
+      "name": "Amber Button",
+      "kind": "button",
+      "refersTo": "button-amber",
+      "description": "The single sun-spot action of a view.",
+      "html": "<button class=\"ds-btn-amber\">Cerca</button>",
+      "css": ".ds-btn-amber { display: inline-flex; align-items: center; gap: 8px; background: #ef9f27; color: #2c2c2a; border: none; border-radius: 12px; height: 48px; padding: 0 16px; font-family: 'Nunito Sans', sans-serif; font-size: 14px; font-weight: 800; cursor: pointer; transition: all .2s; } .ds-btn-amber:hover { background: #e6a53d; } .ds-btn-amber:focus-visible { outline: none; box-shadow: 0 0 0 3px #ef9f2766; } .ds-btn-amber:active { transform: scale(.98); }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary choice with a mint stroke.",
+      "html": "<button class=\"ds-btn-outline\">Annulla</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; gap: 8px; background: transparent; color: #085041; border: 1px solid #b7d7ca; border-radius: 12px; padding: 10px 16px; font-family: 'Nunito Sans', sans-serif; font-size: 14px; font-weight: 800; cursor: pointer; transition: all .2s; } .ds-btn-outline:hover { border-color: #0f6e56; background: #e1f5ee; } .ds-btn-outline:focus-visible { outline: none; box-shadow: 0 0 0 3px #9fe1cb66; } .ds-btn-outline:active { transform: scale(.98); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Plaster fill, mint stroke, green focus with a soft mint ring.",
+      "html": "<input class=\"ds-input\" placeholder=\"La tua email\" />",
+      "css": ".ds-input { width: 100%; max-width: 320px; background: #f1efe8; color: #2c2c2a; border: 1px solid #c8ddd2; border-radius: 12px; padding: 12px 14px; font-family: 'Nunito Sans', sans-serif; font-size: 14px; font-weight: 700; outline: none; transition: border-color .2s, box-shadow .2s; } .ds-input::placeholder { color: #82978e; } .ds-input:focus-visible, .ds-input:focus { border-color: #0f6e56; box-shadow: 0 0 0 3px #9fe1cb66; }"
+    },
+    {
+      "name": "Navigation",
+      "kind": "nav",
+      "refersTo": "nav-link-active",
+      "description": "Sticky plaster header links; active link is a Mint Mist pill.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-link ds-nav-active\" href=\"#\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/></svg>Home</a><a class=\"ds-nav-link\" href=\"#\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/></svg>Cerca</a><a class=\"ds-nav-link\" href=\"#\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"/></svg>Messaggi</a></nav>",
+      "css": ".ds-nav { display: flex; gap: 4px; padding: 12px 20px; background: rgba(241,239,232,.95); border-bottom: 1px solid #dbe8e0; font-family: 'Nunito Sans', sans-serif; } .ds-nav-link { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 12px; font-size: 14px; font-weight: 800; color: #527067; text-decoration: none; transition: background-color .2s, color .2s; } .ds-nav-link:hover { background: #e7eee8; } .ds-nav-link:focus-visible { outline: none; box-shadow: 0 0 0 3px #9fe1cb66; } .ds-nav-active, .ds-nav-active:hover { background: #e1f5ee; color: #085041; }"
+    },
+    {
+      "name": "Status Pill",
+      "kind": "chip",
+      "refersTo": "pill",
+      "description": "Mint pill with a live/pending dot.",
+      "html": "<span class=\"ds-pill\"><span class=\"ds-pill-dot\"></span>Disponibile ora</span>",
+      "css": ".ds-pill { display: inline-flex; align-items: center; gap: 6px; background: #e1f5ee; color: #085041; border-radius: 9999px; padding: 6px 12px; font-family: 'Nunito Sans', sans-serif; font-size: 12px; font-weight: 900; } .ds-pill-dot { width: 6px; height: 6px; border-radius: 9999px; background: #0f6e56; }"
+    },
+    {
+      "name": "Listing Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Photo-led room card: availability chip, save heart, meta, title, price row.",
+      "html": "<article class=\"ds-card\"><div class=\"ds-card-photo\"><span class=\"ds-card-chip\">Disponibile ora</span><button class=\"ds-card-heart\" aria-label=\"Salva\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z\"/></svg></button></div><div class=\"ds-card-body\"><p class=\"ds-card-meta\">Città Studi · 0.8 km</p><h3 class=\"ds-card-title\">Stanza singola luminosa</h3><div class=\"ds-card-row\"><p class=\"ds-card-price\">€ 520<span>/mese</span></p><span class=\"ds-card-link\">Vedi stanza →</span></div></div></article>",
+      "css": ".ds-card { width: 300px; overflow: hidden; border-radius: 16px; background: #faf9f4; border: 1px solid #0850411f; box-shadow: 0 2px 7px hsl(166 81% 17% / 0.06); font-family: 'Nunito Sans', sans-serif; transition: transform .3s, box-shadow .3s; } .ds-card:hover { transform: translateY(-4px); box-shadow: 0 10px 28px hsl(166 81% 17% / 0.09); } .ds-card-photo { position: relative; height: 192px; display: flex; align-items: flex-end; padding: 16px; background: linear-gradient(135deg, #a6dfca, #dff3df, #f1efe8); } .ds-card-chip { border-radius: 8px; background: rgba(241,239,232,.85); color: #085041; padding: 4px 10px; font-size: 12px; font-weight: 900; } .ds-card-heart { position: absolute; top: 16px; right: 16px; border: none; border-radius: 9999px; padding: 10px; display: flex; background: rgba(241,239,232,.75); color: #085041; cursor: pointer; transition: background .2s; } .ds-card-heart:hover { background: #f1efe8; } .ds-card-heart:focus-visible { outline: none; box-shadow: 0 0 0 3px #9fe1cb66; } .ds-card-body { padding: 16px; } .ds-card-meta { margin: 0 0 4px; font-size: 12px; font-weight: 800; color: #527067; } .ds-card-title { margin: 0 0 8px; font-size: 18px; font-weight: 900; color: #085041; } .ds-card-row { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e1ebe4; padding-top: 12px; } .ds-card-price { margin: 0; font-size: 18px; font-weight: 900; color: #0f6e56; } .ds-card-price span { font-size: 12px; font-weight: 700; color: #527067; } .ds-card-link { font-size: 14px; font-weight: 900; color: #085041; } .ds-card:hover .ds-card-link { color: #ef9f27; }"
+    },
+    {
+      "name": "Page Intro",
+      "kind": "custom",
+      "refersTo": "typography.headline",
+      "description": "Eyebrow, 900-weight headline, sage description: the opening of every page.",
+      "html": "<div class=\"ds-intro\"><p class=\"ds-eyebrow\">I tuoi messaggi</p><h1 class=\"ds-headline\">Parla direttamente con i proprietari.</h1><p class=\"ds-desc\">Richieste, risposte e accordi in un unico posto.</p></div>",
+      "css": ".ds-intro { font-family: 'Nunito Sans', sans-serif; max-width: 640px; } .ds-eyebrow { margin: 0 0 12px; color: #0f6e56; font-size: 11px; font-weight: 900; letter-spacing: .15em; text-transform: uppercase; } .ds-headline { margin: 0; color: #085041; font-size: 44px; font-weight: 900; letter-spacing: -0.045em; line-height: .98; } .ds-desc { margin: 12px 0 0; color: #527067; font-size: 15px; line-height: 1.6; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Green Shutter",
+    "overview": "An Italian student flat on a sunny morning: green wooden shutters against warm plaster walls, light falling across a tidy desk, a set of keys waiting on the table. Roomly's interface comes from that scene. Deep pine and shutter greens carry the structure and the voice. Plaster cream is the wall everything sits on. One amber accent shows up where the sun would land: the main search button, a rating star, the owners' invitation.\n\nThe system is calm and tidy. Controls stay quiet and well-ordered so that photos, prices, and distance to the university lead. Personality comes from three places only. Type is extra-black and tightly tracked, so headings feel spoken, not printed. Large rounded panels are blocked in solid colour (a mint hero, an amber owners panel, a deep-pine features panel). Small, slow moments of life: a tilted card floating in the hero, concentric rings bleeding off a panel's corner, content rising gently into place.\n\nDepth is softly layered. Surfaces sit on the cream with a faint, green-tinted shadow, rise a little on hover, and the few floating elements (search bar, hero card, menus) cast the deepest shade. Nothing is grey. Even the shadows are pine-tinted.",
+    "keyCharacteristics": [
+      "Warm cream page, pine-green ink, a single amber accent.",
+      "Extra-black (900) Nunito Sans headings with tight negative tracking.",
+      "Generous, consistent rounding: 12px controls, 16px cards, 32px hero panels.",
+      "Colour-blocked feature panels instead of decorative imagery.",
+      "Soft, green-tinted layered shadows; never grey or black drop shadows.",
+      "Gentle motion: rise-in on page enter, a slow float, a 4px hover lift, a 0.98 press."
+    ],
+    "rules": [
+      { "name": "The One Sun Rule", "body": "Amber marks the single most important action or highlight in a view. One amber CTA per screen; stars and status dots are the only repeat uses.", "section": "colors" },
+      { "name": "The No-Grey Rule", "body": "Neutrals are warm (cream, ink) or green-tinted (sage, mint lines). Do not use cool Tailwind greys (`#e5e7eb` and similar) or pure black for text, borders, or shadows.", "section": "colors" },
+      { "name": "The Token Rule", "body": "Every colour comes from this list. A new hex in a component is a bug: reuse the nearest token.", "section": "colors" },
+      { "name": "The Eyebrow-Then-Headline Rule", "body": "Every page intro and major section is an uppercase eyebrow, then a 900-weight headline, then an optional sage description. Do not skip the eyebrow or reorder them.", "section": "typography" },
+      { "name": "The Weight Floor Rule", "body": "Interactive text never goes below 700. Only body copy uses 400.", "section": "typography" },
+      { "name": "The Tinted Shade Rule", "body": "Shadows only use the three `--shadow-*` tokens. One-off `rgba(8,80,65,…)` shadows should map to the nearest token.", "section": "elevation" },
+      { "name": "The Colour-Block Exception", "body": "Solid colour panels (mint hero, amber owners panel, deep-pine panel) carry no shadow. Their colour is their elevation.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do take every colour, radius, and shadow from the tokens above. Add a new token here before using a new value.",
+      "Do open every page with the Page Intro pattern (eyebrow, 900-weight headline, sage description).",
+      "Do use 12px corners on controls and 16px on cards. Keep the rounding consistent within a view.",
+      "Do tint every shadow with Deep Pine using the three shadow tokens.",
+      "Do let photos, price, and distance lead the listing card. Keep the surrounding chrome quiet.",
+      "Do write error messages in plain, friendly words in Terracotta, with a next step when possible.",
+      "Do design mobile-first: stack inline forms, keep 48px tap targets for primary actions, and hide decorative floaters below `lg`.",
+      "Do respect `prefers-reduced-motion` for the float, rise, and shimmer animations."
+    ],
+    "donts": [
+      "Don't use more than one amber call to action in a view.",
+      "Don't use cool greys, pure black, or pure white text on brand fills. Use Mint Mist on greens and Ink on amber.",
+      "Don't use sharp corners or mix radii arbitrarily within one component.",
+      "Don't use grey or black drop shadows, or invent one-off shadow values.",
+      "Don't set headings below 800 weight or drop the negative tracking on display and headline text.",
+      "Don't use red for errors. Terracotta is the error colour.",
+      "Don't add gradients to buttons or text. Gradients are allowed only as soft pastel listing-photo placeholders."
+    ]
+  }
+}

@@ -374,7 +374,7 @@ export function OwnerDashboard() {
                             id={listing.id}
                             title={listing.title ?? ''}
                             zone={zoneLabel(listing.zone ?? '')}
-                            price={`£${listing.price ?? 0}`}
+                            price={`€${listing.price ?? 0}`}
                             available={listing.available}
                             rented={Boolean(rentedConversation)}
                             conversationId={rentedConversation?.id}

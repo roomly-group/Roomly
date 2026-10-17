@@ -72,7 +72,7 @@ function SearchBar({
       />
 
       <label className="flex min-h-12 w-full flex-1 items-center gap-2 rounded-xl bg-[#F1EFE8] px-3 text-[#527067] sm:max-w-[220px]">
-        <span className="text-lg font-black text-[#0F6E56]">£</span>
+        <span className="text-lg font-black text-[#0F6E56]">€</span>
         <input
           type="number"
           min="1"

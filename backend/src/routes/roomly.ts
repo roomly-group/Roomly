@@ -22,6 +22,13 @@ import {
   ROOM_PHOTO_MAX_SIZE_BYTES,
   LISTING_AMENITY_OPTIONS,
   API_ROUTE_PATHS,
+  ROOM_DB_ENUM_VALUES,
+  ROOM_FEATURE_COLUMNS,
+  applyListingFeatures,
+  roomColumnsToListingFeatures,
+  type ListingAmenity,
+  type RoomFeatureColumns,
+  type RoomTipo,
 } from "@workspace/api-zod";
 
 // ===================== CONFIGURATION =====================
@@ -36,6 +43,13 @@ const UNIVERSITY_MATCH_LIMIT = 10 as const;
 const ROOM_PHOTO_CACHE_CONTROL_MAX_AGE_SECONDS = "31536000" as const;
 /** Coordinate change tolerance used when deciding whether to update a listing location (degrees). */
 const COORDINATE_CHANGE_TOLERANCE_DEGREES = 0.000001 as const;
+/**
+ * Optional `tipo` (stanze_tipo_enum) saved on new rooms, from the ROOM_TIPO_DEFAULT env var.
+ * Ignored unless it is a valid enum value, so a wrong setting can never break room creation.
+ */
+const ROOM_TIPO_DEFAULT: RoomTipo | undefined = ROOM_DB_ENUM_VALUES.tipo.find(
+  (value) => value === process.env.ROOM_TIPO_DEFAULT,
+);
 
 type RoomRow = {
   id: number;
@@ -45,19 +59,13 @@ type RoomRow = {
   attiva?: boolean | null;
   stato?: string | null;
   proprietario_id?: string | null;
-  servizi?: string[] | null;
   universita_id?: string | number | null;
   latitudine?: number | null;
   longitudine?: number | null;
   stanze_foto?: Array<{ url?: string | null; copertina?: boolean | null; ordine?: number | null }> | null;
   universita?: { nome?: string | null } | null;
   utenti?: { nome_utente?: string | null; nome?: string | null; cognome?: string | null } | null;
-};
-
-const getListingAmenities = (services: string[] | null | undefined): string[] => {
-  const serviceSet = new Set(services ?? []);
-  return LISTING_AMENITY_OPTIONS.filter((amenity) => serviceSet.has(amenity));
-};
+} & Partial<RoomFeatureColumns>; // mobili_inclusi, spese_incluse, elettrodomestici, arredi, servizi...
 
 const router: IRouter = Router();
 
@@ -120,13 +128,8 @@ const mapRoomRowToListing = async (
 ): Promise<Listing> => {
   const ownerName = row.utenti?.nome_utente ??
     (row.utenti?.nome && row.utenti?.cognome ? `${row.utenti.nome} ${row.utenti.cognome}` : "Unknown");
-  const serviziArray = Array.isArray(row.servizi) ? row.servizi : [];
-  const furnished = serviziArray.some((servizio: string) =>
-    ["arredato", "mobilio", "letto", "armadio"].includes(servizio.toLowerCase())
-  );
-  const wifi = serviziArray.some((servizio: string) =>
-    servizio.toLowerCase().includes("internet")
-  );
+  // Furnished / Wi-Fi / amenities are read from the enum columns of `stanze`.
+  const { furnished, wifi, amenities } = roomColumnsToListingFeatures(row);
   const photos = [...(row.stanze_foto ?? [])].sort(
     (left, right) => (left.ordine ?? 0) - (right.ordine ?? 0),
   );
@@ -152,7 +155,7 @@ const mapRoomRowToListing = async (
     ...(includeGallery ? { photoUrls: signedPhotoUrls.filter((url): url is string => Boolean(url)) } : {}),
     furnished,
     wifi,
-    amenities: getListingAmenities(serviziArray),
+    amenities,
     description: row.descrizione ?? "",
     available: Boolean(row.attiva) && row.stato === "disponibile",
     ...(distanceKm !== undefined ? { distanceKm } : {}),
@@ -166,7 +169,7 @@ const ROOM_SELECT = `
   descrizione,
   attiva,
   stato,
-  servizi,
+  ${ROOM_FEATURE_COLUMNS},
   universita_id,
   proprietario_id,
   latitudine,
@@ -217,7 +220,7 @@ router.get(API_ROUTE_PATHS.LISTINGS, async (req: Request, res: Response) => {
     if (query.maxPrice !== undefined) {
       dbQuery = dbQuery.lte("prezzo", query.maxPrice);
     }
-    // `furnished` non è una colonna: si ricava da `servizi`, quindi si filtra
+    // `furnished` si ricava da `mobili_inclusi` (vedi room-features.ts), quindi si filtra
     // dopo la mappatura. Si confronta la stringa grezza perché z.coerce.boolean()
     // trasforma anche "false" in true.
     const furnishedOnly = String(req.query.furnished) === "true";
@@ -298,7 +301,7 @@ router.get(API_ROUTE_PATHS.LISTING_BY_ID, async (req: Request, res: Response) =>
         descrizione,
         attiva,
         stato,
-        servizi,
+        ${ROOM_FEATURE_COLUMNS},
         universita_id,
         proprietario_id,
         universita:universita_id(nome),
@@ -400,64 +403,37 @@ router.post(API_ROUTE_PATHS.LISTINGS, requireAuth, async (req: Request, res: Res
       if (uniData) universitaId = uniData.id;
     }
 
-    // Insert the new listing (se le colonne geo non esistono ancora, riprova senza)
-    const baseRow = {
+    // Furnished / Wi-Fi / amenities -> enum columns of `stanze`
+    // (mobili_inclusi, spese_incluse, elettrodomestici, arredi, animali_consentiti, servizi).
+    const featureColumns = applyListingFeatures(null, {
+      furnished: input.furnished ?? false,
+      wifi: input.wifi ?? false,
+      amenities: input.amenities ?? [],
+    });
+
+    const newRoomRow = {
       titolo: input.title,
       descrizione: input.description,
       prezzo: input.price,
       citta: input.city ?? null,
-      universita_id: universitaId,
-      proprietario_id: authedReq.userId,
-      servizi: [
-        ...(input.furnished ? ["arredato"] : []),
-        ...(input.wifi ? ["internet"] : []),
-        ...(input.amenities ?? []),
-      ],
-      attiva: true,
-      stato: "disponibile",
-    };
-    const geoRow = {
       indirizzo: input.address ?? null,
       cap: input.postcode ?? null,
       latitudine: hasCoords ? input.latitude : null,
       longitudine: hasCoords ? input.longitude : null,
+      universita_id: universitaId,
+      proprietario_id: authedReq.userId,
+      ...featureColumns,
+      // `tipo` is nullable: it is only set when a valid default is configured.
+      ...(ROOM_TIPO_DEFAULT ? { tipo: ROOM_TIPO_DEFAULT } : {}),
+      attiva: true,
+      stato: "disponibile",
     };
-    // `tipo` è NOT NULL su alcuni database: proviamo i valori più comuni,
-    // e se la colonna ha un vincolo diverso lasciamo il default del DB.
-    const tipoCandidates: Array<string | undefined> = [
-      process.env.ROOM_TIPO_DEFAULT,
-      "singola",
-      "stanza_singola",
-      "stanza",
-      undefined,
-    ].filter((v, i, arr) => arr.indexOf(v) === i);
 
-    let newListing: any = null;
-    let insertError: any = null;
-    outer: for (const withGeo of [true, false]) {
-      for (const tipo of tipoCandidates) {
-        const row = { ...baseRow, ...(withGeo ? geoRow : {}), ...(tipo ? { tipo } : {}) };
-        const result = await supabaseAdmin.from("stanze").insert(row).select().single();
-        if (!result.error) {
-          newListing = result.data;
-          insertError = null;
-          break outer;
-        }
-        insertError = result.error;
-        // Colonna geo mancante: riprova senza geo. Valore `tipo` rifiutato (22P02/23514/23502): prossimo candidato.
-        if (result.error.code === "PGRST204") continue outer;
-        if (!["22P02", "23514", "23502"].includes(result.error.code)) break outer;
-      }
-    }
-
-    if (insertError) {
-      console.error("Insert with geo columns failed, retrying without:", insertError);
-      ({ data: newListing, error: insertError } = await supabaseAdmin
-        .from("stanze")
-        .insert(baseRow)
-        .select()
-        .single());
-    }
+    const { data: newListing, error: insertError } = await supabaseAdmin
+      .from("stanze")
+      .insert(newRoomRow)
+      .select("id, titolo, prezzo, descrizione, attiva, stato")
+      .single();
 
     if (insertError) {
       throw insertError;
@@ -477,9 +453,7 @@ router.post(API_ROUTE_PATHS.LISTINGS, requireAuth, async (req: Request, res: Res
       owner: authedReq.userId, // TODO: get actual name
       rating: 0,
       photos: 0,
-      furnished: input.furnished ?? false,
-      wifi: input.wifi ?? false,
-      amenities: input.amenities ?? [],
+      ...roomColumnsToListingFeatures(featureColumns),
       description: newListing.descrizione ?? "",
       available: newListing.attiva && newListing.stato === "disponibile",
     };
@@ -693,7 +667,7 @@ router.get(API_ROUTE_PATHS.OWNER_LISTINGS, requireAuth, async (req: Request, res
         descrizione,
         attiva,
         stato,
-        servizi,
+        ${ROOM_FEATURE_COLUMNS},
         universita_id,
         proprietario_id,
         universita:universita_id(nome),
@@ -740,7 +714,7 @@ router.get(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
         cap,
         latitudine,
         longitudine,
-        servizi,
+        ${ROOM_FEATURE_COLUMNS},
         stanze_foto(id, url, copertina, ordine)
       `)
       .eq("id", id)
@@ -759,13 +733,8 @@ router.get(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
       return res.status(404).json({ error: "Listing not found" });
     }
 
-    const serviziArray = Array.isArray(data.servizi) ? data.servizi : [];
-    const furnished = serviziArray.some((servizio: string) =>
-      servizio.toLowerCase() === "arredato"
-    );
-    const wifi = serviziArray.some((servizio: string) =>
-      servizio.toLowerCase() === "internet"
-    );
+    // Furnished / Wi-Fi / amenities are read from the enum columns of `stanze`.
+    const { furnished, wifi, amenities } = roomColumnsToListingFeatures(data as Partial<RoomFeatureColumns>);
 
     const response = {
       id: data.id,
@@ -779,7 +748,7 @@ router.get(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
       longitude: data.longitudine ?? 0,
       furnished,
       wifi,
-      amenities: getListingAmenities(serviziArray),
+      amenities,
       photos: await Promise.all(
         [...(data.stanze_foto ?? [])]
           .sort((left, right) => (left.ordine ?? 0) - (right.ordine ?? 0))
@@ -885,10 +854,10 @@ router.put(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
       return res.status(400).json({ error: "Invalid listing amenities" });
     }
 
-    // Load current row to verify ownership and get existing services
+    // Load current row to verify ownership and get the current feature columns
     const { data: currentRow, error: fetchError } = await supabaseAdmin
       .from("stanze")
-      .select("id, servizi, indirizzo, citta, cap, latitudine, longitudine")
+      .select(`id, ${ROOM_FEATURE_COLUMNS}, indirizzo, citta, cap, latitudine, longitudine`)
       .eq("id", id)
       .eq("proprietario_id", authedReq.userId)
       .single();
@@ -904,27 +873,24 @@ router.put(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
       return res.status(404).json({ error: "Listing not found" });
     }
 
-    // Prepare services array: keep existing services except 'arredato' and 'internet', then add based on furnished/wifi flags
-    const existingServizi = Array.isArray(currentRow.servizi) ? currentRow.servizi : [];
-    const serviziWithoutFlags = existingServizi.filter(
-      (servizio: string) =>
-        servizio.toLowerCase() !== "arredato" &&
-        servizio.toLowerCase() !== "internet" &&
-        (amenities === undefined || !LISTING_AMENITY_OPTIONS.includes(servizio as (typeof LISTING_AMENITY_OPTIONS)[number]))
-    );
-    const serviziToUpdate = [
-      ...serviziWithoutFlags,
-      ...(Array.isArray(amenities) ? amenities : []),
-      ...(furnished ? ["arredato"] : []),
-      ...(wifi ? ["internet"] : []),
-    ];
+    // Furnished / Wi-Fi / amenities -> enum columns of `stanze`. Only the features
+    // that changed are written, so values set outside the form are kept.
+    // Amenities missing from the body keep their current value.
+    const currentFeatureColumns = currentRow as Partial<RoomFeatureColumns>;
+    const featureColumns = applyListingFeatures(currentFeatureColumns, {
+      furnished: Boolean(furnished),
+      wifi: Boolean(wifi),
+      amenities: Array.isArray(amenities)
+        ? (amenities as ListingAmenity[])
+        : roomColumnsToListingFeatures(currentFeatureColumns).amenities,
+    });
 
     // Build update object
     const updateData: any = {
       titolo: title.trim(),
       descrizione: description.trim(),
       prezzo: price,
-      servizi: serviziToUpdate,
+      ...featureColumns,
       updated_at: new Date().toISOString(),
     };
 

@@ -40,7 +40,7 @@ export const API_ROUTE_PATHS = {
 /** Language codes accepted by backend profile settings and frontend localization (locale codes). */
 export const SUPPORTED_LANGUAGE_CODES = ["en", "it", "es", "fr", "de", "pt"] as const;
 
-/** Additional listing amenities stored in `stanze.servizi`. */
+/** Listing-form amenities (keys). Where each one is stored in `public.stanze` is defined in `room-features.ts`. */
 export const LISTING_AMENITY_OPTIONS = [
   "lavatrice",
   "aria_condizionata",

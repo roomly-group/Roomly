@@ -141,7 +141,7 @@ export const translations = {
     'home.title2': 'that feels yours.',
     'home.subtitle': 'Real rooms, kind people, and a little more confidence in where you’ll land next term.',
     'home.floatyTitle': 'Sunlit room · Old Town',
-    'home.floatyPrice': '£680 / month',
+    'home.floatyPrice': '€680 / month',
     'home.trustTitle': 'Roomly is local by design',
     'home.trustText': 'Every listing has a real owner, a clear price, and the details you need.',
     'home.statusOnline': 'Roomly is online',
