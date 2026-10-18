@@ -148,7 +148,6 @@ vite.config.ts.timestamp-*
 #claude work space
 claude_workspace
 CLAUDE.md
-.claude
 
 #copilot workspace
 .vscode
