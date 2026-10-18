@@ -1,16 +1,14 @@
-import { useState, useEffect } from 'react';
-import { ArrowRight, Check, Clock3, House, MessageCircle, MoreHorizontal, PenLine, Plus, Sparkles, Star, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowRight, Check, Clock3, House, MoreHorizontal, PenLine, Plus, Trash2 } from 'lucide-react';
 import { Link } from 'wouter';
 import {
-  getGetOwnerDashboardQueryKey,
   getGetListingQueryKey,
   getListConversationsQueryKey,
   getListMessagesQueryKey,
-  useGetOwnerDashboard,
   useListConversations,
 } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
-import { APP_ROUTES, formatPrice, MAX_PAGE_ENTRY_DELAY_INDEX } from '@/lib/constants';
+import { APP_ROUTES } from '@/lib/constants';
 import { useZoneLabel } from '@/hooks/use-zone-label';
 import { Button } from '@/components/shared/button';
 import { useReleaseListing } from '@/hooks/use-release-listing';
@@ -21,8 +19,7 @@ import { getOwnerListingsQueryKey } from '@/hooks/use-list-owner-listings';
 import { useDeleteOwnerListing } from '@/hooks/use-delete-owner-listing';
 import { AppShell } from '@/components/layout/app-shell';
 import { PageIntro } from '@/components/shared/page-intro';
-import { QueryError } from '@/components/shared/query-error';
-import { supabase } from '@/lib/supabase';
+import { useAccount } from '@/lib/account-cache';
 import { useToast } from '@/hooks/use-toast';
 
 // ===================== CONFIGURATION =====================
@@ -79,7 +76,6 @@ function OwnerListingRow({
         ...(conversationId ? [queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey(conversationId) })] : []),
         queryClient.invalidateQueries({ queryKey: getGetListingQueryKey(id) }),
         queryClient.invalidateQueries({ queryKey: getOwnerListingsQueryKey() }),
-        queryClient.invalidateQueries({ queryKey: getGetOwnerDashboardQueryKey() }),
       ]);
       setIsReleaseDialogOpen(false);
     } catch {
@@ -96,7 +92,6 @@ function OwnerListingRow({
       await deleteListing.mutateAsync({ id });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: getOwnerListingsQueryKey() }),
-        queryClient.invalidateQueries({ queryKey: getGetOwnerDashboardQueryKey() }),
         queryClient.invalidateQueries({ queryKey: getGetListingQueryKey(id) }),
         queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() }),
       ]);
@@ -196,80 +191,34 @@ function OwnerListingRow({
 export function OwnerDashboard() {
   const { t } = useLanguage();
   const zoneLabel = useZoneLabel();
-  const { data, isLoading, isError, refetch } = useGetOwnerDashboard({
-    query: { queryKey: getGetOwnerDashboardQueryKey() },
-  });
+  const { account } = useAccount();
   const { data: listings, isLoading: listingsLoading, isError: listingsError } = useListOwnerListings();
-  const { data: conversations } = useListConversations();
-  const dashboard = data;
+  const { data: conversations, isLoading: conversationsLoading } = useListConversations();
   const [listingOptionsOpen, setListingOptionsOpen] = useState(false);
-  const [userName, setUserName] = useState<string>('Maya');
   const safeListings = listings ?? [];
 
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const user = session.user;
-        let name = '';
-        if (user.user_metadata?.full_name) {
-          name = user.user_metadata.full_name;
-        } else if (user.user_metadata?.name) {
-          name = user.user_metadata.name;
-        } else if (user.user_metadata?.email) {
-          const emailMatch = user.user_metadata.email?.match(/^([^@]+)/);
-          name = emailMatch ? emailMatch[1] : '';
-        } else if (user.email) {
-          const emailMatch = user.email?.match(/^([^@]+)/);
-          name = emailMatch ? emailMatch[1] : '';
-        }
-        if (name) {
-          setUserName(name);
-        }
-      }
-    };
+  // Same name source as the header's profile menu (/api/me), so the two never disagree.
+  const ownerName = account?.full_name?.trim() || account?.email?.split('@')[0] || '';
+  const greeting = ownerName
+    ? t('dashboard.greeting').replace('{name}', ownerName)
+    : t('dashboard.greeting').replace(/,?\s*\{name\}/, '');
 
-    getUser();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        const user = session.user;
-        let name = '';
-        if (user.user_metadata?.full_name) {
-          name = user.user_metadata.full_name;
-        } else if (user.user_metadata?.name) {
-          name = user.user_metadata.name;
-        } else if (user.user_metadata?.email) {
-          const emailMatch = user.user_metadata.email?.match(/^([^@]+)/);
-          name = emailMatch ? emailMatch[1] : '';
-        } else if (user.email) {
-          const emailMatch = user.email?.match(/^([^@]+)/);
-          name = emailMatch ? emailMatch[1] : '';
-        }
-        setUserName(name || 'Maya');
-      } else {
-        setUserName('Maya');
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const metrics: Array<{ label: string; value: string | number; icon: typeof House }> = dashboard
-    ? [
-        { label: t('dashboard.metricActive'), value: dashboard.activeListings ?? 0, icon: House },
-        { label: t('dashboard.metricPending'), value: dashboard.pendingRequests ?? 0, icon: Clock3 },
-        { label: t('dashboard.metricMonth'), value: formatPrice(dashboard.monthlyEarnings ?? 0), icon: ArrowRight },
-        { label: t('dashboard.metricRating'), value: (dashboard.averageRating ?? 0).toFixed(1), icon: Star },
-      ]
-    : [];
+  // Only counts computed from real data: earnings, rating and traffic stay off until they are tracked.
+  const activeListings = safeListings.filter((listing) => listing?.available).length;
+  const pendingRequests = (conversations ?? []).filter(
+    (conversation) => conversation.role === 'owner' && conversation.requestStatus === 'in_attesa',
+  ).length;
+  const summary: Array<{ key: string; label: string; value: number | null; icon: typeof House }> = [
+    { key: 'active', label: t('dashboard.metricActive'), value: listingsLoading ? null : activeListings, icon: House },
+    { key: 'pending', label: t('dashboard.metricPending'), value: conversationsLoading ? null : pendingRequests, icon: Clock3 },
+  ];
 
   return (
     <AppShell>
       <div className="mx-auto max-w-[1320px] px-5 py-8 lg:px-8 lg:py-12">
         <PageIntro
           eyebrow={t('dashboard.eyebrow')}
-          title={t('dashboard.greeting').replace('{name}', userName)}
+          title={greeting}
           description={t('dashboard.subtitle')}
           action={
             <Link
@@ -282,153 +231,111 @@ export function OwnerDashboard() {
           }
         />
 
-        {isLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {[1, 2, 3, 4].map((item) => (
-              <div className="skeleton h-32 rounded-2xl" key={item} />
-            ))}
-          </div>
-        ) : isError || !dashboard ? (
-          <QueryError onRetry={() => refetch()} />
-        ) : (
-          <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {metrics.map((metric, index) => {
-                const Icon = metric.icon;
+        <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+          <section className="surface rounded-2xl p-5 sm:p-7">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="eyebrow">{t('dashboard.yourListings')}</p>
+                <h2 className="mt-1 text-xl font-black text-[#085041]">{t('dashboard.makeCount')}</h2>
+              </div>
+              <button
+                onClick={() => setListingOptionsOpen(!listingOptionsOpen)}
+                className="rounded-lg p-2 text-[#527067] hover:bg-[#E1F5EE]"
+                data-testid={OWNER_DASHBOARD_TEST_IDS.BUTTON_LISTINGS_MORE}
+                aria-label={t('dashboard.moreOptions')}
+              >
+                <MoreHorizontal size={19} />
+              </button>
+            </div>
+
+            {listingOptionsOpen && (
+              <p className="mt-3 rounded-lg bg-[#E1F5EE] px-3 py-2 text-xs font-bold text-[#0F6E56]" data-testid={OWNER_DASHBOARD_TEST_IDS.STATUS_LISTING_OPTIONS}>
+                {t('dashboard.publishedNote')}
+              </p>
+            )}
+
+            {listingsLoading ? (
+              <div className="mt-6 space-y-3">
+                {[1, 2].map((item) => (
+                  <div className="skeleton h-12 rounded-xl" key={item} />
+                ))}
+              </div>
+            ) : listingsError ? (
+              <div className="mt-6 space-y-3">
+                <p className="text-center text-[#527067]">Failed to load listings</p>
+              </div>
+            ) : safeListings.length === 0 ? (
+              <div className="mt-6 rounded-2xl border border-dashed border-[#dbe8e0] bg-[#F7FAF8] p-6 text-center">
+                <p className="text-base font-black text-[#085041]">No rooms published yet</p>
+                <p className="mt-2 text-sm text-[#527067]">Create your first listing to start receiving enquiries.</p>
+                <Link
+                  href={APP_ROUTES.OWNER_LISTING_NEW}
+                  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#EF9F27] px-4 py-2.5 text-sm font-black text-[#2C2C2A]"
+                >
+                  <Plus size={17} /> {t('dashboard.addListing')}
+                </Link>
+              </div>
+            ) : (
+              <>
+                {safeListings
+                  .filter((listing): listing is NonNullable<typeof listing> => listing !== null && listing !== undefined)
+                  .map((listing) => {
+                    const rentedConversation = conversations?.find(
+                      (conversation) =>
+                        conversation.role === 'owner' &&
+                        conversation.roomId === listing.id &&
+                        conversation.roomStatus === 'affittata',
+                    );
+                    return (
+                      <OwnerListingRow
+                        key={listing.id}
+                        id={listing.id}
+                        title={listing.title ?? ''}
+                        zone={zoneLabel(listing.zone ?? '')}
+                        price={`€${listing.price ?? 0}`}
+                        available={listing.available}
+                        rented={Boolean(rentedConversation)}
+                        conversationId={rentedConversation?.id}
+                        coverPhotoUrl={listing.coverPhotoUrl}
+                      />
+                    );
+                  })}
+              </>
+            )}
+          </section>
+
+          <aside className="surface h-fit rounded-2xl p-5 sm:p-7">
+            <dl className="divide-y divide-[#e1ebe4]">
+              {summary.map((item) => {
+                const Icon = item.icon;
                 return (
                   <div
-                    key={metric.label}
-                    className={`surface page-enter delay-${Math.min(index + 1, MAX_PAGE_ENTRY_DELAY_INDEX)} rounded-2xl p-5`}
-                    data-testid={`${OWNER_DASHBOARD_TEST_IDS.STAT_OWNER_PREFIX}${metric.label.toLowerCase().replace(/\s/g, '-')}`}
+                    key={item.key}
+                    className="flex items-center justify-between gap-4 py-4 first:pt-0"
+                    data-testid={`${OWNER_DASHBOARD_TEST_IDS.STAT_OWNER_PREFIX}${item.key}`}
                   >
-                    <div className="mb-5 flex items-start justify-between">
-                      <p className="max-w-[100px] text-xs font-extrabold leading-4 text-[#527067]">{metric.label}</p>
+                    <dt className="flex items-center gap-3 text-sm font-extrabold text-[#527067]">
                       <span className="rounded-lg bg-[#E1F5EE] p-2 text-[#0F6E56]">
-                        <Icon size={17} fill={metric.label === t('dashboard.metricRating') ? 'currentColor' : 'none'} />
+                        <Icon size={17} />
                       </span>
-                    </div>
-                    <p className="text-3xl font-black text-[#085041]">{metric.value}</p>
+                      {item.label}
+                    </dt>
+                    <dd className="text-2xl font-black text-[#085041]">
+                      {item.value === null ? <span className="skeleton inline-block h-7 w-8 rounded-md align-middle" /> : item.value}
+                    </dd>
                   </div>
                 );
               })}
-            </div>
-
-            <div className="mt-7 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-              <section className="surface rounded-2xl p-5 sm:p-7">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="eyebrow">{t('dashboard.yourListings')}</p>
-                    <h2 className="mt-1 text-xl font-black text-[#085041]">{t('dashboard.makeCount')}</h2>
-                  </div>
-                  <button
-                    onClick={() => setListingOptionsOpen(!listingOptionsOpen)}
-                    className="rounded-lg p-2 text-[#527067] hover:bg-[#E1F5EE]"
-                    data-testid={OWNER_DASHBOARD_TEST_IDS.BUTTON_LISTINGS_MORE}
-                    aria-label={t('dashboard.moreOptions')}
-                  >
-                    <MoreHorizontal size={19} />
-                  </button>
-                </div>
-
-                {listingOptionsOpen && (
-                  <p className="mt-3 rounded-lg bg-[#E1F5EE] px-3 py-2 text-xs font-bold text-[#0F6E56]" data-testid={OWNER_DASHBOARD_TEST_IDS.STATUS_LISTING_OPTIONS}>
-                    {t('dashboard.publishedNote')}
-                  </p>
-                )}
-
-                {listingsLoading ? (
-                  <div className="mt-6 space-y-3">
-                    {[1, 2].map((item) => (
-                      <div className="skeleton h-12 rounded-xl" key={item} />
-                    ))}
-                  </div>
-                ) : listingsError ? (
-                  <div className="mt-6 space-y-3">
-                    <p className="text-center text-[#527067]">Failed to load listings</p>
-                  </div>
-                ) : safeListings.length === 0 ? (
-                  <div className="mt-6 rounded-2xl border border-dashed border-[#dbe8e0] bg-[#F7FAF8] p-6 text-center">
-                    <p className="text-base font-black text-[#085041]">No rooms published yet</p>
-                    <p className="mt-2 text-sm text-[#527067]">Create your first listing to start receiving enquiries.</p>
-                    <Link
-                      href={APP_ROUTES.OWNER_LISTING_NEW}
-                      className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#EF9F27] px-4 py-2.5 text-sm font-black text-[#2C2C2A]"
-                    >
-                      <Plus size={17} /> {t('dashboard.addListing')}
-                    </Link>
-                  </div>
-                ) : (
-                  <>
-                    {safeListings
-                      .filter((listing): listing is NonNullable<typeof listing> => listing !== null && listing !== undefined)
-                      .map((listing) => {
-                        const rentedConversation = conversations?.find(
-                          (conversation) =>
-                            conversation.role === 'owner' &&
-                            conversation.roomId === listing.id &&
-                            conversation.roomStatus === 'affittata',
-                        );
-                        return (
-                          <OwnerListingRow
-                            key={listing.id}
-                            id={listing.id}
-                            title={listing.title ?? ''}
-                            zone={zoneLabel(listing.zone ?? '')}
-                            price={`€${listing.price ?? 0}`}
-                            available={listing.available}
-                            rented={Boolean(rentedConversation)}
-                            conversationId={rentedConversation?.id}
-                            coverPhotoUrl={listing.coverPhotoUrl}
-                          />
-                        );
-                      })}
-                  </>
-                )}
-              </section>
-
-              <section className="rounded-2xl bg-[#085041] p-5 text-[#E1F5EE] sm:p-7">
-                <div className="mb-7 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[.14em] text-[#9FE1CB]">
-                      {t('dashboard.yourRhythm')}
-                    </p>
-                    <h2 className="mt-2 text-xl font-black">{t('dashboard.goodMonth')}</h2>
-                  </div>
-                  <Sparkles className="text-[#EF9F27]" size={22} />
-                </div>
-
-                <div className="space-y-5">
-                  <div>
-                    <div className="mb-2 flex justify-between text-xs font-bold text-[#9FE1CB]">
-                      <span>{t('dashboard.listingViews')}</span>
-                      <span>72%</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-[#286b5b]">
-                      <div className="h-2 w-[72%] rounded-full bg-[#9FE1CB]" />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="mb-2 flex justify-between text-xs font-bold text-[#9FE1CB]">
-                      <span>{t('dashboard.replyRate')}</span>
-                      <span>91%</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-[#286b5b]">
-                      <div className="h-2 w-[91%] rounded-full bg-[#EF9F27]" />
-                    </div>
-                  </div>
-                </div>
-
-                <Link
-                  href={APP_ROUTES.OWNER_MESSAGES}
-                  className="mt-8 inline-flex items-center gap-2 text-sm font-black text-[#E1F5EE] hover:text-[#EF9F27]"
-                  data-testid={OWNER_DASHBOARD_TEST_IDS.LINK_OWNER_MESSAGES}
-                >
-                  {t('dashboard.openInbox')} <ArrowRight size={16} />
-                </Link>
-              </section>
-            </div>
-          </>
-        )}
+            </dl>
+            <Link
+              href={APP_ROUTES.OWNER_MESSAGES}
+              className="mt-5 inline-flex items-center gap-2 text-sm font-black text-[#0F6E56] hover:text-[#085041]"
+              data-testid={OWNER_DASHBOARD_TEST_IDS.LINK_OWNER_MESSAGES}
+            >
+              {t('dashboard.openInbox')} <ArrowRight size={16} />
+            </Link>
+          </aside>
+        </div>
       </div>
     </AppShell>
   );

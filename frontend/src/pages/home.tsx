@@ -1,12 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowRight, KeyRound, ShieldCheck, Sparkles } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
-import {
-  getHealthCheckQueryKey,
-  getListListingsQueryKey,
-  useHealthCheck,
-  useListListings,
-} from '@workspace/api-client-react';
+import { getListListingsQueryKey, useListListings } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
 import { AppShell } from '@/components/layout/app-shell';
 import { supabase } from '@/lib/supabase';
@@ -22,8 +17,6 @@ import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 
 // ===================== CONFIGURATION =====================
 
-/** Cache freshness duration for the health-check query (ms). */
-const HEALTH_CHECK_STALE_TIME_MS = 60000 as const;
 /** Number of listings shown in the featured listings section. */
 const FEATURED_LISTING_COUNT = 6 as const;
 /** Stable selectors for the homepage search and featured-listing controls. */
@@ -31,7 +24,6 @@ const HOME_TEST_IDS = {
   FORM_SEARCH: 'form-search',
   INPUT_ZONE: 'input-zone',
   INPUT_MAX_PRICE: 'input-max-price',
-  STATUS_ROOMLY_HEALTH: 'status-roomly-health',
   LINK_SEE_HOW_IT_WORKS: 'link-see-how-it-works',
   LINK_BROWSE_ALL: 'link-browse-all',
   LINK_EMPTY_SEARCH: 'link-empty-search',
@@ -103,9 +95,6 @@ export function Home() {
   const { data, isLoading, isError, refetch } = useListListings(undefined, {
     query: { queryKey: getListListingsQueryKey() },
   });
-  const { data: health } = useHealthCheck({
-    query: { queryKey: getHealthCheckQueryKey(), staleTime: HEALTH_CHECK_STALE_TIME_MS },
-  });
   const listings = data ?? [];
   const [isOwner, setIsOwner] = useState(false);
   const onSearch = (nextZone: string, nextMaxPrice: string) => {
@@ -175,11 +164,6 @@ export function Home() {
             </div>
           </div>
 
-          <div className="floaty absolute bottom-8 right-12 hidden w-44 rotate-2 rounded-2xl bg-[#F1EFE8] p-4 shadow-[var(--shadow-lg)] lg:block">
-            <div className="mb-3 h-20 rounded-xl bg-gradient-to-br from-[#f1c789] to-[#d9a17e]" />
-            <p className="text-xs font-black text-[#085041]">{t('home.floatyTitle')}</p>
-            <p className="mt-1 text-xs text-[#527067]">{t('home.floatyPrice')}</p>
-          </div>
         </section>
 
         <section className="mt-7 flex flex-col gap-4 rounded-2xl border border-[#d6e7de] bg-[#E1F5EE] p-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
@@ -190,13 +174,6 @@ export function Home() {
             <div>
               <h2 className="font-black text-[#085041]">{t('home.trustTitle')}</h2>
               <p className="mt-1 text-sm text-[#527067]">{t('home.trustText')}</p>
-              <p
-                className="mt-2 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#0F6E56]"
-                data-testid={HOME_TEST_IDS.STATUS_ROOMLY_HEALTH}
-              >
-                <span className={`h-1.5 w-1.5 rounded-full ${health?.status ? 'bg-[#0F6E56]' : 'bg-[#EF9F27]'}`} />
-                {health?.status ? t('home.statusOnline') : t('home.statusChecking')}
-              </p>
             </div>
           </div>
           <Link

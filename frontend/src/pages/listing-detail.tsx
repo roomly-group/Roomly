@@ -5,12 +5,10 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleCheck,
-  Heart,
   MapPin,
   MessageCircle,
   Send,
   ShieldCheck,
-  Star,
   X,
 } from 'lucide-react';
 import { Link, useLocation, useParams } from 'wouter';
@@ -64,7 +62,6 @@ export function ListingDetail() {
     query: { queryKey: getListConversationsQueryKey() },
   });
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const [showContact, setShowContact] = useState(false);
   const [firstMessage, setFirstMessage] = useState('');
@@ -244,16 +241,6 @@ export function ListingDetail() {
               <MapPin size={16} /> {listing.zone}
             </p>
           </div>
-          <button
-            onClick={() => setSaved(!saved)}
-            className={`absolute right-5 top-5 z-20 rounded-full p-3 backdrop-blur ${
-              saved ? 'bg-[#0F6E56] text-[#E1F5EE]' : 'bg-[#F1EFE8]/80 text-[#085041]'
-            }`}
-            data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_SAVE_DETAIL}
-            aria-label={t('common.saveRoom')}
-          >
-            <Heart size={19} fill={saved ? 'currentColor' : 'none'} />
-          </button>
         </div>
 
         {photoUrls.length > 0 && (
@@ -348,18 +335,11 @@ export function ListingDetail() {
 
         <div className="mt-7 grid gap-7 lg:grid-cols-[1fr_340px]">
           <div>
-            <div className="mb-7 flex flex-wrap items-center gap-5 border-b border-[#d6e7de] pb-6">
-              <div>
-                <p className="text-2xl font-black text-[#0F6E56]">
-                  {formatPrice(listing.price)}
-                  <span className="text-sm font-bold text-[#527067]">{t('common.perMonth')}</span>
-                </p>
-              </div>
-              <div className="h-8 w-px bg-[#c8ddd3]" />
-              <div className="flex items-center gap-1.5 text-sm font-extrabold">
-                <Star size={16} fill="#EF9F27" className="text-[#EF9F27]" /> {listing.rating.toFixed(1)}{' '}
-                <span className="font-bold text-[#527067]">{t('listingDetail.ownerRating')}</span>
-              </div>
+            <div className="mb-7 border-b border-[#d6e7de] pb-6">
+              <p className="text-2xl font-black text-[#0F6E56]">
+                {formatPrice(listing.price)}
+                <span className="text-sm font-bold text-[#527067]">{t('common.perMonth')}</span>
+              </p>
             </div>
 
             <div>

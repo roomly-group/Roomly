@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { ArrowRight, Heart, MapPin, Star } from 'lucide-react';
+import { ArrowRight, MapPin } from 'lucide-react';
 import { Link } from 'wouter';
 import type { Listing } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
@@ -10,7 +9,6 @@ import { APP_ROUTES, formatPrice, gradients, MAX_PAGE_ENTRY_DELAY_INDEX } from '
 /** Stable test selector prefixes for listing cards and their actions. */
 const LISTING_CARD_TEST_IDS = {
   CARD_LISTING_PREFIX: 'card-listing-',
-  BUTTON_SAVE_LISTING_PREFIX: 'button-save-listing-',
   LINK_VIEW_LISTING_PREFIX: 'link-view-listing-',
 } as const;
 
@@ -24,16 +22,6 @@ export function ListingCard({
   isClickable?: boolean;
 }) {
   const { t } = useLanguage();
-  const [saved, setSaved] = useState(false);
-
-  const handleSaveClick = (event: React.MouseEvent) => {
-    // The button sits inside the card <Link>: without preventDefault the
-    // browser follows the anchor with a full page reload.
-    event.preventDefault();
-    event.stopPropagation();
-    setSaved(!saved);
-  };
-
   // With a distance (search by university) the line reads "15.8 km from {searched
   // university}"; otherwise it just names the room's closest university.
   const locationLabel =
@@ -59,18 +47,6 @@ export function ListingCard({
                 <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
               </>
             )}
-            <div className="absolute right-4 top-4 flex gap-2">
-              <button
-                onClick={handleSaveClick}
-                className={`rounded-full p-2.5 backdrop-blur transition ${
-                  saved ? 'bg-[#0F6E56] text-[#E1F5EE]' : 'bg-[#F1EFE8]/75 text-[#085041] hover:bg-[#F1EFE8]'
-                }`}
-                aria-label={saved ? t('common.removeSavedRoom') : t('common.saveRoom')}
-                data-testid={`${LISTING_CARD_TEST_IDS.BUTTON_SAVE_LISTING_PREFIX}${listing.id}`}
-              >
-                <Heart size={17} fill={saved ? 'currentColor' : 'none'} />
-              </button>
-            </div>
             <div className="relative flex w-full items-end justify-between">
               <span className="rounded-lg bg-[#F1EFE8]/85 px-2.5 py-1 text-xs font-black text-[#085041] backdrop-blur">
                 {listing.available ? t('common.availableNow') : t('common.comingSoon')}
@@ -93,10 +69,6 @@ export function ListingCard({
                   {listing.title}
                 </h3>
               </div>
-              <span className="flex shrink-0 items-center gap-1 text-sm font-black text-[#2C2C2A]">
-                <Star size={14} fill="#EF9F27" className="text-[#EF9F27]" />
-                {listing.rating.toFixed(1)}
-              </span>
             </div>
 
             <div className="flex items-center justify-between border-t border-[#e1ebe4] pt-3">
@@ -132,18 +104,6 @@ export function ListingCard({
             <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
           </>
         )}
-        <div className="absolute right-4 top-4 flex gap-2">
-          <button
-            onClick={handleSaveClick}
-            className={`rounded-full p-2.5 backdrop-blur transition ${
-              saved ? 'bg-[#0F6E56] text-[#E1F5EE]' : 'bg-[#F1EFE8]/75 text-[#085041] hover:bg-[#F1EFE8]'
-            }`}
-            aria-label={saved ? t('common.removeSavedRoom') : t('common.saveRoom')}
-            data-testid={`${LISTING_CARD_TEST_IDS.BUTTON_SAVE_LISTING_PREFIX}${listing.id}`}
-          >
-            <Heart size={17} fill={saved ? 'currentColor' : 'none'} />
-          </button>
-        </div>
         <div className="relative flex w-full items-end justify-between">
           <span className="rounded-lg bg-[#F1EFE8]/85 px-2.5 py-1 text-xs font-black text-[#085041] backdrop-blur">
             {listing.available ? t('common.availableNow') : t('common.comingSoon')}
@@ -166,10 +126,6 @@ export function ListingCard({
               {listing.title}
             </h3>
           </div>
-          <span className="flex shrink-0 items-center gap-1 text-sm font-black text-[#2C2C2A]">
-            <Star size={14} fill="#EF9F27" className="text-[#EF9F27]" />
-            {listing.rating.toFixed(1)}
-          </span>
         </div>
 
         <div className="flex items-center justify-between border-t border-[#e1ebe4] pt-3">
