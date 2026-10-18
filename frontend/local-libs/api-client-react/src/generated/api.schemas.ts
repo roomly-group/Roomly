@@ -9,6 +9,14 @@ export interface HealthStatus {
   status: string;
 }
 
+/** Caratteristiche della stanza per gruppo (chiave = colonna di `public.stanze`). */
+export interface ListingFeatureGroups {
+  spese_incluse: string[];
+  elettrodomestici: string[];
+  arredi: string[];
+  servizi: string[];
+}
+
 export interface Listing {
   id: number;
   /** ID del proprietario (solo nel dettaglio annuncio). */
@@ -21,9 +29,18 @@ export interface Listing {
   photos: number;
   coverPhotoUrl?: string;
   photoUrls?: string[];
+  /** Arredata (`mobili_inclusi = 'si'`). */
   furnished: boolean;
+  /** Wi-Fi tra le spese incluse. */
   wifi: boolean;
-  amenities: string[];
+  /** Tipologia (`tipologia_proprieta`), `null` se non indicata. */
+  propertyType: string | null;
+  /** Taglio (`taglio_appartamento`), solo per gli appartamenti. */
+  apartmentLayout: string | null;
+  petsAllowed: boolean;
+  smokersAllowed: boolean;
+  /** Caratteristiche per gruppo, con il nome della colonna di `stanze` come chiave. */
+  features: ListingFeatureGroups;
   description: string;
   available: boolean;
   /** Distanza in km dall'università cercata (solo nella ricerca per università). */
@@ -44,10 +61,16 @@ export interface ListingInput {
   price: number;
   /** @minLength 1 */
   description: string;
+  /** Tipologia (`tipologia_proprieta`), `null` se non indicata. */
+  propertyType?: string | null;
+  /** Taglio (`taglio_appartamento`): accettato solo se la tipologia è 'appartamento'. */
+  apartmentLayout?: string | null;
+  /** Arredata (`mobili_inclusi`). Se false gli arredi vengono svuotati. */
   furnished?: boolean;
-  wifi?: boolean;
-  /** Caratteristiche extra della stanza (salvate in `servizi`). */
-  amenities?: string[];
+  petsAllowed?: boolean;
+  smokersAllowed?: boolean;
+  /** Caratteristiche per gruppo, con il nome della colonna di `stanze` come chiave. */
+  features?: Partial<ListingFeatureGroups>;
   /** @minimum 0 */
   photos?: number;
 }

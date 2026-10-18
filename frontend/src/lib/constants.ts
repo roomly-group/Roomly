@@ -1,4 +1,9 @@
-import { LISTING_AMENITY_OPTIONS } from '@workspace/api-zod';
+import {
+  APARTMENT_PROPERTY_TYPE,
+  LISTING_FEATURE_GROUPS,
+  ROOM_DB_ENUM_VALUES,
+  type ListingFeatureGroup,
+} from '@workspace/api-zod';
 
 // ===================== CONFIGURATION =====================
 
@@ -145,5 +150,14 @@ export function initials(name: string) {
     .toUpperCase();
 }
 
-// Caratteristiche selezionabili in 'Aggiungi annuncio' (valore salvato in `servizi`).
-export const LISTING_AMENITIES = LISTING_AMENITY_OPTIONS;
+// Gruppi di caratteristiche dell'annuncio (chiave = colonna di `stanze`, valori = enum del database),
+// mostrati in quest'ordine nel form 'Aggiungi / Modifica annuncio' e nella pagina dell'annuncio.
+export const LISTING_FEATURE_GROUP_OPTIONS = LISTING_FEATURE_GROUPS;
+export const LISTING_FEATURE_GROUP_KEYS = Object.keys(LISTING_FEATURE_GROUPS) as ListingFeatureGroup[];
+// Il gruppo 'arredi' si accende/spegne con "Arredata" (colonna `mobili_inclusi`).
+export const LISTING_FURNITURE_GROUP: ListingFeatureGroup = 'arredi';
+// Tipologie selezionabili (enum `tipologia_proprieta_enum`).
+export const LISTING_PROPERTY_TYPES = ROOM_DB_ENUM_VALUES.tipologiaProprieta;
+// Tagli selezionabili (enum `taglio_appartamento_enum`), solo per la tipologia 'appartamento'.
+export const LISTING_APARTMENT_LAYOUTS = ROOM_DB_ENUM_VALUES.taglioAppartamento;
+export const LISTING_APARTMENT_PROPERTY_TYPE = APARTMENT_PROPERTY_TYPE;

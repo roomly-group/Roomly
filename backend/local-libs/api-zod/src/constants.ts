@@ -40,19 +40,11 @@ export const API_ROUTE_PATHS = {
 /** Language codes accepted by backend profile settings and frontend localization (locale codes). */
 export const SUPPORTED_LANGUAGE_CODES = ["en", "it", "es", "fr", "de", "pt"] as const;
 
-/** Listing-form amenities (keys). Where each one is stored in `public.stanze` is defined in `room-features.ts`. */
-export const LISTING_AMENITY_OPTIONS = [
-  "lavatrice",
-  "aria_condizionata",
-  "riscaldamento",
-  "balcone",
-  "bagno_privato",
-  "cucina",
-  "spese_incluse",
-  "animali",
-  "scrivania",
-  "ascensore",
-] as const;
+/**
+ * Values the listing form can save in `stanze.servizi` (text[], no Postgres enum).
+ * The other feature groups use the database enums (see `room-features.ts`).
+ */
+export const LISTING_SERVIZI_OPTIONS = ["bagno_privato", "ascensore"] as const;
 
 /** Values accepted by the public preference enums. */
 export const USER_PREFERENCE_OPTIONS = {

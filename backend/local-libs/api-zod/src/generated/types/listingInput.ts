@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
+import type { ListingFeatureGroups } from './listingFeatureGroups';
+
 export interface ListingInput {
   /** @minLength 1 */
   title: string;
@@ -20,10 +22,16 @@ export interface ListingInput {
   price: number;
   /** @minLength 1 */
   description: string;
+  /** Tipologia (`tipologia_proprieta`), `null` se non indicata. */
+  propertyType?: string | null;
+  /** Taglio (`taglio_appartamento`): accettato solo se la tipologia è 'appartamento'. */
+  apartmentLayout?: string | null;
+  /** Arredata (`mobili_inclusi`). Se false gli arredi vengono svuotati. */
   furnished?: boolean;
-  wifi?: boolean;
-  /** Caratteristiche extra della stanza (salvate in `servizi`). */
-  amenities?: string[];
+  petsAllowed?: boolean;
+  smokersAllowed?: boolean;
+  /** Caratteristiche per gruppo, con il nome della colonna di `stanze` come chiave. */
+  features?: Partial<ListingFeatureGroups>;
   /** @minimum 0 */
   photos?: number;
 }

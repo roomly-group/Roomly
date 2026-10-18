@@ -20,15 +20,16 @@ import {
   GetOwnerDashboardResponse,
   ROOM_PHOTO_MAX_COUNT,
   ROOM_PHOTO_MAX_SIZE_BYTES,
-  LISTING_AMENITY_OPTIONS,
   API_ROUTE_PATHS,
-  ROOM_DB_ENUM_VALUES,
   ROOM_FEATURE_COLUMNS,
-  applyListingFeatures,
+  ListingApartmentLayoutSchema,
+  ListingFeatureGroupsSchema,
+  ListingPropertyTypeSchema,
+  emptyListingFeatureGroups,
+  hasWifiIncluded,
+  listingFeaturesToRoomColumns,
   roomColumnsToListingFeatures,
-  type ListingAmenity,
   type RoomFeatureColumns,
-  type RoomTipo,
 } from "@workspace/api-zod";
 
 // ===================== CONFIGURATION =====================
@@ -43,13 +44,6 @@ const UNIVERSITY_MATCH_LIMIT = 10 as const;
 const ROOM_PHOTO_CACHE_CONTROL_MAX_AGE_SECONDS = "31536000" as const;
 /** Coordinate change tolerance used when deciding whether to update a listing location (degrees). */
 const COORDINATE_CHANGE_TOLERANCE_DEGREES = 0.000001 as const;
-/**
- * Optional `tipo` (stanze_tipo_enum) saved on new rooms, from the ROOM_TIPO_DEFAULT env var.
- * Ignored unless it is a valid enum value, so a wrong setting can never break room creation.
- */
-const ROOM_TIPO_DEFAULT: RoomTipo | undefined = ROOM_DB_ENUM_VALUES.tipo.find(
-  (value) => value === process.env.ROOM_TIPO_DEFAULT,
-);
 
 type RoomRow = {
   id: number;
@@ -65,7 +59,7 @@ type RoomRow = {
   stanze_foto?: Array<{ url?: string | null; copertina?: boolean | null; ordine?: number | null }> | null;
   universita?: { nome?: string | null } | null;
   utenti?: { nome_utente?: string | null; nome?: string | null; cognome?: string | null } | null;
-} & Partial<RoomFeatureColumns>; // mobili_inclusi, spese_incluse, elettrodomestici, arredi, servizi...
+} & Partial<RoomFeatureColumns>; // tipologia_proprieta, taglio_appartamento, mobili_inclusi, spese_incluse, elettrodomestici, arredi, servizi...
 
 const router: IRouter = Router();
 
@@ -128,8 +122,8 @@ const mapRoomRowToListing = async (
 ): Promise<Listing> => {
   const ownerName = row.utenti?.nome_utente ??
     (row.utenti?.nome && row.utenti?.cognome ? `${row.utenti.nome} ${row.utenti.cognome}` : "Unknown");
-  // Furnished / Wi-Fi / amenities are read from the enum columns of `stanze`.
-  const { furnished, wifi, amenities } = roomColumnsToListingFeatures(row);
+  // Tipologia / taglio / furnished / pets / smokers / feature groups are read from the columns of `stanze`.
+  const listingFeatures = roomColumnsToListingFeatures(row);
   const photos = [...(row.stanze_foto ?? [])].sort(
     (left, right) => (left.ordine ?? 0) - (right.ordine ?? 0),
   );
@@ -153,9 +147,8 @@ const mapRoomRowToListing = async (
     photos: photos.length,
     ...(coverPhotoUrl ? { coverPhotoUrl } : {}),
     ...(includeGallery ? { photoUrls: signedPhotoUrls.filter((url): url is string => Boolean(url)) } : {}),
-    furnished,
-    wifi,
-    amenities,
+    ...listingFeatures,
+    wifi: hasWifiIncluded(listingFeatures.features),
     description: row.descrizione ?? "",
     available: Boolean(row.attiva) && row.stato === "disponibile",
     ...(distanceKm !== undefined ? { distanceKm } : {}),
@@ -408,12 +401,17 @@ router.post(API_ROUTE_PATHS.LISTINGS, requireAuth, async (req: Request, res: Res
       if (uniData) universitaId = uniData.id;
     }
 
-    // Furnished / Wi-Fi / amenities -> enum columns of `stanze`
-    // (mobili_inclusi, spese_incluse, elettrodomestici, arredi, animali_consentiti, servizi).
-    const featureColumns = applyListingFeatures(null, {
+    // Tipologia / taglio / furnished / pets / smokers / feature groups -> columns of `stanze`
+    // (tipologia_proprieta, taglio_appartamento, mobili_inclusi, animali_consentiti,
+    // fumatori_consentiti, spese_incluse, elettrodomestici, arredi, servizi).
+    // Values were validated by CreateListingBody; the layout is dropped unless it is an apartment.
+    const featureColumns = listingFeaturesToRoomColumns({
+      propertyType: input.propertyType ?? null,
+      apartmentLayout: input.apartmentLayout ?? null,
       furnished: input.furnished ?? false,
-      wifi: input.wifi ?? false,
-      amenities: input.amenities ?? [],
+      petsAllowed: input.petsAllowed ?? false,
+      smokersAllowed: input.smokersAllowed ?? false,
+      features: { ...emptyListingFeatureGroups(), ...input.features },
     });
 
     const newRoomRow = {
@@ -428,8 +426,6 @@ router.post(API_ROUTE_PATHS.LISTINGS, requireAuth, async (req: Request, res: Res
       universita_id: universitaId,
       proprietario_id: authedReq.userId,
       ...featureColumns,
-      // `tipo` is nullable: it is only set when a valid default is configured.
-      ...(ROOM_TIPO_DEFAULT ? { tipo: ROOM_TIPO_DEFAULT } : {}),
       attiva: true,
       stato: "disponibile",
     };
@@ -448,6 +444,7 @@ router.post(API_ROUTE_PATHS.LISTINGS, requireAuth, async (req: Request, res: Res
       throw new Error("Failed to create listing");
     }
 
+    const createdFeatures = roomColumnsToListingFeatures(featureColumns);
     // We need to map the created listing to the Listing type for response
     // For simplicity, we'll return a basic Listing object (similar to above but with defaults)
     const listing: Listing = {
@@ -458,7 +455,8 @@ router.post(API_ROUTE_PATHS.LISTINGS, requireAuth, async (req: Request, res: Res
       owner: authedReq.userId, // TODO: get actual name
       rating: 0,
       photos: 0,
-      ...roomColumnsToListingFeatures(featureColumns),
+      ...createdFeatures,
+      wifi: hasWifiIncluded(createdFeatures.features),
       description: newListing.descrizione ?? "",
       available: newListing.attiva && newListing.stato === "disponibile",
     };
@@ -738,8 +736,8 @@ router.get(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
       return res.status(404).json({ error: "Listing not found" });
     }
 
-    // Furnished / Wi-Fi / amenities are read from the enum columns of `stanze`.
-    const { furnished, wifi, amenities } = roomColumnsToListingFeatures(data as Partial<RoomFeatureColumns>);
+    // Tipologia / taglio / furnished / pets / smokers / feature groups are read from the columns of `stanze`.
+    const listingFeatures = roomColumnsToListingFeatures(data as Partial<RoomFeatureColumns>);
 
     const response = {
       id: data.id,
@@ -751,9 +749,7 @@ router.get(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
       postcode: data.cap ?? "",
       latitude: data.latitudine ?? 0,
       longitude: data.longitudine ?? 0,
-      furnished,
-      wifi,
-      amenities,
+      ...listingFeatures,
       photos: await Promise.all(
         [...(data.stanze_foto ?? [])]
           .sort((left, right) => (left.ordine ?? 0) - (right.ordine ?? 0))
@@ -836,7 +832,22 @@ router.put(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
     const authedReq = req as typeof req & { userId: string };
 
     // Validate request body
-    const { title, description, price, furnished, wifi, amenities, address, city, postcode, latitude, longitude } = req.body;
+    const {
+      title,
+      description,
+      price,
+      propertyType,
+      apartmentLayout,
+      furnished,
+      petsAllowed,
+      smokersAllowed,
+      features,
+      address,
+      city,
+      postcode,
+      latitude,
+      longitude,
+    } = req.body;
 
     if (typeof title !== "string" || title.trim() === "") {
       return res.status(400).json({ error: "Title is required" });
@@ -847,16 +858,12 @@ router.put(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
     if (typeof price !== "number" || !Number.isFinite(price) || price < 1) {
       return res.status(400).json({ error: "Price must be a number greater than or equal to 1" });
     }
-    if (
-      amenities !== undefined &&
-      (!Array.isArray(amenities) ||
-        amenities.some(
-          (amenity: unknown) =>
-            typeof amenity !== "string" ||
-            !LISTING_AMENITY_OPTIONS.includes(amenity as (typeof LISTING_AMENITY_OPTIONS)[number]),
-        ))
-    ) {
-      return res.status(400).json({ error: "Invalid listing amenities" });
+    // Only values of the database enums (and the known `servizi` options) are accepted.
+    const parsedPropertyType = ListingPropertyTypeSchema.optional().safeParse(propertyType);
+    const parsedApartmentLayout = ListingApartmentLayoutSchema.optional().safeParse(apartmentLayout);
+    const parsedFeatures = ListingFeatureGroupsSchema.optional().safeParse(features);
+    if (!parsedPropertyType.success || !parsedApartmentLayout.success || !parsedFeatures.success) {
+      return res.status(400).json({ error: "Invalid listing features" });
     }
 
     // Load current row to verify ownership and get the current feature columns
@@ -878,17 +885,24 @@ router.put(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
       return res.status(404).json({ error: "Listing not found" });
     }
 
-    // Furnished / Wi-Fi / amenities -> enum columns of `stanze`. Only the features
-    // that changed are written, so values set outside the form are kept.
-    // Amenities missing from the body keep their current value.
+    // Tipologia / taglio / furnished / pets / smokers / feature groups -> columns of `stanze`.
+    // Fields missing from the body keep their current value; `servizi` values not
+    // managed by the form are kept as they are.
     const currentFeatureColumns = currentRow as Partial<RoomFeatureColumns>;
-    const featureColumns = applyListingFeatures(currentFeatureColumns, {
-      furnished: Boolean(furnished),
-      wifi: Boolean(wifi),
-      amenities: Array.isArray(amenities)
-        ? (amenities as ListingAmenity[])
-        : roomColumnsToListingFeatures(currentFeatureColumns).amenities,
-    });
+    const currentFeatures = roomColumnsToListingFeatures(currentFeatureColumns);
+    const featureColumns = listingFeaturesToRoomColumns(
+      {
+        propertyType:
+          parsedPropertyType.data !== undefined ? parsedPropertyType.data : currentFeatures.propertyType,
+        apartmentLayout:
+          parsedApartmentLayout.data !== undefined ? parsedApartmentLayout.data : currentFeatures.apartmentLayout,
+        furnished: typeof furnished === "boolean" ? furnished : currentFeatures.furnished,
+        petsAllowed: typeof petsAllowed === "boolean" ? petsAllowed : currentFeatures.petsAllowed,
+        smokersAllowed: typeof smokersAllowed === "boolean" ? smokersAllowed : currentFeatures.smokersAllowed,
+        features: parsedFeatures.data ?? currentFeatures.features,
+      },
+      currentFeatureColumns.servizi,
+    );
 
     // Build update object
     const updateData: any = {

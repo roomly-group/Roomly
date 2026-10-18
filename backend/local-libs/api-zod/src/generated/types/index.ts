@@ -9,6 +9,7 @@
 export * from './conversation';
 export * from './healthStatus';
 export * from './listing';
+export * from './listingFeatureGroups';
 export * from './listingInput';
 export * from './listListingsParams';
 export * from './message';

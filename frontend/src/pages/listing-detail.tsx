@@ -1,26 +1,16 @@
 import { useEffect, useState } from 'react';
 import {
-  AirVent,
-  Bath,
   BedDouble,
+  Building2,
   ChevronLeft,
   ChevronRight,
   CircleCheck,
-  CookingPot,
-  Fence,
-  Heater,
   Heart,
-  LampDesk,
   MapPin,
   MessageCircle,
-  MoveVertical,
-  PawPrint,
-  ReceiptText,
   Send,
   ShieldCheck,
   Star,
-  Wifi,
-  WashingMachine,
   X,
 } from 'lucide-react';
 import { Link, useLocation, useParams } from 'wouter';
@@ -33,7 +23,19 @@ import {
   useStartConversation,
 } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
-import { APP_ROUTES, formatPrice, gradients, LISTING_AMENITIES, LISTING_DETAIL_TEST_IDS } from '@/lib/constants';
+import {
+  APP_ROUTES,
+  formatPrice,
+  gradients,
+  LISTING_DETAIL_TEST_IDS,
+  LISTING_FEATURE_GROUP_KEYS,
+  LISTING_FURNITURE_GROUP,
+} from '@/lib/constants';
+import {
+  LISTING_FEATURE_GROUP_ICONS,
+  LISTING_PETS_ICON,
+  LISTING_SMOKERS_ICON,
+} from '@/components/shared/listing-features-fields';
 import { AppShell, Avatar } from '@/components/layout/app-shell';
 import { Button } from '@/components/shared/button';
 import { QueryError } from '@/components/shared/query-error';
@@ -49,18 +51,7 @@ function Feature({ icon: Icon, label }: { icon: typeof BedDouble; label: string 
   );
 }
 
-const AMENITY_ICONS: Record<string, typeof BedDouble> = {
-  lavatrice: WashingMachine,
-  aria_condizionata: AirVent,
-  riscaldamento: Heater,
-  balcone: Fence,
-  bagno_privato: Bath,
-  cucina: CookingPot,
-  spese_incluse: ReceiptText,
-  animali: PawPrint,
-  scrivania: LampDesk,
-  ascensore: MoveVertical,
-};
+type TranslationKey = Parameters<ReturnType<typeof useLanguage>['t']>[0];
 
 export function ListingDetail() {
   const { t } = useLanguage();
@@ -378,28 +369,48 @@ export function ListingDetail() {
               </p>
             </div>
 
-            {(listing.furnished || listing.wifi || listing.amenities.length > 0) && (
-              <div className="mt-8">
-                <p className="eyebrow mb-3">{t('newListing.amenitiesTitle')}</p>
-                <div className="grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-3">
-                  {listing.furnished && (
-                    <Feature icon={BedDouble} label={t('common.furnished')} />
-                  )}
-                  {listing.wifi && (
-                    <Feature icon={Wifi} label={t('newListing.wifiToggle')} />
-                  )}
-                  {listing.amenities
-                    .filter((amenity) => LISTING_AMENITIES.includes(amenity as (typeof LISTING_AMENITIES)[number]))
-                    .map((amenity) => (
-                      <Feature
-                        key={amenity}
-                        icon={AMENITY_ICONS[amenity]}
-                        label={t(`newListing.amenity.${amenity}` as any)}
-                      />
-                    ))}
-                </div>
+            {/* Tipologia, taglio and house rules (tipologia_proprieta, taglio_appartamento, animali_consentiti, fumatori_consentiti). */}
+            <div className="mt-8">
+              <p className="eyebrow mb-3">{t('listingDetail.roomRules')}</p>
+              <div className="grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-3">
+                {listing.propertyType && (
+                  <Feature icon={Building2} label={t(`propertyType.${listing.propertyType}` as TranslationKey)} />
+                )}
+                {listing.apartmentLayout && (
+                  <Feature icon={BedDouble} label={t(`apartmentLayout.${listing.apartmentLayout}` as TranslationKey)} />
+                )}
+                <Feature
+                  icon={LISTING_PETS_ICON}
+                  label={t(listing.petsAllowed ? 'newListing.petsAllowed' : 'listingDetail.petsNotAllowed')}
+                />
+                <Feature
+                  icon={LISTING_SMOKERS_ICON}
+                  label={t(listing.smokersAllowed ? 'newListing.smokersAllowed' : 'listingDetail.smokersNotAllowed')}
+                />
               </div>
-            )}
+            </div>
+
+            {/* Features grouped by type, like the columns of `stanze`; empty groups are hidden. */}
+            {LISTING_FEATURE_GROUP_KEYS.map((group) => {
+              const items = listing.features?.[group] ?? [];
+              const furnishedOnly = group === LISTING_FURNITURE_GROUP && listing.furnished && items.length === 0;
+              if (items.length === 0 && !furnishedOnly) return null;
+              const Icon = LISTING_FEATURE_GROUP_ICONS[group];
+              return (
+                <div key={group} className="mt-8">
+                  <p className="eyebrow mb-3">{t(`newListing.group.${group}` as TranslationKey)}</p>
+                  <div className="grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-3">
+                    {furnishedOnly ? (
+                      <Feature icon={Icon} label={t('common.furnished')} />
+                    ) : (
+                      items.map((item) => (
+                        <Feature key={item} icon={Icon} label={t(`newListing.feature.${item}` as TranslationKey)} />
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           <aside className="surface h-fit rounded-2xl p-5 sm:p-6">

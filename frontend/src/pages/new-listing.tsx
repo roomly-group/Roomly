@@ -8,8 +8,12 @@ import { AppShell } from '@/components/layout/app-shell';
 import { PageIntro } from '@/components/shared/page-intro';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import {
+  EMPTY_LISTING_FEATURES,
+  ListingFeaturesFields,
+  type ListingFeaturesValue,
+} from '@/components/shared/listing-features-fields';
+import {
   APP_ROUTES,
-  LISTING_AMENITIES,
   LISTING_FORM_TEST_IDS,
   LISTING_PRICE_INPUT_PADDING_LEFT_PX,
   LISTING_PRICE_PLACEHOLDER,
@@ -23,8 +27,7 @@ const LISTING_PHOTO_MAX_COUNT = ROOM_PHOTO_MAX_COUNT;
 /** Maximum upload size per listing photo, shared with API validation (bytes). */
 const LISTING_PHOTO_MAX_SIZE_BYTES = ROOM_PHOTO_MAX_SIZE_BYTES;
 
-type ListingForm = ListingInput & {
-  amenities: string[];
+type ListingForm = ListingInput & ListingFeaturesValue & {
   address: string;
   city: string;
   postcode: string;
@@ -39,36 +42,6 @@ function Field({ label, hint, children }: { label: string; hint: string; childre
       <span className="mb-2 mt-0.5 block text-xs font-bold text-[#82978e]">{hint}</span>
       {children}
     </label>
-  );
-}
-
-function Toggle({
-  label,
-  checked,
-  onChange,
-  testId,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (value: boolean) => void;
-  testId: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onChange(!checked)}
-      className={`flex items-center justify-between rounded-xl border p-3 text-sm font-extrabold transition ${
-        checked ? 'border-[#9FE1CB] bg-[#E1F5EE] text-[#085041]' : 'border-[#d6e7de] text-[#527067]'
-      }`}
-      data-testid={testId}
-    >
-      <span className="flex items-center gap-2">
-        {checked ? <CircleCheck size={17} className="text-[#0F6E56]" /> : <CircleAlert size={17} />} {label}
-      </span>
-      <span className={`h-5 w-9 rounded-full p-0.5 transition ${checked ? 'bg-[#0F6E56]' : 'bg-[#c8d4cd]'}`}>
-        <span className={`block h-4 w-4 rounded-full bg-[#F1EFE8] transition-transform ${checked ? 'translate-x-4' : ''}`} />
-      </span>
-    </button>
   );
 }
 
@@ -89,9 +62,7 @@ export function NewListingPage() {
     title: '',
     price: 0,
     description: '',
-    furnished: true,
-    wifi: true,
-    amenities: [],
+    ...EMPTY_LISTING_FEATURES,
     photos: 0,
     address: '',
     city: '',
@@ -178,9 +149,12 @@ export function NewListingPage() {
       longitude: form.longitude,
       price: Number(form.price),
       description: form.description.trim(),
+      propertyType: form.propertyType,
+      apartmentLayout: form.apartmentLayout,
       furnished: form.furnished,
-      wifi: form.wifi,
-      amenities: form.amenities,
+      petsAllowed: form.petsAllowed,
+      smokersAllowed: form.smokersAllowed,
+      features: form.features,
       photos: selectedPhotos.length,
     };
 
@@ -286,40 +260,11 @@ export function NewListingPage() {
               />
             </Field>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Toggle
-                label={t('common.furnished')}
-                checked={!!form.furnished}
-                onChange={(value) => update('furnished', value)}
-                testId="toggle-listing-furnished"
-              />
-              <Toggle
-                label={t('newListing.wifiToggle')}
-                checked={!!form.wifi}
-                onChange={(value) => update('wifi', value)}
-                testId="toggle-listing-wifi"
-              />
-            </div>
-
-            <p className="mb-2 mt-6 text-sm font-black text-[#085041]">{t('newListing.amenitiesTitle')}</p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {LISTING_AMENITIES.map((key) => (
-                <Toggle
-                  key={key}
-                  label={t(`newListing.amenity.${key}` as any)}
-                  checked={form.amenities.includes(key)}
-                  onChange={(value) =>
-                    setForm((current) => ({
-                      ...current,
-                      amenities: value
-                        ? [...current.amenities, key]
-                        : current.amenities.filter((item) => item !== key),
-                    }))
-                  }
-                  testId={`toggle-listing-amenity-${key}`}
-                />
-              ))}
-            </div>
+            {/* Room type, house rules and feature groups (columns of `stanze`). */}
+            <ListingFeaturesFields
+              value={form}
+              onChange={(features) => setForm((current) => ({ ...current, ...features }))}
+            />
 
             {fieldsError && (
               <p className="mt-5 flex items-center gap-2 rounded-xl bg-[#f7ddd1] px-4 py-3 text-sm font-bold text-[#a74b32]">

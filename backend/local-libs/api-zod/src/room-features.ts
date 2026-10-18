@@ -1,4 +1,5 @@
-import { LISTING_AMENITY_OPTIONS } from "./constants";
+import * as zod from "zod";
+import { LISTING_SERVIZI_OPTIONS } from "./constants";
 
 // ===================== CONFIGURATION =====================
 
@@ -7,17 +8,13 @@ import { LISTING_AMENITY_OPTIONS } from "./constants";
  * They must match the database enums exactly, otherwise Supabase rejects the write.
  */
 export const ROOM_DB_ENUM_VALUES = {
-  /** `stanze_tipo_enum` (column `tipo`). */
-  tipo: [
-    "monolocale",
-    "bilocale",
-    "trilocale",
-    "quadrilocale",
-    "stanza singola",
-    "stanza doppia",
-    "stanza tripla",
-    "stanza quadrupla",
-  ],
+  /** `tipologia_proprieta_enum` (column `tipologia_proprieta`). */
+  tipologiaProprieta: ["appartamento", "stanza", "residenza"],
+  /**
+   * `taglio_appartamento_enum` (column `taglio_appartamento`).
+   * The database only accepts it when `tipologia_proprieta = 'appartamento'` (stanze_taglio_check).
+   */
+  taglioAppartamento: ["monolocale", "bilocale", "trilocale", "quadrilocale", "cinque_o_piu_locali"],
   /** `mobili_inclusi_enum` (column `mobili_inclusi`). */
   mobiliInclusi: ["si", "no"],
   /** `spesa_inclusa_enum` (column `spese_incluse`, array). */
@@ -52,83 +49,96 @@ export const ROOM_DB_ENUM_VALUES = {
   ],
 } as const;
 
-export type RoomTipo = (typeof ROOM_DB_ENUM_VALUES.tipo)[number];
+/**
+ * Feature groups shown in the listing form and on the listing page, in display order.
+ * Each key is the `public.stanze` array column the group is saved in; each value lists
+ * the options of that group (the DB enum values, or `LISTING_SERVIZI_OPTIONS` for `servizi`).
+ */
+export const LISTING_FEATURE_GROUPS = {
+  spese_incluse: ROOM_DB_ENUM_VALUES.speseIncluse,
+  elettrodomestici: ROOM_DB_ENUM_VALUES.elettrodomestici,
+  arredi: ROOM_DB_ENUM_VALUES.arredi,
+  servizi: LISTING_SERVIZI_OPTIONS,
+} as const;
+
+/** `mobili_inclusi` values written for the "Furnished" (arredi group) switch (on / off). */
+const FURNISHED_DB_VALUE = { on: "si", off: "no" } as const;
+
+/** `spese_incluse` value that means "Wi-Fi included". */
+const WIFI_DB_VALUE = "wifi" as const;
+
+/** `tipologia_proprieta` value that allows a `taglio_appartamento` (stanze_taglio_check). */
+export const APARTMENT_PROPERTY_TYPE = "appartamento" as const;
+
+/**
+ * Columns of `public.stanze` that hold the listing features.
+ * Add this to every Supabase `.select()` that needs them.
+ */
+export const ROOM_FEATURE_COLUMNS =
+  "tipologia_proprieta, taglio_appartamento, mobili_inclusi, animali_consentiti, fumatori_consentiti, spese_incluse, elettrodomestici, arredi, servizi" as const;
+
+// ===================== TYPES =====================
+
+export type RoomTipologiaProprieta = (typeof ROOM_DB_ENUM_VALUES.tipologiaProprieta)[number];
+export type RoomTaglioAppartamento = (typeof ROOM_DB_ENUM_VALUES.taglioAppartamento)[number];
 export type RoomMobiliInclusi = (typeof ROOM_DB_ENUM_VALUES.mobiliInclusi)[number];
 export type RoomSpesaInclusa = (typeof ROOM_DB_ENUM_VALUES.speseIncluse)[number];
 export type RoomElettrodomestico = (typeof ROOM_DB_ENUM_VALUES.elettrodomestici)[number];
 export type RoomArredo = (typeof ROOM_DB_ENUM_VALUES.arredi)[number];
-export type ListingAmenity = (typeof LISTING_AMENITY_OPTIONS)[number];
+export type ListingServizio = (typeof LISTING_SERVIZI_OPTIONS)[number];
+export type ListingFeatureGroup = keyof typeof LISTING_FEATURE_GROUPS;
 
-/** `mobili_inclusi` values written for the "Furnished" toggle (on / off). */
-const FURNISHED_DB_VALUE = { on: "si", off: "no" } as const satisfies Record<string, RoomMobiliInclusi>;
+/** Selected options of every feature group, keyed by `public.stanze` column. */
+export type RoomFeatureGroups = {
+  spese_incluse: RoomSpesaInclusa[];
+  elettrodomestici: RoomElettrodomestico[];
+  arredi: RoomArredo[];
+  servizi: ListingServizio[];
+};
 
-/** `spese_incluse` value written for the "Wi-Fi included" toggle. */
-const WIFI_DB_VALUE: RoomSpesaInclusa = "wifi";
-
-/**
- * Columns of `public.stanze` that hold the listing features.
- * Add this to every Supabase `.select()` that needs furnished / wifi / amenities.
- */
-export const ROOM_FEATURE_COLUMNS =
-  "mobili_inclusi, animali_consentiti, spese_incluse, elettrodomestici, arredi, servizi" as const;
-
-/**
- * Where each listing-form amenity is stored in `public.stanze`.
- * - Enum array columns store the listed enum values (all of them must be present to count as "on").
- * - `servizi` (text[]) keeps the amenities that have no enum in the database.
- * - `animali_consentiti` is a plain boolean.
- */
-const LISTING_AMENITY_STORAGE = {
-  lavatrice: { column: "elettrodomestici", values: ["lavatrice"] },
-  aria_condizionata: { column: "elettrodomestici", values: ["aria_condizionata"] },
-  riscaldamento: { column: "spese_incluse", values: ["riscaldamento"] },
-  balcone: { column: "arredi", values: ["balcone"] },
-  bagno_privato: { column: "servizi", values: ["bagno_privato"] },
-  cucina: { column: "arredi", values: ["cucina_attrezzata"] },
-  spese_incluse: { column: "spese_incluse", values: ["luce", "acqua", "gas"] },
-  animali: { column: "animali_consentiti" },
-  scrivania: { column: "arredi", values: ["scrivania"] },
-  ascensore: { column: "servizi", values: ["ascensore"] },
-} as const satisfies Record<ListingAmenity, AmenityStorage>;
-
-// ===================== TYPES =====================
-
-/** Array columns of `public.stanze` that can hold amenity values. */
-type RoomFeatureArrayColumn = "spese_incluse" | "elettrodomestici" | "arredi" | "servizi";
-
-type AmenityStorage =
-  | { column: "spese_incluse"; values: readonly RoomSpesaInclusa[] }
-  | { column: "elettrodomestici"; values: readonly RoomElettrodomestico[] }
-  | { column: "arredi"; values: readonly RoomArredo[] }
-  | { column: "servizi"; values: readonly string[] }
-  | { column: "animali_consentiti" };
+/** Features as the app (listing form, API `Listing`) represents them. */
+export type ListingFeatures = {
+  /** `tipologia_proprieta`, `null` when not specified. */
+  propertyType: RoomTipologiaProprieta | null;
+  /** `taglio_appartamento`, only for apartments (`null` otherwise). */
+  apartmentLayout: RoomTaglioAppartamento | null;
+  /** `mobili_inclusi = 'si'`: the switch of the "arredi" group. */
+  furnished: boolean;
+  /** `animali_consentiti`. */
+  petsAllowed: boolean;
+  /** `fumatori_consentiti`. */
+  smokersAllowed: boolean;
+  features: RoomFeatureGroups;
+};
 
 /** Feature columns of a `public.stanze` row, as written to / read from Supabase. */
 export type RoomFeatureColumns = {
+  tipologia_proprieta: RoomTipologiaProprieta | null;
+  taglio_appartamento: RoomTaglioAppartamento | null;
   mobili_inclusi: RoomMobiliInclusi | null;
   animali_consentiti: boolean | null;
+  fumatori_consentiti: boolean | null;
   spese_incluse: RoomSpesaInclusa[];
   elettrodomestici: RoomElettrodomestico[];
   arredi: RoomArredo[];
   servizi: string[];
 };
 
-/** Features as the app (listing form, API `Listing`) represents them. */
-export type ListingFeatures = {
-  furnished: boolean;
-  wifi: boolean;
-  amenities: ListingAmenity[];
-};
+// ===================== VALIDATION =====================
 
-/** Feature columns of a brand-new room: nothing selected yet. */
-const EMPTY_ROOM_FEATURE_COLUMNS: RoomFeatureColumns = {
-  mobili_inclusi: null,
-  animali_consentiti: null,
-  spese_incluse: [],
-  elettrodomestici: [],
-  arredi: [],
-  servizi: [],
-};
+/** Validates the feature groups sent by the client: only known options, no duplicates. */
+export const ListingFeatureGroupsSchema = zod.object({
+  spese_incluse: zod.array(zod.enum(ROOM_DB_ENUM_VALUES.speseIncluse)).max(ROOM_DB_ENUM_VALUES.speseIncluse.length).default([]),
+  elettrodomestici: zod.array(zod.enum(ROOM_DB_ENUM_VALUES.elettrodomestici)).max(ROOM_DB_ENUM_VALUES.elettrodomestici.length).default([]),
+  arredi: zod.array(zod.enum(ROOM_DB_ENUM_VALUES.arredi)).max(ROOM_DB_ENUM_VALUES.arredi.length).default([]),
+  servizi: zod.array(zod.enum(LISTING_SERVIZI_OPTIONS)).max(LISTING_SERVIZI_OPTIONS.length).default([]),
+});
+
+/** Validates the `tipologia_proprieta` sent by the client (`null` = not specified). */
+export const ListingPropertyTypeSchema = zod.enum(ROOM_DB_ENUM_VALUES.tipologiaProprieta).nullable();
+
+/** Validates the `taglio_appartamento` sent by the client (`null` = not specified). */
+export const ListingApartmentLayoutSchema = zod.enum(ROOM_DB_ENUM_VALUES.taglioAppartamento).nullable();
 
 // ===================== HELPERS =====================
 
@@ -136,86 +146,72 @@ const EMPTY_ROOM_FEATURE_COLUMNS: RoomFeatureColumns = {
 const asArray = <T>(value: readonly T[] | null | undefined): T[] =>
   Array.isArray(value) ? [...value] : [];
 
-/** Normalizes a (possibly partial) Supabase row into complete feature columns. */
-const normalizeRoomFeatureColumns = (
-  row: Partial<RoomFeatureColumns> | null | undefined,
-): RoomFeatureColumns => ({
-  mobili_inclusi: row?.mobili_inclusi ?? null,
-  animali_consentiti: row?.animali_consentiti ?? null,
-  spese_incluse: asArray(row?.spese_incluse),
-  elettrodomestici: asArray(row?.elettrodomestici),
-  arredi: asArray(row?.arredi),
-  servizi: asArray(row?.servizi),
+/** Keeps only the known options of a group, without duplicates, in display order. */
+const pickOptions = <T extends string>(options: readonly T[], values: readonly string[]): T[] =>
+  options.filter((option) => values.includes(option));
+
+/** Empty selection for every feature group. */
+export const emptyListingFeatureGroups = (): RoomFeatureGroups => ({
+  spese_incluse: [],
+  elettrodomestici: [],
+  arredi: [],
+  servizi: [],
 });
 
-/**
- * Reads the listing features (furnished / wifi / amenities) from the
- * `public.stanze` feature columns.
- */
+/** Reads the listing features from the `public.stanze` feature columns. */
 export const roomColumnsToListingFeatures = (
   row: Partial<RoomFeatureColumns> | null | undefined,
 ): ListingFeatures => {
-  const columns = normalizeRoomFeatureColumns(row);
-  const columnValues: Record<RoomFeatureArrayColumn, readonly string[]> = columns;
-
-  const amenities = LISTING_AMENITY_OPTIONS.filter((amenity) => {
-    const storage: AmenityStorage = LISTING_AMENITY_STORAGE[amenity];
-    if (storage.column === "animali_consentiti") return columns.animali_consentiti === true;
-    return storage.values.every((value) => columnValues[storage.column].includes(value));
-  });
-
+  const propertyType =
+    ROOM_DB_ENUM_VALUES.tipologiaProprieta.find((value) => value === row?.tipologia_proprieta) ?? null;
   return {
-    furnished: columns.mobili_inclusi === FURNISHED_DB_VALUE.on,
-    wifi: columns.spese_incluse.includes(WIFI_DB_VALUE),
-    amenities,
+    propertyType,
+    // The layout only makes sense for apartments (stanze_taglio_check).
+    apartmentLayout:
+      propertyType === APARTMENT_PROPERTY_TYPE
+        ? ROOM_DB_ENUM_VALUES.taglioAppartamento.find((value) => value === row?.taglio_appartamento) ?? null
+        : null,
+    furnished: row?.mobili_inclusi === FURNISHED_DB_VALUE.on,
+    petsAllowed: row?.animali_consentiti === true,
+    smokersAllowed: row?.fumatori_consentiti === true,
+    features: {
+      spese_incluse: pickOptions(LISTING_FEATURE_GROUPS.spese_incluse, asArray(row?.spese_incluse)),
+      elettrodomestici: pickOptions(LISTING_FEATURE_GROUPS.elettrodomestici, asArray(row?.elettrodomestici)),
+      arredi: pickOptions(LISTING_FEATURE_GROUPS.arredi, asArray(row?.arredi)),
+      servizi: pickOptions(LISTING_FEATURE_GROUPS.servizi, asArray(row?.servizi)),
+    },
   };
 };
 
+/** True when "Wi-Fi" is among the included bills (kept for the `wifi` field of `Listing`). */
+export const hasWifiIncluded = (features: RoomFeatureGroups): boolean =>
+  features.spese_incluse.includes(WIFI_DB_VALUE);
+
 /**
- * Applies the listing features to the current feature columns of a room and
- * returns the columns to write to `public.stanze`.
+ * Converts the listing features into the columns to write to `public.stanze`.
  *
- * Only the values of features that actually changed are added / removed, so
- * values set outside the listing form (e.g. `tv`, `condominio`) are kept.
- * Pass `null` as `current` when creating a new room.
+ * `servizi` is free text in the database: values not managed by the form
+ * (set elsewhere) are kept from `currentServizi`. Pass `[]` for a new room.
+ * When the room is not furnished the furniture list is emptied, and the layout
+ * is only kept for apartments (the database rejects it otherwise).
  */
-export const applyListingFeatures = (
-  current: Partial<RoomFeatureColumns> | null,
+export const listingFeaturesToRoomColumns = (
   features: ListingFeatures,
+  currentServizi: readonly string[] | null | undefined = [],
 ): RoomFeatureColumns => {
-  const before = roomColumnsToListingFeatures(current ?? EMPTY_ROOM_FEATURE_COLUMNS);
-  const result = normalizeRoomFeatureColumns(current ?? EMPTY_ROOM_FEATURE_COLUMNS);
-  const arrays: Record<RoomFeatureArrayColumn, string[]> = result;
+  const managedServizi: readonly string[] = LISTING_SERVIZI_OPTIONS;
+  const otherServizi = asArray(currentServizi).filter((value) => !managedServizi.includes(value));
 
-  // Adds or removes the values of one feature, only when its on/off state changed.
-  const toggle = (
-    column: RoomFeatureArrayColumn,
-    values: readonly string[],
-    wasOn: boolean,
-    isOn: boolean,
-  ) => {
-    if (wasOn === isOn) return;
-    arrays[column] = isOn
-      ? [...new Set([...arrays[column], ...values])]
-      : arrays[column].filter((value) => !values.includes(value));
+  return {
+    tipologia_proprieta: features.propertyType,
+    taglio_appartamento:
+      features.propertyType === APARTMENT_PROPERTY_TYPE ? features.apartmentLayout : null,
+    mobili_inclusi: features.furnished ? FURNISHED_DB_VALUE.on : FURNISHED_DB_VALUE.off,
+    animali_consentiti: features.petsAllowed,
+    fumatori_consentiti: features.smokersAllowed,
+    spese_incluse: pickOptions(LISTING_FEATURE_GROUPS.spese_incluse, features.features.spese_incluse),
+    elettrodomestici: pickOptions(LISTING_FEATURE_GROUPS.elettrodomestici, features.features.elettrodomestici),
+    arredi: features.furnished ? pickOptions(LISTING_FEATURE_GROUPS.arredi, features.features.arredi) : [],
+    servizi: [...otherServizi, ...pickOptions(LISTING_FEATURE_GROUPS.servizi, features.features.servizi)],
   };
-
-  toggle("spese_incluse", [WIFI_DB_VALUE], before.wifi, features.wifi);
-
-  for (const amenity of LISTING_AMENITY_OPTIONS) {
-    const storage: AmenityStorage = LISTING_AMENITY_STORAGE[amenity];
-    if (storage.column === "animali_consentiti") continue;
-    toggle(
-      storage.column,
-      storage.values,
-      before.amenities.includes(amenity),
-      features.amenities.includes(amenity),
-    );
-  }
-
-  // Binary toggles in the form: always stored explicitly.
-  result.mobili_inclusi = features.furnished ? FURNISHED_DB_VALUE.on : FURNISHED_DB_VALUE.off;
-  result.animali_consentiti = features.amenities.includes("animali");
-
-  return result;
 };

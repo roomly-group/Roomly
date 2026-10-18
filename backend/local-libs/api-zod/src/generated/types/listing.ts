@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
+import type { ListingFeatureGroups } from './listingFeatureGroups';
+
 export interface Listing {
   id: number;
   /** ID del proprietario (solo nel dettaglio annuncio). */
@@ -18,9 +20,18 @@ export interface Listing {
   photos: number;
   coverPhotoUrl?: string;
   photoUrls?: string[];
+  /** Arredata (`mobili_inclusi = 'si'`). */
   furnished: boolean;
+  /** Wi-Fi tra le spese incluse. */
   wifi: boolean;
-  amenities: string[];
+  /** Tipologia (`tipologia_proprieta`), `null` se non indicata. */
+  propertyType: string | null;
+  /** Taglio (`taglio_appartamento`), solo per gli appartamenti. */
+  apartmentLayout: string | null;
+  petsAllowed: boolean;
+  smokersAllowed: boolean;
+  /** Caratteristiche per gruppo, con il nome della colonna di `stanze` come chiave. */
+  features: ListingFeatureGroups;
   description: string;
   available: boolean;
   /** Distanza in km dall'università cercata (solo nella ricerca per università). */

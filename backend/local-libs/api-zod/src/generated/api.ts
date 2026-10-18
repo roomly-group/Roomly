@@ -6,6 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 import * as zod from 'zod';
+// Feature groups / room type follow the `public.stanze` enums (see room-features.ts).
+import {
+  ListingApartmentLayoutSchema,
+  ListingFeatureGroupsSchema,
+  ListingPropertyTypeSchema,
+} from '../room-features';
 
 
 /**
@@ -41,7 +47,11 @@ export const ListListingsResponseItem = zod.object({
   "coverPhotoUrl": zod.string().optional(),
   "furnished": zod.boolean(),
   "wifi": zod.boolean(),
-  "amenities": zod.array(zod.string()),
+  "propertyType": ListingPropertyTypeSchema,
+  "apartmentLayout": ListingApartmentLayoutSchema,
+  "petsAllowed": zod.boolean(),
+  "smokersAllowed": zod.boolean(),
+  "features": ListingFeatureGroupsSchema,
   "description": zod.string(),
   "available": zod.boolean(),
   "distanceKm": zod.number().optional()
@@ -70,9 +80,12 @@ export const CreateListingBody = zod.object({
   "longitude": zod.number().min(-180).max(180).optional(),
   "price": zod.number().min(1),
   "description": zod.string().min(1),
+  "propertyType": ListingPropertyTypeSchema.optional(),
+  "apartmentLayout": ListingApartmentLayoutSchema.optional(),
   "furnished": zod.boolean().optional(),
-  "wifi": zod.boolean().optional(),
-  "amenities": zod.array(zod.enum(["lavatrice", "aria_condizionata", "riscaldamento", "balcone", "bagno_privato", "cucina", "spese_incluse", "animali", "scrivania", "ascensore"])).max(10).optional(),
+  "petsAllowed": zod.boolean().optional(),
+  "smokersAllowed": zod.boolean().optional(),
+  "features": ListingFeatureGroupsSchema.optional(),
   "photos": zod.number().min(createListingBodyPhotosMin).optional()
 })
 
@@ -87,7 +100,11 @@ export const CreateListingResponse = zod.object({
   "coverPhotoUrl": zod.string().optional(),
   "furnished": zod.boolean(),
   "wifi": zod.boolean(),
-  "amenities": zod.array(zod.string()),
+  "propertyType": ListingPropertyTypeSchema,
+  "apartmentLayout": ListingApartmentLayoutSchema,
+  "petsAllowed": zod.boolean(),
+  "smokersAllowed": zod.boolean(),
+  "features": ListingFeatureGroupsSchema,
   "description": zod.string(),
   "available": zod.boolean()
 })
@@ -113,7 +130,11 @@ export const GetListingResponse = zod.object({
   "photoUrls": zod.array(zod.string()).optional(),
   "furnished": zod.boolean(),
   "wifi": zod.boolean(),
-  "amenities": zod.array(zod.string()),
+  "propertyType": ListingPropertyTypeSchema,
+  "apartmentLayout": ListingApartmentLayoutSchema,
+  "petsAllowed": zod.boolean(),
+  "smokersAllowed": zod.boolean(),
+  "features": ListingFeatureGroupsSchema,
   "description": zod.string(),
   "available": zod.boolean()
 })
