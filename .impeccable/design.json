@@ -1,46 +1,291 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-17T00:00:00Z",
+  "generatedAt": "2026-10-18T19:57:31Z",
   "title": "Design System: Roomly",
   "extensions": {
     "colorMeta": {
-      "deep-pine": { "role": "primary", "displayName": "Deep Pine", "canonical": "#085041", "tonalRamp": ["#074639", "#0c7962", "#11ac8b", "#16dfb5", "#46ecca", "#7df2da", "#b5f8ea", "#e8fdf8"] },
-      "shutter-green": { "role": "primary", "displayName": "Shutter Green", "canonical": "#0f6e56", "tonalRamp": ["#094335", "#10755b", "#17a682", "#1dd7a8", "#4be7bf", "#81eed2", "#b7f5e6", "#e9fcf7"] },
-      "mint-wash": { "role": "secondary", "displayName": "Mint Wash", "canonical": "#9fe1cb", "tonalRamp": ["#123a2d", "#20654e", "#2d906f", "#3abb90", "#64ceab", "#92ddc4", "#c1ecdd", "#ecf9f4"] },
-      "mint-mist": { "role": "secondary", "displayName": "Mint Mist", "canonical": "#e1f5ee", "tonalRamp": ["#13392c", "#21634c", "#2f8e6d", "#3db88d", "#66cca8", "#94dbc2", "#c2ebdc", "#ecf9f4"] },
-      "sun-amber": { "role": "tertiary", "displayName": "Sun Amber", "canonical": "#ef9f27", "tonalRamp": ["#472d06", "#7b4e0a", "#af6e0e", "#e28f12", "#f0aa42", "#f4c47b", "#f9ddb4", "#fdf4e7"] },
-      "terracotta": { "role": "tertiary", "displayName": "Terracotta", "canonical": "#a74b32", "tonalRamp": ["#3b1a12", "#662e1f", "#91412b", "#bc5538", "#d07a62", "#dea291", "#eccac0", "#f9eeeb"] },
-      "plaster-cream": { "role": "neutral", "displayName": "Plaster Cream", "canonical": "#f1efe8", "tonalRamp": ["#302b1d", "#524b32", "#756b47", "#988b5d", "#b2a780", "#c9c1a6", "#e0dccc", "#f5f4ef"] },
-      "card-paper": { "role": "neutral", "displayName": "Card Paper", "canonical": "hsl(50 33% 97%)", "tonalRamp": ["#353018", "#5b5329", "#82763b", "#a8994d", "#bfb273", "#d2c99d", "#e5e0c7", "#f7f5ed"] },
-      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#2c2c2a", "tonalRamp": ["#272725", "#444441", "#61615c", "#7d7d78", "#9b9b97", "#b9b9b6", "#d7d7d5", "#f3f3f2"] },
-      "sage-gray": { "role": "neutral", "displayName": "Sage Gray", "canonical": "#527067", "tonalRamp": ["#202c29", "#384d46", "#506d64", "#678d82", "#89a99f", "#adc3bc", "#d0ddd9", "#f0f4f3"] }
+      "deep-pine": {
+        "role": "primary",
+        "displayName": "Deep Pine",
+        "canonical": "#085041",
+        "tonalRamp": [
+          "#074639",
+          "#0c7962",
+          "#11ac8b",
+          "#16dfb5",
+          "#46ecca",
+          "#7df2da",
+          "#b5f8ea",
+          "#e8fdf8"
+        ]
+      },
+      "shutter-green": {
+        "role": "primary",
+        "displayName": "Shutter Green",
+        "canonical": "#0f6e56",
+        "tonalRamp": [
+          "#094335",
+          "#10755b",
+          "#17a682",
+          "#1dd7a8",
+          "#4be7bf",
+          "#81eed2",
+          "#b7f5e6",
+          "#e9fcf7"
+        ]
+      },
+      "mint-wash": {
+        "role": "secondary",
+        "displayName": "Mint Wash",
+        "canonical": "#9fe1cb",
+        "tonalRamp": [
+          "#123a2d",
+          "#20654e",
+          "#2d906f",
+          "#3abb90",
+          "#64ceab",
+          "#92ddc4",
+          "#c1ecdd",
+          "#ecf9f4"
+        ]
+      },
+      "mint-mist": {
+        "role": "secondary",
+        "displayName": "Mint Mist",
+        "canonical": "#e1f5ee",
+        "tonalRamp": [
+          "#13392c",
+          "#21634c",
+          "#2f8e6d",
+          "#3db88d",
+          "#66cca8",
+          "#94dbc2",
+          "#c2ebdc",
+          "#ecf9f4"
+        ]
+      },
+      "sun-amber": {
+        "role": "tertiary",
+        "displayName": "Sun Amber",
+        "canonical": "#ef9f27",
+        "tonalRamp": [
+          "#472d06",
+          "#7b4e0a",
+          "#af6e0e",
+          "#e28f12",
+          "#f0aa42",
+          "#f4c47b",
+          "#f9ddb4",
+          "#fdf4e7"
+        ]
+      },
+      "terracotta": {
+        "role": "tertiary",
+        "displayName": "Terracotta",
+        "canonical": "#a74b32",
+        "tonalRamp": [
+          "#3b1a12",
+          "#662e1f",
+          "#91412b",
+          "#bc5538",
+          "#d07a62",
+          "#dea291",
+          "#eccac0",
+          "#f9eeeb"
+        ]
+      },
+      "plaster-cream": {
+        "role": "neutral",
+        "displayName": "Plaster Cream",
+        "canonical": "#f1efe8",
+        "tonalRamp": [
+          "#302b1d",
+          "#524b32",
+          "#756b47",
+          "#988b5d",
+          "#b2a780",
+          "#c9c1a6",
+          "#e0dccc",
+          "#f5f4ef"
+        ]
+      },
+      "card-paper": {
+        "role": "neutral",
+        "displayName": "Card Paper",
+        "canonical": "hsl(50 33% 97%)",
+        "tonalRamp": [
+          "#353018",
+          "#5b5329",
+          "#82763b",
+          "#a8994d",
+          "#bfb273",
+          "#d2c99d",
+          "#e5e0c7",
+          "#f7f5ed"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#2c2c2a",
+        "tonalRamp": [
+          "#272725",
+          "#444441",
+          "#61615c",
+          "#7d7d78",
+          "#9b9b97",
+          "#b9b9b6",
+          "#d7d7d5",
+          "#f3f3f2"
+        ]
+      },
+      "sage-gray": {
+        "role": "neutral",
+        "displayName": "Sage Gray",
+        "canonical": "#527067",
+        "tonalRamp": [
+          "#202c29",
+          "#384d46",
+          "#506d64",
+          "#678d82",
+          "#89a99f",
+          "#adc3bc",
+          "#d0ddd9",
+          "#f0f4f3"
+        ]
+      }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "One per page, hero panels only; second line may switch to Shutter Green." },
-      "headline": { "displayName": "Headline", "purpose": "Page intros and section titles, always Deep Pine." },
-      "title": { "displayName": "Title", "purpose": "Card titles, panel headings, listing names." },
-      "body": { "displayName": "Body", "purpose": "Intros and descriptions, max ~65ch." },
-      "body-sm": { "displayName": "Body small", "purpose": "Card text, helper text, messages." },
-      "label": { "displayName": "Label", "purpose": "Buttons, nav links, form labels." },
-      "eyebrow": { "displayName": "Eyebrow", "purpose": "Uppercase Shutter Green kicker above every page intro and section title." }
+      "display": {
+        "displayName": "Display",
+        "purpose": "Hero panels only, one per page"
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page intro headline (home, listing title, dashboard greeting)"
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Panel and card headings, host name, rating (when reviews exist)"
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Descriptions, amenity rows"
+      },
+      "body-sm": {
+        "displayName": "Body small",
+        "purpose": "Card meta, reviews, footer links"
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Buttons, form labels, distance line, university names"
+      },
+      "eyebrow": {
+        "displayName": "Eyebrow",
+        "purpose": "Kicker above every intro and section"
+      },
+      "section": {
+        "displayName": "Section",
+        "purpose": "Repeated section titles (\"Dove vuoi studiare?\", \"Cosa trovi\")"
+      },
+      "distance-display": {
+        "displayName": "Distance Display",
+        "purpose": "The distance to the university on the listing page: the one loud number"
+      },
+      "card-title": {
+        "displayName": "Card Title",
+        "purpose": "Listing card titles in the grid"
+      },
+      "price-lg": {
+        "displayName": "Price Lg",
+        "purpose": "Price in the request card"
+      },
+      "price": {
+        "displayName": "Price",
+        "purpose": "Price on listing cards"
+      },
+      "nav-link": {
+        "displayName": "Nav Link",
+        "purpose": "Product tabs"
+      },
+      "search-label": {
+        "displayName": "Search Label",
+        "purpose": "Search segment labels"
+      },
+      "meta": {
+        "displayName": "Meta",
+        "purpose": "Category labels, availability lines, tab bar labels"
+      },
+      "badge": {
+        "displayName": "Badge",
+        "purpose": "Chips on photos, status pills"
+      },
+      "tag": {
+        "displayName": "Tag",
+        "purpose": "\"NUOVO\" tags"
+      }
     },
     "shadows": [
-      { "name": "shadow-sm", "value": "0 2px 7px hsl(166 81% 17% / 0.06)", "purpose": "Rest: cards, empty states, panels at rest." },
-      { "name": "shadow-md", "value": "0 10px 28px hsl(166 81% 17% / 0.09)", "purpose": "Lift: card hover and raised menus." },
-      { "name": "shadow-lg", "value": "0 20px 48px hsl(166 81% 17% / 0.13)", "purpose": "Float: hero search bar, floating hero card, dialogs." }
+      {
+        "name": "shadow-sm",
+        "value": "0 2px 7px hsl(166 81% 17% / 0.06)",
+        "purpose": "Rest: cards, empty states, panels at rest."
+      },
+      {
+        "name": "shadow-md",
+        "value": "0 10px 28px hsl(166 81% 17% / 0.09)",
+        "purpose": "Lift: card hover and raised menus."
+      },
+      {
+        "name": "shadow-lg",
+        "value": "0 20px 48px hsl(166 81% 17% / 0.13)",
+        "purpose": "Float: hero search bar, floating hero card, dialogs."
+      }
     ],
     "motion": [
-      { "name": "rise", "value": "rise .45s ease-out both (translateY 12px to 0, fade in)", "purpose": "Page and card entrance; staggered by .08s steps (delay-1..3)." },
-      { "name": "floaty", "value": "floaty 5s ease-in-out infinite (±7px, -2deg to 1deg)", "purpose": "Single decorative floating card in hero panels, desktop only." },
-      { "name": "hover-lift", "value": "translateY(-4px) over 300ms", "purpose": "Card hover, paired with shadow-md." },
-      { "name": "press", "value": "scale(.98), 200ms", "purpose": "Button active state." },
-      { "name": "shimmer", "value": "shimmer 1.4s infinite", "purpose": "Skeleton loading cards." }
+      {
+        "name": "rise",
+        "value": "rise .45s ease-out both (translateY 12px to 0, fade in)",
+        "purpose": "Page and card entrance; staggered by .08s steps (delay-1..3)."
+      },
+      {
+        "name": "floaty",
+        "value": "floaty 5s ease-in-out infinite (±7px, -2deg to 1deg)",
+        "purpose": "Single decorative floating card in hero panels, desktop only."
+      },
+      {
+        "name": "hover-lift",
+        "value": "translateY(-4px) over 300ms",
+        "purpose": "Card hover, paired with shadow-md."
+      },
+      {
+        "name": "press",
+        "value": "scale(.98), 200ms",
+        "purpose": "Button active state."
+      },
+      {
+        "name": "shimmer",
+        "value": "shimmer 1.4s infinite",
+        "purpose": "Skeleton loading cards."
+      }
     ],
     "breakpoints": [
-      { "name": "sm", "value": "640px" },
-      { "name": "md", "value": "768px" },
-      { "name": "lg", "value": "1024px" },
-      { "name": "container", "value": "1320px" }
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "container",
+        "value": "1320px"
+      }
     ]
   },
   "components": [
@@ -119,42 +364,81 @@
   ],
   "narrative": {
     "northStar": "The Green Shutter",
-    "overview": "An Italian student flat on a sunny morning: green wooden shutters against warm plaster walls, light falling across a tidy desk, a set of keys waiting on the table. Roomly's interface comes from that scene. Deep pine and shutter greens carry the structure and the voice. Plaster cream is the wall everything sits on. One amber accent shows up where the sun would land: the main search button, a rating star, the owners' invitation.\n\nThe system is calm and tidy. Controls stay quiet and well-ordered so that photos, prices, and distance to the university lead. Personality comes from three places only. Type is extra-black and tightly tracked, so headings feel spoken, not printed. Large rounded panels are blocked in solid colour (a mint hero, an amber owners panel, a deep-pine features panel). Small, slow moments of life: a tilted card floating in the hero, concentric rings bleeding off a panel's corner, content rising gently into place.\n\nDepth is softly layered. Surfaces sit on the cream with a faint, green-tinted shadow, rise a little on hover, and the few floating elements (search bar, hero card, menus) cast the deepest shade. Nothing is grey. Even the shadows are pine-tinted.",
+    "overview": "An Italian student flat on a sunny morning: green shutters, plaster walls, light on a tidy desk. The structure is a photo-first marketplace: search at the top, a strip of quick filters, a dense grid of listings, and a listing page with a sticky request rail. The identity is entirely Roomly's.\n\nThe marketplace structure brings the pill search bar ending in one round orb, the icon category strip, frameless photo-first cards four to a row, the 1+4 photo mosaic, a sticky request card that becomes a bottom bar on phones, a university link grid and a light three-column footer. The one oversized number on the listing page is the **distance to the student's university**, not a rating: the university is the centre of the map, and the product has no reviews yet.\n\nRoomly keeps Nunito Sans at 900 for headings, the pine/mint/cream palette, one amber spark per view, pine-tinted layered shadows, 12/16/32px rounding, colour-block panels, and the eyebrow → headline → description intro.",
     "keyCharacteristics": [
-      "Warm cream page, pine-green ink, a single amber accent.",
-      "Extra-black (900) Nunito Sans headings with tight negative tracking.",
-      "Generous, consistent rounding: 12px controls, 16px cards, 32px hero panels.",
-      "Colour-blocked feature panels instead of decorative imagery.",
-      "Soft, green-tinted layered shadows; never grey or black drop shadows.",
-      "Gentle motion: rise-in on page enter, a slow float, a 4px hover lift, a 0.98 press."
+      "Plaster Cream page, Card Paper surfaces, Deep Pine voice, Shutter Green actions, one Sun Amber moment per view.",
+      "Pill search bar (Università · Budget mensile, plus Ingresso once listings carry dates) ending in an amber orb on search screens; the orb turns Shutter Green in compact headers where another action owns the amber.",
+      "Listing cards are frameless in grids: a 16px-rounded photo plus four lines of meta. Card Paper surfaces are kept for distance, trust, host, request and empty-state cards.",
+      "Distance to the university is a first-class field on every card and the loudest number on the listing page.",
+      "Prices are monthly and formatted for the reader's language; dates are entry date + duration, never check-in/check-out.",
+      "Nothing on screen is invented: ratings, badges, counts and metrics appear only when real data backs them."
     ],
     "rules": [
-      { "name": "The One Sun Rule", "body": "Amber marks the single most important action or highlight in a view. One amber CTA per screen; stars and status dots are the only repeat uses.", "section": "colors" },
-      { "name": "The No-Grey Rule", "body": "Neutrals are warm (cream, ink) or green-tinted (sage, mint lines). Do not use cool Tailwind greys (`#e5e7eb` and similar) or pure black for text, borders, or shadows.", "section": "colors" },
-      { "name": "The Token Rule", "body": "Every colour comes from this list. A new hex in a component is a bug: reuse the nearest token.", "section": "colors" },
-      { "name": "The Eyebrow-Then-Headline Rule", "body": "Every page intro and major section is an uppercase eyebrow, then a 900-weight headline, then an optional sage description. Do not skip the eyebrow or reorder them.", "section": "typography" },
-      { "name": "The Weight Floor Rule", "body": "Interactive text never goes below 700. Only body copy uses 400.", "section": "typography" },
-      { "name": "The Tinted Shade Rule", "body": "Shadows only use the three `--shadow-*` tokens. One-off `rgba(8,80,65,…)` shadows should map to the nearest token.", "section": "elevation" },
-      { "name": "The Colour-Block Exception", "body": "Solid colour panels (mint hero, amber owners panel, deep-pine panel) carry no shadow. Their colour is their elevation.", "section": "elevation" }
+      {
+        "name": "The Truth Rule",
+        "body": "Every number, badge and claim comes from real data. No placeholder ratings (\"★ 0.0\"), sample listings, \"students are saving\" headlines, health pings dressed as status, or hardcoded percentages. When the data does not exist yet, the component shows its honest empty state or is not rendered. This carries PRODUCT.md's commitment: no testimonials, counts, reviews or partners may be fabricated.",
+        "section": "overview"
+      },
+      {
+        "name": "The One Sun Rule",
+        "body": "One amber call to action per screen. Home and search: the search orb. Listing page: \"Richiedi la stanza\". Owner dashboard: \"Nuovo annuncio\". Everywhere else the orb is Shutter Green. Stars and pending dots are the only repeats. The amber owners panel is a panel, not a button: its button is Shutter Green. Decorative amber (circles, stat numbers, icons) is not allowed.",
+        "section": "colors"
+      },
+      {
+        "name": "The No-Grey Rule",
+        "body": "No cool greys, no pure black, no pure white: footers, dropdowns and menus are Card Paper, never `#fff`. Even the modal scrim is pine.",
+        "section": "colors"
+      },
+      {
+        "name": "The Token Rule",
+        "body": "A new hex in a component is a bug. Components reference tokens through the theme variables in `frontend/src/index.css` (`bg-primary`, `text-muted-foreground`…), not arbitrary `bg-[#…]` values.",
+        "section": "colors"
+      },
+      {
+        "name": "The Readable Prompt Rule",
+        "body": "Text that carries meaning (search segment prompts, hints, helper text) uses Sage Gray. Sage Placeholder is only for example text inside an input that already has a visible label. Amber Ink is never used for text on Sun Amber; body copy on amber is Ink.",
+        "section": "colors"
+      },
+      {
+        "name": "The Eyebrow-Then-Headline Rule",
+        "body": "Every page intro and major section: eyebrow, then a 900 heading, then an optional Sage description.",
+        "section": "typography"
+      },
+      {
+        "name": "The Weight Floor Rule",
+        "body": "Interactive text never below 700; only body copy at 400.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Loud Number Rule",
+        "body": "On the listing page, only the distance uses `distance-display`. Prices stay at `price-lg`; a rating, when real reviews exist, sits at `title` inside the trust card.",
+        "section": "typography"
+      },
+      {
+        "name": "The Locale Rule",
+        "body": "Prices and distances are formatted with `Intl` in the reader's language: \"420 €/mese\" and \"1,2 km\" in Italian, \"€420/month\" and \"1.2 km\" in English. Never hardcode the symbol position or the decimal mark.",
+        "section": "typography"
+      }
     ],
     "dos": [
-      "Do take every colour, radius, and shadow from the tokens above. Add a new token here before using a new value.",
-      "Do open every page with the Page Intro pattern (eyebrow, 900-weight headline, sage description).",
-      "Do use 12px corners on controls and 16px on cards. Keep the rounding consistent within a view.",
-      "Do tint every shadow with Deep Pine using the three shadow tokens.",
-      "Do let photos, price, and distance lead the listing card. Keep the surrounding chrome quiet.",
-      "Do write error messages in plain, friendly words in Terracotta, with a next step when possible.",
-      "Do design mobile-first: stack inline forms, keep 48px tap targets for primary actions, and hide decorative floaters below `lg`.",
-      "Do respect `prefers-reduced-motion` for the float, rise, and shimmer animations."
+      "**Do** take every colour, radius and shadow from the tokens above, through the theme variables.",
+      "**Do** let photo, distance to the university and monthly price lead every listing.",
+      "**Do** keep exactly one amber action per view and switch the orb to green elsewhere.",
+      "**Do** use `section` for repeated section titles and keep `headline` for the page intro.",
+      "**Do** keep listing cards frameless in grids and use Card Paper for content cards.",
+      "**Do** show an honest empty state (\"Ancora nessuna recensione\", \"Nessuna richiesta in attesa\") when data is missing.",
+      "**Do** give every interactive element a visible focus state and a 44px+ touch target.",
+      "**Do** format prices and distances with the reader's locale."
     ],
     "donts": [
-      "Don't use more than one amber call to action in a view.",
-      "Don't use cool greys, pure black, or pure white text on brand fills. Use Mint Mist on greens and Ink on amber.",
-      "Don't use sharp corners or mix radii arbitrarily within one component.",
-      "Don't use grey or black drop shadows, or invent one-off shadow values.",
-      "Don't set headings below 800 weight or drop the negative tracking on display and headline text.",
-      "Don't use red for errors. Terracotta is the error colour.",
-      "Don't add gradients to buttons or text. Gradients are allowed only as soft pastel listing-photo placeholders."
+      "**Don't** carry over the source marketplace's accent colour, wordmark, custom typeface, laurel ornaments, illustrated 3D tab icons or sub-brand colours.",
+      "**Don't** use nightly prices, check-in/check-out or guest counts: Roomly is monthly, entry date + duration.",
+      "**Don't** show a rating, review count, \"Preferita dagli studenti\", response time, view count, earnings or percentage that isn't computed from real data.",
+      "**Don't** present contract management, lifestyle matching or a Roomly service fee as live until PRODUCT.md confirms them.",
+      "**Don't** render stars in Ink; Roomly stars are amber.",
+      "**Don't** set text over photos, except chips on the Chip Veil.",
+      "**Don't** use grey or black shadows, pure white surfaces or blue links.",
+      "**Don't** set headings below 800 or drop the negative tracking on 900 headings."
     ]
   }
 }
