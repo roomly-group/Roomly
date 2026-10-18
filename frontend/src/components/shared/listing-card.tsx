@@ -34,6 +34,15 @@ export function ListingCard({
     setSaved(!saved);
   };
 
+  // With a distance (search by university) the line reads "15.8 km from {searched
+  // university}"; otherwise it just names the room's closest university.
+  const locationLabel =
+    listing.distanceKm !== undefined
+      ? t('common.kmFromUniversity')
+          .replace('{km}', listing.distanceKm.toFixed(1))
+          .replace('{university}', listing.zone)
+      : listing.zone;
+
   if (isClickable) {
     return (
       <Link href={`${APP_ROUTES.LISTINGS}/${listing.id}`}>
@@ -78,8 +87,7 @@ export function ListingCard({
             <div className="mb-2 flex items-start justify-between gap-3">
               <div>
                 <p className="mb-1 flex items-center gap-1 text-xs font-extrabold text-[#527067]">
-                  <MapPin size={13} /> {listing.zone}
-                  {listing.distanceKm !== undefined && ` · ${listing.distanceKm.toFixed(1)} km`}
+                  <MapPin size={13} /> {locationLabel}
                 </p>
                 <h3 className="line-clamp-1 text-lg font-black text-[#085041]">
                   {listing.title}
@@ -152,8 +160,7 @@ export function ListingCard({
         <div className="mb-2 flex items-start justify-between gap-3">
           <div>
             <p className="mb-1 flex items-center gap-1 text-xs font-extrabold text-[#527067]">
-              <MapPin size={13} /> {listing.zone}
-              {listing.distanceKm !== undefined && ` · ${listing.distanceKm.toFixed(1)} km`}
+              <MapPin size={13} /> {locationLabel}
             </p>
             <h3 className="line-clamp-1 text-lg font-black text-[#085041]">
               {listing.title}

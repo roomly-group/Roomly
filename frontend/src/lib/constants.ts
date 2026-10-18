@@ -11,8 +11,6 @@ export const APP_ROUTES = {
   SEARCH: '/search',
   LISTINGS: '/listings',
   OWNER_LISTINGS: '/owner/listings',
-  ROOMS: '/rooms',
-  ROOM_DETAIL: '/rooms/:id',
   LISTING_DETAIL: '/listings/:id',
   MESSAGES: '/messages',
   MESSAGE_DETAIL: '/messages/:id?',

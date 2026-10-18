@@ -90,6 +90,7 @@ export const translations = {
     'common.unfurnished': 'Unfurnished',
     'common.photos': 'photos',
     'common.viewRoom': 'View room',
+    'common.kmFromUniversity': '{km} km from {university}',
     'common.saveRoom': 'Save room',
     'common.removeSavedRoom': 'Remove saved room',
 
@@ -633,6 +634,7 @@ export const translations = {
     'common.unfurnished': 'Non arredata',
     'common.photos': 'foto',
     'common.viewRoom': 'Vedi stanza',
+    'common.kmFromUniversity': '{km} km da {university}',
     'common.saveRoom': 'Salva stanza',
     'common.removeSavedRoom': 'Rimuovi dai salvati',
 
@@ -1176,6 +1178,7 @@ export const translations = {
     'common.unfurnished': 'Sin amueblar',
     'common.photos': 'fotos',
     'common.viewRoom': 'Ver habitación',
+    'common.kmFromUniversity': 'A {km} km de {university}',
     'common.saveRoom': 'Guardar habitación',
     'common.removeSavedRoom': 'Quitar de guardados',
 
@@ -1674,6 +1677,7 @@ export const translations = {
     'common.unfurnished': 'Non meublée',
     'common.photos': 'photos',
     'common.viewRoom': 'Voir la chambre',
+    'common.kmFromUniversity': 'À {km} km de {university}',
     'common.saveRoom': 'Enregistrer la chambre',
     'common.removeSavedRoom': 'Retirer des favoris',
 
@@ -2171,6 +2175,7 @@ export const translations = {
     'common.unfurnished': 'Unmöbliert',
     'common.photos': 'Fotos',
     'common.viewRoom': 'Zimmer ansehen',
+    'common.kmFromUniversity': '{km} km von {university}',
     'common.saveRoom': 'Zimmer merken',
     'common.removeSavedRoom': 'Aus Merkliste entfernen',
 
@@ -2668,6 +2673,7 @@ export const translations = {
     'common.unfurnished': 'Não mobilado',
     'common.photos': 'fotos',
     'common.viewRoom': 'Ver quarto',
+    'common.kmFromUniversity': 'A {km} km de {university}',
     'common.saveRoom': 'Guardar quarto',
     'common.removeSavedRoom': 'Remover dos guardados',
 

@@ -6,8 +6,6 @@ import { LoginPage } from '@/pages/login';
 import { RegisterPage } from '@/pages/register';
 import { SearchPage } from '@/pages/search';
 import { ListingDetail } from '@/pages/listing-detail';
-import { RoomsPage } from '@/pages/rooms';
-import { RoomDetailPage } from '@/pages/room-detail';
 import { StudentMessagesRoute, OwnerMessagesRoute } from '@/pages/messages';
 import { StudentProfileRoute, OwnerProfileRoute } from '@/pages/profile';
 import { UserPreferencesPage } from '@/pages/user-preferences';
@@ -45,16 +43,6 @@ export function Router() {
           <RequireAdmin allowOwner>
             <SearchPage />
           </RequireAdmin>
-        </Route>
-        <Route path={APP_ROUTES.ROOMS}>
-          <RequireAuth>
-            <RoomsPage />
-          </RequireAuth>
-        </Route>
-        <Route path={APP_ROUTES.ROOM_DETAIL}>
-          <RequireAuth>
-            <RoomDetailPage />
-          </RequireAuth>
         </Route>
         <Route path={APP_ROUTES.LISTING_DETAIL}>
           <RequireAdmin allowOwner>

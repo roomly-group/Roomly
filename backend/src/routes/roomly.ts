@@ -255,10 +255,15 @@ router.get(API_ROUTE_PATHS.LISTINGS, async (req: Request, res: Response) => {
         .filter(({ distance, linked }) => linked || (distance !== null && distance <= SEARCH_RADIUS_KM));
       const ranked = await Promise.all(
         nearby.map(async ({ row, distance }) => ({
-          listing: await mapRoomRowToListing(
-            row,
-            distance !== null ? Math.round(distance * 10) / 10 : undefined,
-          ),
+          listing: {
+            ...(await mapRoomRowToListing(
+              row,
+              distance !== null ? Math.round(distance * 10) / 10 : undefined,
+            )),
+            // La distanza è calcolata dall'università cercata, quindi la card deve
+            // mostrare quella (non l'università più vicina associata alla stanza).
+            zone: uni.nome,
+          },
           distance,
         })),
       );
