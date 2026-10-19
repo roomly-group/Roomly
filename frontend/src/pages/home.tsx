@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, KeyRound } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { getListListingsQueryKey, useListListings } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
@@ -162,38 +162,29 @@ export function Home() {
           </section>
         )}
 
-        <section className="mt-16 grid gap-5 lg:grid-cols-[1fr_1.45fr]">
-          <div className="relative overflow-hidden rounded-[2rem] bg-sun p-7 sm:p-10">
-            <h2 className="display-heading relative mt-3 max-w-md text-[clamp(1.75rem,3.4vw,2.5rem)] text-ink">
-              {t('home.ownersHeadline')}
-            </h2>
-            <p className="relative mt-4 max-w-md text-[15px] leading-6 text-ink">{t('home.ownersText')}</p>
+        <section className="mt-20 grid gap-8 border-t border-line pt-10 lg:grid-cols-3">
+          <div>
+            <h2 className="text-lg font-black text-pine">{t('home.trustBoxTitle')}</h2>
+            <p className="mt-2 max-w-sm text-[15px] leading-6 text-sage">{t('home.trustBoxText')}</p>
+          </div>
+          <div>
+            <h2 className="text-lg font-black text-pine">{t('home.trustTitle')}</h2>
+            <p className="mt-2 max-w-sm text-[15px] leading-6 text-sage">{t('home.trustText')}</p>
+          </div>
+          <div>
+            <h2 className="text-lg font-black text-pine">{t('home.ownersHeadline')}</h2>
+            <p className="mt-2 max-w-sm text-[15px] leading-6 text-sage">{t('home.ownersText')}</p>
             {isOwner && (
               <Link
                 href={APP_ROUTES.OWNER_DASHBOARD}
-                className="relative mt-7 inline-flex min-h-12 items-center gap-2 rounded-xl bg-shutter px-5 text-sm font-black text-mint-mist transition-colors hover:bg-pine"
+                className="mt-3 inline-flex min-h-11 items-center gap-1.5 text-sm font-extrabold text-shutter underline decoration-shutter/40 underline-offset-4 hover:decoration-shutter"
                 data-testid={HOME_TEST_IDS.LINK_OWNER_CTA}
               >
-                {t('home.ownersCta')} <ArrowRight size={16} aria-hidden />
+                {t('home.ownersCta')} <ArrowRight size={15} aria-hidden />
               </Link>
             )}
           </div>
-
-          <div className="on-dark rounded-[2rem] bg-pine p-7 text-mint-mist sm:p-10">
-            <h2 className="display-heading mt-3 text-[clamp(1.75rem,3.4vw,2.5rem)] text-mint-mist">{t('home.trustBoxTitle')}</h2>
-            <p className="mt-4 max-w-lg text-[15px] leading-6 text-mint-wash">{t('home.trustBoxText')}</p>
-            <div className="mt-8 flex items-start gap-4 border-t border-mint-mist/15 pt-6">
-              <div>
-                <h3 className="text-lg font-black">{t('home.trustTitle')}</h3>
-                <p className="mt-1 text-sm leading-6 text-mint-wash">{t('home.trustText')}</p>
-              </div>
-            </div>
-          </div>
         </section>
-
-        <p className="mt-10 flex items-center justify-center gap-2 text-sm font-bold text-sage">
-          <KeyRound size={15} className="text-shutter" aria-hidden /> {t('home.footerTagline')}
-        </p>
       </div>
     </AppShell>
   );
