@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase';
 import { postAuthRoute } from '@/lib/auth-role';
 import { APP_ROUTES, PASSWORD_FIELD_PLACEHOLDER, SHARED_TEST_IDS } from '@/lib/constants';
 import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
+import { AuthShell } from '@/components/layout/auth-shell';
 import { TurnstileWidget } from '@/components/shared/turnstile';
 import roomlyMark from '@assets/logo_no_background.png';
 
@@ -101,26 +102,23 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F1EFE8] px-4 py-12">
-      <div className="w-full max-w-md">
-        <div className="mb-8 flex flex-col items-center gap-2 text-center">
-          <div className="flex h-[60px] w-[60px] items-center justify-center rounded-xl">
-            <img src={roomlyMark} alt="Roomly" className="h-16 w-16 object-contain" />
-          </div>
-          <span className="text-2xl font-black tracking-[-0.05em] text-[#085041]">roomly</span>
-        </div>
-
-        <div className="rounded-2xl border border-[#e3ddc9] bg-[#FDFCF8] p-7 shadow-[var(--shadow-lg)] sm:p-9">
-          <div className="mb-6 flex flex-col gap-1">
-            <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#E1F5EE] px-3 py-1 text-xs font-extrabold uppercase tracking-wide text-[#085041]">
-              <KeyRound size={13} />
-              {t('auth.badge')}
-            </span>
-            <h1 className="mt-2 text-2xl font-black text-[#2C2C2A]">{t('auth.loginTitle')}</h1>
-            <p className="text-sm text-[#527067]">{t('auth.loginSubtitle')}</p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4" data-testid={LOGIN_TEST_IDS.FORM_LOGIN}>
+    <AuthShell
+      title={t('auth.loginTitle')}
+      subtitle={t('auth.loginSubtitle')}
+      footer={
+        <p>
+          {t('auth.noAccount')}{' '}
+          <Link
+            href={APP_ROUTES.REGISTER}
+            className="font-extrabold text-[#0F6E56] hover:text-[#085041]"
+            data-testid={LOGIN_TEST_IDS.LINK_GO_REGISTER}
+          >
+            {t('auth.registerCta')}
+          </Link>
+        </p>
+      }
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4" data-testid={LOGIN_TEST_IDS.FORM_LOGIN}>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="login-email">{t('auth.emailLabel')}</Label>
               <div className="relative">
@@ -170,7 +168,7 @@ export function LoginPage() {
               </div>
             </div>
 
-            <div className="flex justify-center">
+            <div>
               <TurnstileWidget
                 key={turnstileKey}
                 onVerify={setCaptchaToken}
@@ -180,36 +178,21 @@ export function LoginPage() {
             </div>
 
             {error ? (
-              <p className="text-sm font-semibold text-red-600" role="alert">
+              <p className="text-sm font-semibold text-terracotta" role="alert">
                 {error}
               </p>
             ) : null}
 
             <button
                 type="submit"
-                aria-label="Accedi"
-                title="Accedi"
-                data-testid={SHARED_TEST_IDS.BUTTON_SEARCH}
+                                data-testid={SHARED_TEST_IDS.BUTTON_SEARCH}
                 disabled={isSubmitting || !captchaToken}
-                className="h-12 min-w-[80px] shrink-0 rounded-xl bg-[#0F6E56] px-4 font-extrabold text-white transition-all duration-200 hover:bg-[#0c5a47] active:scale-[0.98] disabled:opacity-60"
+                className="mt-2 h-12 w-full rounded-[10px] bg-shutter px-4 font-extrabold text-mint-mist transition-colors hover:bg-pine disabled:opacity-50"
               >
-                {isSubmitting ? t('auth.loggingIn') : 'Accedi'}
+                {isSubmitting ? t('auth.loggingIn') : t('waitlist.ctaLogin')}
               </button>
           </form>
-        </div>
-
-        <p className="mt-6 text-center text-sm font-semibold text-[#527067]">
-          {t('auth.noAccount')}{' '}
-          <Link
-            href={APP_ROUTES.REGISTER}
-            className="font-extrabold text-[#0F6E56] hover:text-[#085041]"
-            data-testid={LOGIN_TEST_IDS.LINK_GO_REGISTER}
-          >
-            {t('auth.registerCta')}
-          </Link>
-        </p>
-      </div>
-    </div>
+    </AuthShell>
   );
 }
 
