@@ -1,148 +1,108 @@
-import { ArrowRight, MapPin } from 'lucide-react';
-import { Link } from 'wouter';
+import { GraduationCap, ImageOff } from 'lucide-react';
+import { Link, useSearch } from 'wouter';
 import type { Listing } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
-import { APP_ROUTES, formatPrice, gradients, MAX_PAGE_ENTRY_DELAY_INDEX } from '@/lib/constants';
+import { useFormat } from '@/hooks/use-format';
+import { APP_ROUTES, gradients } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 
 // ===================== CONFIGURATION =====================
 
-/** Stable test selector prefixes for listing cards and their actions. */
+/** Stable test selector prefixes for listing cards. */
 const LISTING_CARD_TEST_IDS = {
   CARD_LISTING_PREFIX: 'card-listing-',
-  LINK_VIEW_LISTING_PREFIX: 'link-view-listing-',
 } as const;
 
-export function ListingCard({
-  listing,
-  index = 0,
-  isClickable = false,
+/** Shutter-slat pastel fill for a room without photos; the same listing id always gets the same tint. */
+export function ListingPhotoPlaceholder({
+  id,
+  className,
+  showLabel = true,
 }: {
-  listing: Listing;
-  index?: number;
-  isClickable?: boolean;
+  id: number;
+  className?: string;
+  showLabel?: boolean;
 }) {
   const { t } = useLanguage();
-  // With a distance (search by university) the line reads "15.8 km from {searched
+  return (
+    <div className={cn('relative overflow-hidden bg-gradient-to-br', gradients[id % gradients.length], className)}>
+      <div aria-hidden className="shutter-slats absolute inset-0" />
+      {showLabel && (
+        <span className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-lg bg-chip-veil px-2.5 py-1.5 text-xs font-black text-pine">
+          <ImageOff size={13} aria-hidden /> {t('common.noPhotos')}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Frameless listing card: a 20:19 photo, then title, distance to the
+ * university (the line that matters most), availability and monthly price.
+ * The whole card is one link; nothing interactive is nested inside it.
+ */
+export function ListingCard({ listing }: { listing: Listing }) {
+  const { t } = useLanguage();
+  const format = useFormat();
+  const search = useSearch();
+  const someBillsIncluded = (listing.features?.spese_incluse?.length ?? 0) > 0;
+
+  // The detail page gets the search it came from: its back link keeps the filters
+  // and its distance is measured from the same university.
+  const detailHref = `${APP_ROUTES.LISTINGS}/${listing.id}${search ? `?${new URLSearchParams({ from: search })}` : ''}`;
+
+  // With a distance (search by university) the line reads "1,2 km from {searched
   // university}"; otherwise it just names the room's closest university.
-  const locationLabel =
+  const universityLine =
     listing.distanceKm !== undefined
       ? t('common.kmFromUniversity')
-          .replace('{km}', listing.distanceKm.toFixed(1))
+          .replace('{km}', format.km(listing.distanceKm))
           .replace('{university}', listing.zone)
       : listing.zone;
 
-  if (isClickable) {
-    return (
-      <Link href={`${APP_ROUTES.LISTINGS}/${listing.id}`}>
-        <article
-          className={`surface page-enter delay-${Math.min(index + 1, MAX_PAGE_ENTRY_DELAY_INDEX)} group overflow-hidden rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-md)]`}
-          data-testid={`${LISTING_CARD_TEST_IDS.CARD_LISTING_PREFIX}${listing.id}`}
-        >
-          <div
-            className={`relative flex h-48 items-end bg-gradient-to-br ${gradients[index % gradients.length]} p-4`}
-          >
-            {listing.coverPhotoUrl && (
-              <>
-                <img src={listing.coverPhotoUrl} alt={listing.title} crossOrigin="anonymous" className="absolute inset-0 h-full w-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
-              </>
-            )}
-            <div className="relative flex w-full items-end justify-between">
-              <span className="rounded-lg bg-[#F1EFE8]/85 px-2.5 py-1 text-xs font-black text-[#085041] backdrop-blur">
-                {listing.available ? t('common.availableNow') : t('common.comingSoon')}
-              </span>
-              {listing.photos > 0 && (
-                <span className="text-xs font-bold text-[#085041]/70">
-                  {listing.photos} {t('common.photos')}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="p-4">
-            <div className="mb-2 flex items-start justify-between gap-3">
-              <div>
-                <p className="mb-1 flex items-center gap-1 text-xs font-extrabold text-[#527067]">
-                  <MapPin size={13} /> {locationLabel}
-                </p>
-                <h3 className="line-clamp-1 text-lg font-black text-[#085041]">
-                  {listing.title}
-                </h3>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between border-t border-[#e1ebe4] pt-3">
-              <p className="text-lg font-black text-[#0F6E56]">
-                {formatPrice(listing.price)}
-                <span className="text-xs font-bold text-[#527067]">{t('common.perMonth')}</span>
-              </p>
-              <span
-                className="flex items-center gap-1 text-sm font-black text-[#085041] hover:text-[#EF9F27]"
-                data-testid={`${LISTING_CARD_TEST_IDS.LINK_VIEW_LISTING_PREFIX}${listing.id}`}
-              >
-                {t('common.viewRoom')}{' '}
-                <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />
-              </span>
-            </div>
-          </div>
-        </article>
-      </Link>
-    );
-  }
-
   return (
-    <article
-      className={`surface page-enter delay-${Math.min(index + 1, MAX_PAGE_ENTRY_DELAY_INDEX)} group overflow-hidden rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-md)]`}
+    <Link
+      href={detailHref}
+      className="group block rounded-2xl"
       data-testid={`${LISTING_CARD_TEST_IDS.CARD_LISTING_PREFIX}${listing.id}`}
     >
-      <div
-        className={`relative flex h-48 items-end bg-gradient-to-br ${gradients[index % gradients.length]} p-4`}
-      >
-        {listing.coverPhotoUrl && (
-          <>
-            <img src={listing.coverPhotoUrl} alt={listing.title} crossOrigin="anonymous" className="absolute inset-0 h-full w-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
-          </>
+      <div className="relative aspect-[20/19] overflow-hidden rounded-2xl bg-line transition-[transform,box-shadow] duration-300 ease-out group-hover:-translate-y-1 group-hover:shadow-lift">
+        {listing.coverPhotoUrl ? (
+          <img
+            src={listing.coverPhotoUrl}
+            alt=""
+            crossOrigin="anonymous"
+            loading="lazy"
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <ListingPhotoPlaceholder id={listing.id} className="h-full w-full" />
         )}
-        <div className="relative flex w-full items-end justify-between">
-          <span className="rounded-lg bg-[#F1EFE8]/85 px-2.5 py-1 text-xs font-black text-[#085041] backdrop-blur">
-            {listing.available ? t('common.availableNow') : t('common.comingSoon')}
+        {listing.photos > 1 && (
+          <span className="absolute bottom-3 right-3 rounded-lg bg-chip-veil px-2 py-1 text-xs font-black tabular-nums text-pine">
+            {listing.photos} {t('common.photos')}
           </span>
-          {listing.photos > 0 && (
-            <span className="text-xs font-bold text-[#085041]/70">
-              {listing.photos} {t('common.photos')}
-            </span>
-          )}
-        </div>
+        )}
       </div>
 
-      <div className="p-4">
-        <div className="mb-2 flex items-start justify-between gap-3">
-          <div>
-            <p className="mb-1 flex items-center gap-1 text-xs font-extrabold text-[#527067]">
-              <MapPin size={13} /> {locationLabel}
-            </p>
-            <h3 className="line-clamp-1 text-lg font-black text-[#085041]">
-              {listing.title}
-            </h3>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between border-t border-[#e1ebe4] pt-3">
-          <p className="text-lg font-black text-[#0F6E56]">
-            {formatPrice(listing.price)}
-            <span className="text-xs font-bold text-[#527067]">{t('common.perMonth')}</span>
+      <div className="mt-3 space-y-[3px]">
+        <h3 className="line-clamp-1 text-base font-extrabold tracking-[-0.01em] text-pine">{listing.title}</h3>
+        {universityLine && (
+          <p className="flex items-center gap-1.5 text-sm font-extrabold text-pine">
+            <GraduationCap size={15} className="shrink-0 text-shutter" aria-hidden />
+            <span className="line-clamp-1">{universityLine}</span>
           </p>
-          <Link
-            href={`${APP_ROUTES.LISTINGS}/${listing.id}`}
-            className="flex items-center gap-1 text-sm font-black text-[#085041] hover:text-[#EF9F27]"
-            data-testid={`${LISTING_CARD_TEST_IDS.LINK_VIEW_LISTING_PREFIX}${listing.id}`}
-          >
-            {t('common.viewRoom')}{' '}
-            <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />
-          </Link>
-        </div>
+        )}
+        <p className="flex items-center gap-1.5 text-xs font-extrabold text-sage">
+          <span className={cn('h-1.5 w-1.5 rounded-full', listing.available ? 'bg-shutter' : 'bg-sage')} aria-hidden />
+          {listing.available ? t('common.availableNow') : t('common.notAvailable')}
+        </p>
+        <p className="pt-1 text-sm text-sage">
+          <span className="text-base font-black tabular-nums text-shutter">{format.price(listing.price)}</span>
+          {t('common.perMonth')}
+          {someBillsIncluded && <> · {t('common.someBillsIncluded')}</>}
+        </p>
       </div>
-    </article>
+    </Link>
   );
 }

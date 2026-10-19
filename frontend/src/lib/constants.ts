@@ -58,8 +58,6 @@ export const SHARED_TEST_IDS = {
   LINK_LOGO: 'link-logo',
 } as const;
 
-/** Position shown when the waitlist-position endpoint cannot provide a value (place). */
-export const WAITLIST_FALLBACK_POSITION = 107 as const;
 
 /** Default price placeholder shared by listing creation and editing (display text). */
 export const LISTING_PRICE_PLACEHOLDER = '720' as const;
@@ -126,20 +124,53 @@ export const zoneTranslationKeys: Record<
   'Maple Quarter': 'zones.mapleQuarter',
 };
 
+/** Pastel placeholder fills for rooms without photos, picked by listing id so card and detail match. */
 export const gradients = [
-  'from-[#a6dfca] via-[#dff3df] to-[#f1efe8]',
-  'from-[#f3cd8c] via-[#f1efe8] to-[#c7e9dc]',
-  'from-[#d7c9e9] via-[#f1efe8] to-[#9fe1cb]',
-  'from-[#b6d9eb] via-[#f1efe8] to-[#f0c9a2]',
+  'from-mint-wash via-mint-mist to-cream',
+  'from-sun/45 via-cream to-mint-mist',
+  'from-mint-mist via-cream to-mint-wash',
+  'from-sun/30 via-cream to-mint-wash/70',
 ];
 
-export function formatPrice(value: number) {
-  return new Intl.NumberFormat('en-GB', {
+/** Listing grid: 1 → 2 (640px) → 3 (900px) → 4 (1180px) columns; columns drop, rows never reflow. */
+export const LISTING_GRID_CLASS = 'grid gap-x-6 gap-y-10 sm:grid-cols-2 laptop:grid-cols-3 desk:grid-cols-4';
+
+/** Number-format locale per UI language: prices and distances follow the reader ("420 €" in Italian, "€420" in English). */
+const NUMBER_LOCALES: Record<string, string> = {
+  it: 'it-IT',
+  en: 'en-IE',
+  es: 'es-ES',
+  fr: 'fr-FR',
+  de: 'de-DE',
+  pt: 'pt-PT',
+};
+
+const numberLocale = (language: string) => NUMBER_LOCALES[language] ?? NUMBER_LOCALES.it;
+
+export function formatPrice(value: number, language: string) {
+  return new Intl.NumberFormat(numberLocale(language), {
     style: 'currency',
     currency: 'EUR',
     maximumFractionDigits: 0,
   }).format(value);
 }
+
+/** Distance in km with one decimal under 10 km ("1,2"), whole numbers above ("14"). */
+export function formatKm(value: number, language: string) {
+  return new Intl.NumberFormat(numberLocale(language), {
+    maximumFractionDigits: value < 10 ? 1 : 0,
+  }).format(value);
+}
+
+/** Short date ("18 ott") in the reader's language. */
+export function formatShortDate(value: string | Date, language: string) {
+  const date = typeof value === 'string' ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat(numberLocale(language), { day: 'numeric', month: 'short' }).format(date);
+}
+
+/** Default search radius around a university (km). Mirrors the backend's SEARCH_RADIUS_KM default. */
+export const SEARCH_RADIUS_KM = 80 as const;
 
 export function initials(name: string) {
   return name

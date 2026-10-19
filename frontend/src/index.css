@@ -36,6 +36,38 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* Roomly design tokens (DESIGN.md). Components use these utilities
+   (bg-pine, text-sage, border-line, shadow-lift…), never raw hex values. */
+@theme {
+  --color-pine: #085041;
+  --color-shutter: #0f6e56;
+  --color-shutter-hover: #0c5a47;
+  --color-mint-wash: #9fe1cb;
+  --color-mint-mist: #e1f5ee;
+  --color-sun: #ef9f27;
+  --color-sun-hover: #e6a53d;
+  --color-amber-ink: #624c2e;
+  --color-terracotta: #a74b32;
+  --color-terracotta-mist: #f6e4dc;
+  --color-cream: #f1efe8;
+  --color-paper: #faf9f4;
+  --color-ink: #2c2c2a;
+  --color-sage: #527067;
+  --color-sage-placeholder: #82978e;
+  --color-pine-text: #265c4d;
+  --color-line: #e1ebe4;
+  --color-field: #c8ddd2;
+  --color-outline: #b7d7ca;
+  --color-hairline: #0850411a;
+  --color-chip-veil: #f1efe8e0;
+  --color-scrim: #08504180;
+  --shadow-rest: 0 2px 7px hsl(166 81% 17% / 0.06);
+  --shadow-lift: 0 10px 28px hsl(166 81% 17% / 0.09);
+  --shadow-float: 0 20px 48px hsl(166 81% 17% / 0.13);
+  --breakpoint-laptop: 56.25rem; /* 900px, rem like the defaults so variants sort correctly */
+  --breakpoint-desk: 73.75rem; /* 1180px */
+}
+
 :root {
   --background: 48 24% 93%;
   --foreground: 60 3% 17%;
@@ -56,7 +88,7 @@
   --muted-foreground: 155 10% 38%;
   --accent: 37 86% 55%;
   --accent-foreground: 60 3% 17%;
-  --destructive: 3 65% 46%;
+  --destructive: 13 54% 43%;
   --destructive-foreground: 50 33% 97%;
   --app-font-sans: 'Nunito Sans', sans-serif;
   --app-font-serif: Georgia, serif;
@@ -94,8 +126,16 @@
 @layer base {
   * { @apply border-border; }
   html { scroll-behavior: smooth; }
-  body { @apply font-sans antialiased bg-background text-foreground; }
+  body { @apply font-sans antialiased bg-background text-foreground; caret-color: var(--color-shutter); scrollbar-color: var(--color-field) transparent; }
   button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+  :focus-visible { outline: 2px solid var(--color-shutter); outline-offset: 2px; }
+  .on-dark :focus-visible { outline-color: var(--color-mint-mist); }
+  ::selection { background: var(--color-mint-wash); color: var(--color-pine); }
+}
+
+/* Components layer: colour utilities (text-mint-wash on a pine panel) override the default. */
+@layer components {
+  .eyebrow { color: var(--color-shutter); font-size: .7rem; font-weight: 900; letter-spacing: .15em; text-transform: uppercase; }
 }
 
 @layer utilities {
@@ -114,10 +154,15 @@
     transform: rotate(-5deg);
   }
   .display-heading { font-weight: 900; letter-spacing: -0.045em; line-height: 0.98; }
-  .eyebrow { color: hsl(var(--primary)); font-size: .7rem; font-weight: 900; letter-spacing: .15em; text-transform: uppercase; }
   .soft-shadow { box-shadow: var(--shadow-sm); }
   .lift-shadow { box-shadow: var(--shadow-md); }
   .surface { background: hsl(var(--card)); border: 1px solid hsl(var(--card-border)); }
+  /* Pastel "shutter" slats for rooms without photos. */
+  .shutter-slats {
+    background-image: repeating-linear-gradient(180deg, transparent 0 13px, color-mix(in srgb, var(--color-pine) 7%, transparent) 13px 15px);
+  }
+  .no-scrollbar { scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
   .skeleton {
     background: linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--secondary)) 50%, hsl(var(--muted)) 75%);
     background-size: 200% 100%;
@@ -135,15 +180,20 @@
 .delay-3 { animation-delay: .24s; }
 .form-input {
   width: 100%;
-  border: 1px solid #c8ddd2;
+  border: 1px solid var(--color-field);
   border-radius: .75rem;
-  background: #f1efe8;
+  background: var(--color-cream);
   padding: .75rem .85rem;
-  color: #2c2c2a;
+  color: var(--color-ink);
   font-size: .875rem;
   font-weight: 700;
   outline: none;
   transition: border-color .2s, box-shadow .2s;
 }
-.form-input::placeholder { color: #82978e; }
-.form-input:focus { border-color: #0f6e56; box-shadow: 0 0 0 3px #9fe1cb66; }
+.form-input::placeholder { color: var(--color-sage); }
+.form-input:focus { border-color: var(--color-shutter); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-mint-wash) 40%, transparent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter, .floaty, .skeleton { animation: none; }
+  *, *::before, *::after { transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}

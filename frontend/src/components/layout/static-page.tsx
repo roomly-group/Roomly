@@ -13,26 +13,22 @@ export function StaticPage({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-[#F1EFE8]">
-      <div className="mx-auto max-w-[1040px] px-6 py-6">
-        <Navbar />
+    <div className="flex min-h-[100dvh] flex-col bg-cream text-ink">
+      <header className="mx-auto flex h-20 w-full max-w-[1120px] items-center px-5 lg:px-8">
+        <div className="w-full">
+          <Navbar />
+        </div>
+      </header>
 
-        <section className="mt-2 rounded-[28px] bg-white px-6 py-14 sm:px-12 sm:py-16">
-          <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-[#0F6E56]">
-            {eyebrow}
-          </p>
-          <h1 className="max-w-2xl text-[32px] font-black leading-[1.1] text-[#085041] sm:text-4xl">
-            {title}
-          </h1>
-          {intro && (
-            <p className="mt-4 max-w-xl text-[17px] leading-relaxed text-[#085041]/75">
-              {intro}
-            </p>
-          )}
+      <main className="mx-auto w-full max-w-[1120px] flex-1 px-5 pb-16 lg:px-8">
+        <section className="pt-6 sm:pt-10">
+          <p className="eyebrow mb-3">{eyebrow}</p>
+          <h1 className="display-heading max-w-2xl text-[clamp(2.25rem,5vw,2.75rem)] text-pine">{title}</h1>
+          {intro && <p className="mt-4 max-w-xl text-[17px] leading-7 text-pine-text">{intro}</p>}
 
           <div className="prose-roomly mt-10 max-w-2xl space-y-8">{children}</div>
         </section>
-      </div>
+      </main>
 
       <SiteFooter />
     </div>

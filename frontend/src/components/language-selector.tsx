@@ -27,7 +27,7 @@ export function LanguagePicker({ className = '' }: { className?: string }) {
   return (
     <Select value={language} onValueChange={(value) => setLanguage(value as typeof language)}>
       <SelectTrigger
-        className={`h-9 w-auto gap-1.5 rounded-full border-[#0850411f] bg-white/70 px-3 text-sm font-bold text-[#085041] ${className}`}
+        className={`h-9 w-auto gap-1.5 rounded-full border-pine/12 bg-paper px-3 text-sm font-bold text-pine ${className}`}
         data-testid={LANGUAGE_SELECTOR_TEST_IDS.SELECT_LANGUAGE_PICKER}
         aria-label={t('settings.language')}
       >
@@ -58,14 +58,14 @@ export function LanguageSetting() {
   return (
     <section className="surface rounded-2xl p-5 sm:p-7" data-testid={LANGUAGE_SELECTOR_TEST_IDS.SECTION_LANGUAGE_SETTING}>
       <div className="flex items-start gap-3">
-        <span className="rounded-xl bg-[#E1F5EE] p-2.5 text-[#0F6E56]">
+        <span className="rounded-xl bg-mint-mist p-2.5 text-shutter">
           <Globe size={18} />
         </span>
         <div className="flex-1">
           <p className="eyebrow">{t('settings.language')}</p>
-          <h2 className="mt-1 text-lg font-black text-[#085041]">{t('settings.language')}</h2>
-          <p className="mt-1 text-sm leading-6 text-[#527067]">{t('settings.languageDesc')}</p>
-          <p className="mt-3 text-xs font-extrabold uppercase tracking-wide text-[#0F6E56]" data-testid={LANGUAGE_SELECTOR_TEST_IDS.TEXT_LANGUAGE_SOURCE}>
+          <h2 className="mt-1 text-lg font-black text-pine">{t('settings.language')}</h2>
+          <p className="mt-1 text-sm leading-6 text-sage">{t('settings.languageDesc')}</p>
+          <p className="mt-3 text-xs font-extrabold uppercase tracking-wide text-shutter" data-testid={LANGUAGE_SELECTOR_TEST_IDS.TEXT_LANGUAGE_SOURCE}>
             {isAuto ? t('settings.languageAuto') : t('settings.languageManual')}
           </p>
           <div className="mt-4 max-w-xs">

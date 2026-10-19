@@ -23,8 +23,8 @@ export function PrivacyPage() {
 function LegalSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h2 className="mb-2 text-base font-black text-[#2C2C2A]">{title}</h2>
-      <p className="text-sm leading-relaxed text-[#527067]">{children}</p>
+      <h2 className="mb-2 text-base font-black text-ink">{title}</h2>
+      <p className="text-sm leading-relaxed text-sage">{children}</p>
     </div>
   );
 }

@@ -1,103 +1,78 @@
 import { Check, Bell, KeyRound } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { Navbar } from '@/components/layout/navbar';
+import { SiteFooter } from '@/components/layout/site-footer';
 import { Skeleton } from '@/components/ui/skeleton';
-import { WAITLIST_FALLBACK_POSITION } from '@/lib/constants';
 import { useAccount } from '@/lib/account-cache';
 
 export function WaitlistConfirmedPage() {
   const { t } = useLanguage();
 
   // Same shared /api/me cache as the navbar (posizione = /api/waitlist/me position).
+  // An unknown position shows a dash, never a stand-in number.
   const { account, loading: positionLoading } = useAccount();
-  const position = account?.posizione ?? WAITLIST_FALLBACK_POSITION;
+  const position = account?.posizione ?? null;
+
+  const steps = [
+    { icon: Check, title: t('waitlistConfirmed.step1Title'), text: t('waitlistConfirmed.step1Text') },
+    { icon: Bell, title: t('waitlistConfirmed.step2Title'), text: t('waitlistConfirmed.step2Text') },
+    { icon: KeyRound, title: t('waitlistConfirmed.step3Title'), text: t('waitlistConfirmed.step3Text') },
+  ];
 
   return (
-    <div className="min-h-screen bg-[#F1EFE8]">
-      <div className="mx-auto max-w-[1040px] px-6 py-6">
-        <Navbar />
+    <div className="flex min-h-[100dvh] flex-col bg-cream text-ink">
+      <header className="mx-auto flex h-20 w-full max-w-[1320px] items-center px-5 lg:px-8">
+        <div className="w-full">
+          <Navbar />
+        </div>
+      </header>
 
-        {/* Position hero */}
-        <section className="relative mt-2 overflow-hidden rounded-[28px] bg-gradient-to-br from-[#E1F5EE] via-[#9FE1CB] to-[#7FD1AE] px-7 py-14 text-center shadow-[0_20px_50px_rgba(8,80,65,0.12)] sm:px-12">
-          <div className="pointer-events-none absolute -right-28 -top-32 h-[280px] w-[280px] rounded-full border border-[#08504124]" />
-          <div className="pointer-events-none absolute -bottom-24 -left-20 h-[200px] w-[200px] rounded-full bg-white/20" />
+      <main className="mx-auto w-full max-w-[1120px] flex-1 px-5 pb-16 lg:px-8">
+        <section className="relative overflow-hidden rounded-[2rem] bg-mint-wash px-6 py-12 sm:px-12 sm:py-16">
+          <div aria-hidden className="pointer-events-none absolute -right-24 -top-28 h-[300px] w-[300px] rounded-full border-[34px] border-mint-mist/50" />
 
-          <div className="relative z-10 mx-auto inline-flex items-center gap-2 rounded-full border border-[#08504129] bg-[#08504114] px-4 py-1.5 text-xs font-extrabold text-[#085041]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#EF9F27]" />
-            {t('waitlistConfirmed.badge')}
-          </div>
-
-          <h1 className="relative z-10 mx-auto mt-6 max-w-md text-[32px] font-black leading-tight text-[#085041] sm:text-[38px]">
-            {t('waitlistConfirmed.title')}
-          </h1>
-          <p className="relative z-10 mx-auto mt-3 max-w-[480px] text-[15px] leading-relaxed text-[#085041]/70 sm:text-[16px]">
-            {t('waitlistConfirmed.subtitle')}
-          </p>
-
-          <div className="relative z-10 mx-auto mt-8 inline-block rounded-2xl border border-[#0850411f] bg-white px-10 py-6 shadow-[0_10px_26px_rgba(8,80,65,0.08)]">
-            <div className="text-xs font-bold uppercase tracking-wide text-[#527067]">
-              {t('waitlistConfirmed.positionLabel')}
+          <div className="relative grid items-center gap-10 md:grid-cols-[1.4fr_1fr]">
+            <div className="page-enter">
+              <p className="inline-flex items-center gap-2 rounded-full bg-mint-mist px-3.5 py-1.5 text-xs font-extrabold text-pine">
+                <span className="h-1.5 w-1.5 rounded-full bg-shutter" aria-hidden />
+                {t('waitlistConfirmed.badge')}
+              </p>
+              <h1 className="display-heading mt-6 max-w-md text-[clamp(2.5rem,6vw,3.5rem)] text-pine">{t('waitlistConfirmed.title')}</h1>
+              <p className="mt-4 max-w-md text-[16px] leading-7 text-pine-text">{t('waitlistConfirmed.subtitle')}</p>
             </div>
-            <div className="flex justify-center text-[56px] font-black leading-none text-[#085041]">
-              {positionLoading ? (
-                <Skeleton className="h-[56px] w-24" />
-              ) : (
-                position ?? '--'
-              )}
+
+            <div className="justify-self-start rounded-2xl border border-pine/10 bg-paper px-10 py-7 shadow-float md:justify-self-center">
+              <p className="text-sm font-bold text-sage">{t('waitlistConfirmed.positionLabel')}</p>
+              <p className="mt-2 text-[64px] font-black leading-none tracking-[-0.05em] tabular-nums text-pine">
+                {positionLoading ? <Skeleton className="h-16 w-24" /> : position !== null ? `#${position}` : '—'}
+              </p>
             </div>
           </div>
         </section>
 
-        {/* What happens next */}
-        <section className="py-12">
-          <div className="mb-8 text-center">
-            <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-[#0F6E56]">
-              {t('waitlistConfirmed.whatNextEyebrow')}
-            </p>
-            <h2 className="text-[26px] font-black text-[#2C2C2A] sm:text-[30px]">
-              {t('waitlistConfirmed.whatNextTitle')}
-            </h2>
-          </div>
-
-          <div className="grid gap-5 sm:grid-cols-3">
-            <MiniStep
-              icon={<Check size={20} />}
-              title={t('waitlistConfirmed.step1Title')}
-              text={t('waitlistConfirmed.step1Text')}
-            />
-            <MiniStep
-              icon={<Bell size={20} />}
-              title={t('waitlistConfirmed.step2Title')}
-              text={t('waitlistConfirmed.step2Text')}
-            />
-            <MiniStep
-              icon={<KeyRound size={20} />}
-              title={t('waitlistConfirmed.step3Title')}
-              text={t('waitlistConfirmed.step3Text')}
-            />
-          </div>
+        <section className="mt-16" aria-labelledby="confirmed-next">
+          <p className="eyebrow mb-3">{t('waitlistConfirmed.whatNextEyebrow')}</p>
+          <h2 id="confirmed-next" className="display-heading text-[clamp(2rem,4.4vw,2.75rem)] text-pine">
+            {t('waitlistConfirmed.whatNextTitle')}
+          </h2>
+          <ol className="mt-8 grid gap-8 md:grid-cols-3">
+            {steps.map((step) => {
+              const Icon = step.icon;
+              return (
+                <li key={step.title} className="border-t border-line pt-6">
+                  <span className="grid h-11 w-11 place-items-center rounded-xl bg-mint-mist text-shutter" aria-hidden>
+                    <Icon size={20} />
+                  </span>
+                  <h3 className="mt-4 text-lg font-black text-pine">{step.title}</h3>
+                  <p className="mt-1.5 text-[15px] leading-6 text-sage">{step.text}</p>
+                </li>
+              );
+            })}
+          </ol>
         </section>
-      </div>
-    </div>
-  );
-}
+      </main>
 
-function MiniStep({
-  icon,
-  title,
-  text,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  text: string;
-}) {
-  return (
-    <div className="rounded-[20px] border border-[#0850411a] bg-white p-6 transition-shadow hover:shadow-[0_10px_26px_rgba(8,80,65,0.08)]">
-      <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-[#E1F5EE] text-[#085041]">
-        {icon}
-      </div>
-      <h3 className="mb-1.5 text-base font-black text-[#2C2C2A]">{title}</h3>
-      <p className="text-sm leading-relaxed text-[#527067]">{text}</p>
+      <SiteFooter />
     </div>
   );
 }

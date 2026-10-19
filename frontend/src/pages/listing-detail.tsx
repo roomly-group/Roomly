@@ -1,30 +1,37 @@
 import { useEffect, useState } from 'react';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 import {
   BedDouble,
   Building2,
   ChevronLeft,
   ChevronRight,
   CircleCheck,
-  MapPin,
+  GraduationCap,
+  Images,
   MessageCircle,
+  PenLine,
   Send,
+  Share2,
   ShieldCheck,
   X,
 } from 'lucide-react';
-import { Link, useLocation, useParams } from 'wouter';
+import { Link, useLocation, useParams, useSearch } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetListingQueryKey,
   getListConversationsQueryKey,
+  getListListingsQueryKey,
   useGetListing,
+  useListListings,
   useListConversations,
   useStartConversation,
 } from '@workspace/api-client-react';
+import type { Listing } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
+import { useFormat } from '@/hooks/use-format';
+import { useToast } from '@/hooks/use-toast';
 import {
   APP_ROUTES,
-  formatPrice,
-  gradients,
   LISTING_DETAIL_TEST_IDS,
   LISTING_FEATURE_GROUP_KEYS,
   LISTING_FURNITURE_GROUP,
@@ -35,26 +42,150 @@ import {
   LISTING_SMOKERS_ICON,
 } from '@/components/shared/listing-features-fields';
 import { AppShell, Avatar } from '@/components/layout/app-shell';
-import { Button } from '@/components/shared/button';
+import { ListingPhotoPlaceholder } from '@/components/shared/listing-card';
 import { QueryError } from '@/components/shared/query-error';
 import { supabase } from '@/lib/supabase';
+import { cn } from '@/lib/utils';
 import { MESSAGE_MAX_LENGTH_CHARS } from '@workspace/api-zod';
 
-function Feature({ icon: Icon, label }: { icon: typeof BedDouble; label: string }) {
+type TranslationKey = Parameters<ReturnType<typeof useLanguage>['t']>[0];
+
+// ===================== CONFIGURATION =====================
+
+/** Photos shown in the desktop mosaic (one large + four small). */
+const MOSAIC_PHOTO_COUNT = 5 as const;
+/** Extra selectors for the redesigned detail page. */
+const DETAIL_TEST_IDS = {
+  BUTTON_SHARE: 'button-share-listing',
+  BUTTON_SHOW_ALL_PHOTOS: 'button-show-all-photos',
+  CARD_DISTANCE: 'card-listing-distance',
+  CARD_REQUEST: 'card-listing-request',
+  BAR_MOBILE_REQUEST: 'bar-mobile-request',
+  LINK_EDIT_OWN: 'link-edit-own-listing',
+  LINK_SIMILAR: 'link-similar-rooms',
+} as const;
+
+const SECTION_TITLE_CLASS = 'text-[22px] font-black leading-[1.1] tracking-[-0.04em] text-pine';
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl bg-[#E1F5EE] p-3 text-center text-xs font-extrabold text-[#085041]">
-      <Icon size={18} className="mx-auto mb-1.5 text-[#0F6E56]" />
-      {label}
+    <section className="border-t border-line pt-8">
+      <h2 className={SECTION_TITLE_CLASS}>{title}</h2>
+      <div className="mt-5">{children}</div>
+    </section>
+  );
+}
+
+function FactRow({ icon: Icon, children }: { icon: typeof BedDouble; children: React.ReactNode }) {
+  return (
+    <li className="flex items-center gap-3 py-3 text-[15px] text-ink">
+      <Icon size={20} strokeWidth={1.9} className="shrink-0 text-shutter" aria-hidden />
+      <span>{children}</span>
+    </li>
+  );
+}
+
+/** Desktop: one large photo plus up to four small ones. Phones: a swipeable strip. */
+function PhotoMosaic({
+  listing,
+  photoUrls,
+  onOpen,
+}: {
+  listing: Listing;
+  photoUrls: string[];
+  onOpen: (index: number) => void;
+}) {
+  const { t } = useLanguage();
+  const count = photoUrls.length;
+
+  if (count === 0) {
+    return <ListingPhotoPlaceholder id={listing.id} className="aspect-[16/9] rounded-2xl sm:aspect-[21/9]" />;
+  }
+
+  const mosaic = photoUrls.slice(0, MOSAIC_PHOTO_COUNT);
+  const small = mosaic.slice(1);
+  const photoLabel = (index: number) =>
+    t('listingDetail.openPhoto').replace('{n}', String(index + 1)).replace('{total}', String(count));
+
+  return (
+    <div className="relative">
+      {/* Phones: swipe through every photo. */}
+      <div
+        className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-2 overflow-x-auto px-5 sm:hidden"
+        aria-label={t('listingDetail.photosOf').replace('{title}', listing.title)}
+        data-testid={LISTING_DETAIL_TEST_IDS.GALLERY_LISTING_PHOTOS}
+      >
+        {photoUrls.map((url, index) => (
+          <button
+            key={url}
+            type="button"
+            onClick={() => onOpen(index)}
+            aria-label={photoLabel(index)}
+            className="relative aspect-[4/3] w-[86vw] shrink-0 snap-center overflow-hidden rounded-2xl bg-line"
+            data-testid={`${LISTING_DETAIL_TEST_IDS.BUTTON_LISTING_PHOTO_PREFIX}${index + 1}`}
+          >
+            <img src={url} alt="" crossOrigin="anonymous" loading={index ? 'lazy' : 'eager'} className="h-full w-full object-cover" />
+            <span className="absolute bottom-3 right-3 rounded-lg bg-chip-veil px-2 py-1 text-xs font-black tabular-nums text-pine">
+              {index + 1} / {count}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* From 640px: the mosaic. */}
+      <div
+        className={cn(
+          'hidden h-[clamp(300px,42vw,460px)] gap-2 overflow-hidden rounded-2xl sm:grid',
+          small.length === 0 && 'grid-cols-1',
+          small.length === 1 && 'grid-cols-2',
+          small.length >= 2 && 'grid-cols-4 grid-rows-2',
+        )}
+      >
+        {mosaic.map((url, index) => (
+          <button
+            key={url}
+            type="button"
+            onClick={() => onOpen(index)}
+            aria-label={photoLabel(index)}
+            className={cn(
+              'group relative overflow-hidden bg-line',
+              index === 0 && small.length >= 2 && 'col-span-2 row-span-2',
+              index > 0 && small.length === 2 && 'col-span-2',
+              index > 0 && small.length === 3 && index === 3 && 'col-span-2',
+            )}
+            data-testid={index === 0 ? LISTING_DETAIL_TEST_IDS.BUTTON_LISTING_COVER_PHOTO : undefined}
+          >
+            <img
+              src={url}
+              alt=""
+              crossOrigin="anonymous"
+              className="h-full w-full object-cover transition-[filter] duration-200 group-hover:brightness-95"
+            />
+          </button>
+        ))}
+      </div>
+
+      {count > 1 && (
+        <button
+          type="button"
+          onClick={() => onOpen(0)}
+          className="absolute bottom-4 right-4 hidden min-h-11 items-center gap-2 rounded-xl border border-pine/15 bg-paper px-4 text-sm font-extrabold text-pine shadow-rest transition-colors hover:bg-cream sm:inline-flex"
+          data-testid={DETAIL_TEST_IDS.BUTTON_SHOW_ALL_PHOTOS}
+        >
+          <Images size={16} aria-hidden /> {t('listingDetail.showAllPhotos')}
+        </button>
+      )}
     </div>
   );
 }
 
-type TranslationKey = Parameters<ReturnType<typeof useLanguage>['t']>[0];
-
 export function ListingDetail() {
   const { t } = useLanguage();
+  const format = useFormat();
+  const { toast } = useToast();
   const { id } = useParams<{ id: string }>();
   const listingId = Number(id);
+  const search = useSearch();
   const { data: listing, isLoading, isError, refetch } = useGetListing(listingId, {
     query: { queryKey: getGetListingQueryKey(listingId) },
   });
@@ -79,6 +210,20 @@ export function ListingDetail() {
     };
   }, []);
 
+  // The search this page was opened from, for the back link and the university to measure from.
+  const fromSearch = new URLSearchParams(search).get('from') ?? '';
+  const searchedUniversity = new URLSearchParams(fromSearch).get('zone') ?? '';
+  const backHref = `${APP_ROUTES.SEARCH}${fromSearch ? `?${fromSearch}` : ''}`;
+
+  // The listing endpoint has no distance, so it comes from the backend's university
+  // search: to the university the student searched, or else to the room's nearest one.
+  const distanceUniversity = searchedUniversity || listing?.zone || '';
+  const distanceRequest = { zone: distanceUniversity };
+  const { data: nearbyListings } = useListListings(distanceRequest, {
+    query: { queryKey: getListListingsQueryKey(distanceRequest), enabled: Boolean(distanceUniversity) },
+  });
+  const distanceKm = nearbyListings?.find((item) => item.id === listingId)?.distanceKm ?? null;
+
   // Il proprietario non può inviare richieste al proprio annuncio.
   const isOwnListing = Boolean(currentUserId && listing?.ownerId && listing.ownerId === currentUserId);
 
@@ -90,6 +235,7 @@ export function ListingDetail() {
   const acceptedConversation = conversations?.find(
     (conv) => conv.role === 'student' && conv.requestStatus === 'accettata',
   );
+  const canRequest = Boolean(listing?.available) && !isOwnListing && !existingListingConversation && !acceptedConversation;
 
   const getStartConversationErrorMessage = () => {
     const error: unknown = startConversation.error;
@@ -173,19 +319,35 @@ export function ListingDetail() {
     );
   };
 
-  const closeContact = () => {
-    setShowContact(false);
-    startConversation.reset();
+  const setContactOpen = (open: boolean) => {
+    setShowContact(open);
+    if (!open) startConversation.reset();
+  };
+
+  const share = async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: listing?.title, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      toast({ title: t('listingDetail.linkCopied') });
+    } catch {
+      // The person closed the share sheet: nothing to report.
+    }
   };
 
   if (isLoading) {
     return (
       <AppShell>
-        <div className="mx-auto max-w-[1120px] px-5 py-12">
-          <div className="skeleton h-[380px] rounded-[2rem]" />
-          <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_340px]">
-            <div className="skeleton h-60 rounded-2xl" />
-            <div className="skeleton h-60 rounded-2xl" />
+        <div className="mx-auto max-w-[1120px] px-5 py-10 lg:px-8" aria-hidden>
+          <div className="skeleton h-4 w-32 rounded" />
+          <div className="skeleton mt-4 h-10 w-2/3 rounded-lg" />
+          <div className="skeleton mt-6 h-[clamp(300px,42vw,460px)] rounded-2xl" />
+          <div className="mt-10 flex flex-wrap gap-16">
+            <div className="skeleton h-60 min-w-0 flex-[999_1_520px] rounded-2xl" />
+            <div className="skeleton h-72 w-full rounded-2xl laptop:w-[340px]" />
           </div>
         </div>
       </AppShell>
@@ -202,80 +364,132 @@ export function ListingDetail() {
     );
   }
 
+  const typeLine = [
+    listing.propertyType ? t(`propertyType.${listing.propertyType}` as TranslationKey) : '',
+    listing.apartmentLayout ? t(`apartmentLayout.${listing.apartmentLayout}` as TranslationKey) : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const billItems = listing.features?.spese_incluse ?? [];
+  const featureItems = LISTING_FEATURE_GROUP_KEYS.filter((group) => group !== 'spese_incluse').flatMap((group) => {
+    const items = listing.features?.[group] ?? [];
+    const Icon = LISTING_FEATURE_GROUP_ICONS[group];
+    if (group === LISTING_FURNITURE_GROUP && listing.furnished && items.length === 0) {
+      return [{ key: 'furnished', icon: Icon, label: t('common.furnished') }];
+    }
+    return items.map((item) => ({ key: `${group}-${item}`, icon: Icon, label: t(`newListing.feature.${item}` as TranslationKey) }));
+  });
+  const ownerFirstName = listing.owner.split(' ')[0];
+  const editHref = APP_ROUTES.OWNER_LISTING_EDIT.replace(':id', String(listing.id));
+  const similarHref = `${APP_ROUTES.SEARCH}?zone=${encodeURIComponent(listing.zone)}`;
+
+  // What the request card says in each state; the amber button only when a request is possible.
+  const requestState = isOwnListing ? (
+    <div data-testid={LISTING_DETAIL_TEST_IDS.STATUS_OWN_LISTING}>
+      <p className="text-sm font-bold text-ink">{t('listingDetail.yourListing')}</p>
+      <Link
+        href={editHref}
+        className="mt-3 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-mint-mist text-sm font-extrabold text-pine transition-colors hover:bg-mint-wash"
+        data-testid={DETAIL_TEST_IDS.LINK_EDIT_OWN}
+      >
+        <PenLine size={16} aria-hidden /> {t('dashboard.editListing')}
+      </Link>
+    </div>
+  ) : acceptedConversation ? (
+    <div>
+      <p className="text-sm leading-6 text-ink">{t('listingDetail.alreadyHaveRoom')}</p>
+      <Link
+        href={`${APP_ROUTES.MESSAGES}/${acceptedConversation.id}`}
+        className="mt-3 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-mint-mist text-sm font-extrabold text-pine transition-colors hover:bg-mint-wash"
+        data-testid={LISTING_DETAIL_TEST_IDS.LINK_ACCEPTED_CHAT}
+      >
+        <MessageCircle size={16} aria-hidden /> {t('listingDetail.goToChat')}
+      </Link>
+    </div>
+  ) : existingListingConversation ? (
+    <div>
+      <p className="text-sm leading-6 text-ink">{t('listingDetail.alreadyRequested')}</p>
+      <Link
+        href={`${APP_ROUTES.MESSAGES}/${existingListingConversation.id}`}
+        className="mt-3 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-mint-mist text-sm font-extrabold text-pine transition-colors hover:bg-mint-wash"
+        data-testid={LISTING_DETAIL_TEST_IDS.LINK_EXISTING_CHAT}
+      >
+        <MessageCircle size={16} aria-hidden /> {t('listingDetail.goToChat')}
+      </Link>
+    </div>
+  ) : !listing.available ? (
+    <div>
+      <p className="text-sm font-bold text-sage">{t('listingDetail.roomUnavailable')}</p>
+      <Link
+        href={similarHref}
+        className="mt-3 flex min-h-12 items-center justify-center rounded-xl border border-outline text-sm font-extrabold text-pine transition-colors hover:border-shutter hover:bg-mint-mist"
+        data-testid={DETAIL_TEST_IDS.LINK_SIMILAR}
+      >
+        {t('listingDetail.similarRooms')}
+      </Link>
+    </div>
+  ) : (
+    <div>
+      <button
+        type="button"
+        onClick={() => setContactOpen(true)}
+        disabled={startConversation.isPending || isLoadingConversations}
+        className="hidden h-[52px] w-full items-center justify-center rounded-xl bg-sun text-[15px] font-black text-ink transition-[background-color,transform] duration-200 hover:bg-sun-hover active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 laptop:flex"
+        data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_CONTACT_OWNER}
+      >
+        {t('listingDetail.requestRoom')}
+      </button>
+      <p className="mt-4 text-xs font-black uppercase tracking-[0.12em] text-sage laptop:mt-5">{t('listingDetail.stepsTitle')}</p>
+      <ol className="mt-3 space-y-3">
+        {(['listingDetail.step1', 'listingDetail.step2', 'listingDetail.step3'] as const).map((key, index) => (
+          <li key={key} className="flex gap-3 text-sm leading-5 text-ink">
+            <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-mint-mist text-xs font-black tabular-nums text-pine" aria-hidden>
+              {index + 1}
+            </span>
+            {t(key)}
+          </li>
+        ))}
+      </ol>
+      <p className="mt-4 rounded-xl bg-cream px-3 py-2.5 text-xs font-bold leading-5 text-sage">{t('listingDetail.limitNote')}</p>
+    </div>
+  );
+
   return (
     <AppShell>
-      <div className="mx-auto max-w-[1120px] px-5 py-8 lg:px-8 lg:py-12">
+      <div className="mx-auto max-w-[1120px] px-5 pb-16 pt-6 lg:px-8 lg:pt-8">
         <Link
-          href={APP_ROUTES.SEARCH}
-          className="mb-6 inline-flex items-center gap-2 text-sm font-black text-[#0F6E56]"
+          href={backHref}
+          className="inline-flex min-h-11 items-center gap-1.5 text-sm font-black text-shutter transition-colors hover:text-pine"
           data-testid={LISTING_DETAIL_TEST_IDS.LINK_BACK_SEARCH}
         >
-          <ChevronLeft size={16} /> {t('listingDetail.allRooms')}
+          <ChevronLeft size={16} aria-hidden /> {t('listingDetail.allRooms')}
         </Link>
 
-        <div
-          className={`relative flex h-[280px] items-end overflow-hidden rounded-[2rem] bg-gradient-to-br ${gradients[listing.id % gradients.length]} p-6 sm:h-[390px] sm:p-9`}
-        >
-          {listing.coverPhotoUrl && (
-            <>
-              <button
-                type="button"
-                onClick={() => setSelectedPhotoIndex(Math.max(0, photoUrls.indexOf(listing.coverPhotoUrl!)))}
-                aria-label="View cover photo full screen"
-                className="absolute inset-0 z-0 cursor-zoom-in"
-                data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_LISTING_COVER_PHOTO}
-              >
-                <img src={listing.coverPhotoUrl} alt={listing.title} crossOrigin="anonymous" className="h-full w-full object-cover" />
-              </button>
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
-            </>
-          )}
-          <div className="relative z-10">
-              <span className="rounded-lg bg-[#F1EFE8]/85 px-3 py-1.5 text-xs font-black text-[#085041]">
-              {listing.available ? t('common.availableNow') : t('common.comingSoon')}
-            </span>
-            <h1 className="display-heading mt-3 max-w-xl text-4xl text-[#085041] sm:text-6xl">
-              {listing.title}
-            </h1>
-            <p className="mt-3 flex items-center gap-1.5 text-sm font-extrabold text-[#265c4d]">
-              <MapPin size={16} /> {listing.zone}
-            </p>
+        <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0">
+            {typeLine && <p className="eyebrow mb-3">{typeLine}</p>}
+            <h1 className="display-heading max-w-3xl break-words text-[clamp(2.25rem,5vw,2.75rem)] text-pine">{listing.title}</h1>
           </div>
+          <button
+            type="button"
+            onClick={() => void share()}
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-extrabold text-ink underline decoration-outline underline-offset-4 transition-colors hover:bg-mint-mist"
+            data-testid={DETAIL_TEST_IDS.BUTTON_SHARE}
+          >
+            <Share2 size={16} aria-hidden /> {t('listingDetail.share')}
+          </button>
         </div>
 
-        {photoUrls.length > 0 && (
-          <div
-            className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-3"
-            aria-label={`${listing.title} photos`}
-            data-testid={LISTING_DETAIL_TEST_IDS.GALLERY_LISTING_PHOTOS}
-          >
-            {photoUrls.map((photoUrl, index) => (
-              <button
-                key={photoUrl}
-                type="button"
-                onClick={() => setSelectedPhotoIndex(index)}
-                aria-label={`View photo ${index + 1} full screen`}
-                className="group relative aspect-[4/3] w-[82vw] max-w-[360px] shrink-0 snap-start overflow-hidden rounded-xl bg-[#e1ebe4] sm:w-[320px]"
-                data-testid={`${LISTING_DETAIL_TEST_IDS.BUTTON_LISTING_PHOTO_PREFIX}${index + 1}`}
-              >
-                <img
-                  src={photoUrl}
-                  alt={`${listing.title} ${index + 1}`}
-                  crossOrigin="anonymous"
-                  loading="lazy"
-                  className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
-                />
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="mt-6">
+          <PhotoMosaic listing={listing} photoUrls={photoUrls} onOpen={setSelectedPhotoIndex} />
+        </div>
 
         {selectedPhotoIndex !== null && photoUrls[selectedPhotoIndex] && (
           <div
             role="dialog"
             aria-modal="true"
-            aria-label={`${listing.title} photo ${selectedPhotoIndex + 1} of ${photoCount}`}
-            className="fixed inset-0 z-[70] flex items-center justify-center bg-black/95 p-4 sm:p-8"
+            aria-label={t('listingDetail.openPhoto').replace('{n}', String(selectedPhotoIndex + 1)).replace('{total}', String(photoCount))}
+            className="fixed inset-0 z-[70] flex items-center justify-center bg-ink/95 p-4 sm:p-8"
             onClick={(event) => {
               if (event.target === event.currentTarget) setSelectedPhotoIndex(null);
             }}
@@ -284,9 +498,8 @@ export function ListingDetail() {
             <button
               type="button"
               onClick={() => setSelectedPhotoIndex(null)}
-              aria-label="Close full-screen photo"
-              title="Close"
-              className="absolute right-4 top-4 z-10 rounded-full bg-white/10 p-3 text-white transition hover:bg-white/20"
+              aria-label={t('searchBar.close')}
+              className="on-dark absolute right-4 top-4 z-10 grid h-12 w-12 place-items-center rounded-full bg-paper/10 text-paper transition hover:bg-paper/20"
               data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_CLOSE_PHOTO_LIGHTBOX}
             >
               <X size={22} />
@@ -296,9 +509,8 @@ export function ListingDetail() {
               <button
                 type="button"
                 onClick={() => setSelectedPhotoIndex((selectedPhotoIndex - 1 + photoCount) % photoCount)}
-                aria-label="Previous photo"
-                title="Previous photo"
-                className="absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white transition hover:bg-white/20 sm:left-6"
+                aria-label={t('listingDetail.previousPhoto')}
+                className="absolute left-3 top-1/2 z-10 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-paper/10 text-paper transition hover:bg-paper/20 sm:left-6"
                 data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_PREVIOUS_PHOTO}
               >
                 <ChevronLeft size={24} />
@@ -308,12 +520,12 @@ export function ListingDetail() {
             <figure className="flex max-h-full max-w-full flex-col items-center gap-3">
               <img
                 src={photoUrls[selectedPhotoIndex]}
-                alt={`${listing.title} ${selectedPhotoIndex + 1}`}
+                alt=""
                 crossOrigin="anonymous"
-                className="max-h-[calc(100dvh-7rem)] max-w-[calc(100vw-2rem)] object-contain sm:max-w-[calc(100vw-8rem)]"
+                className="max-h-[calc(100dvh-7rem)] max-w-[calc(100vw-2rem)] rounded-lg object-contain sm:max-w-[calc(100vw-8rem)]"
                 data-testid={LISTING_DETAIL_TEST_IDS.IMAGE_PHOTO_LIGHTBOX_FULL}
               />
-              <figcaption className="text-sm font-bold text-white/80">
+              <figcaption className="text-sm font-bold tabular-nums text-paper/80">
                 {selectedPhotoIndex + 1} / {photoCount}
               </figcaption>
             </figure>
@@ -322,9 +534,8 @@ export function ListingDetail() {
               <button
                 type="button"
                 onClick={() => setSelectedPhotoIndex((selectedPhotoIndex + 1) % photoCount)}
-                aria-label="Next photo"
-                title="Next photo"
-                className="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white transition hover:bg-white/20 sm:right-6"
+                aria-label={t('listingDetail.nextPhoto')}
+                className="absolute right-3 top-1/2 z-10 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-paper/10 text-paper transition hover:bg-paper/20 sm:right-6"
                 data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_NEXT_PHOTO}
               >
                 <ChevronRight size={24} />
@@ -333,201 +544,228 @@ export function ListingDetail() {
           </div>
         )}
 
-        <div className="mt-7 grid gap-7 lg:grid-cols-[1fr_340px]">
-          <div>
-            <div className="mb-7 border-b border-[#d6e7de] pb-6">
-              <p className="text-2xl font-black text-[#0F6E56]">
-                {formatPrice(listing.price)}
-                <span className="text-sm font-bold text-[#527067]">{t('common.perMonth')}</span>
-              </p>
+        <div className="mt-10 flex flex-wrap items-start gap-x-16 gap-y-10">
+          <div className="min-w-0 flex-[999_1_520px] space-y-10">
+            <div
+              className="flex items-center gap-5 rounded-2xl border border-pine/10 bg-paper px-6 py-5 shadow-rest sm:px-7"
+              data-testid={DETAIL_TEST_IDS.CARD_DISTANCE}
+            >
+              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-[20px] bg-mint-mist text-shutter" aria-hidden>
+                <GraduationCap size={28} strokeWidth={1.8} />
+              </span>
+              {distanceKm !== null ? (
+                <p className="min-w-0">
+                  <span className="block text-[clamp(2.75rem,7vw,4rem)] font-black leading-none tracking-[-0.05em] tabular-nums text-pine">
+                    {format.km(distanceKm)} km
+                  </span>
+                  <span className="mt-1 block text-sm font-extrabold text-pine">
+                    {t('listingDetail.distanceFrom').replace('{university}', distanceUniversity)}
+                  </span>
+                </p>
+              ) : (
+                <p className="min-w-0">
+                  <span className="block text-sm font-bold text-sage">{t('listingDetail.near')}</span>
+                  <span className="mt-1 block text-lg font-black leading-snug text-pine">{listing.zone}</span>
+                </p>
+              )}
             </div>
 
-            <div>
-              <p className="eyebrow mb-3">{t('listingDetail.aboutRoom')}</p>
-              <p className="max-w-2xl whitespace-pre-line text-[15px] leading-7 text-[#527067]">
-                {listing.description}
-              </p>
-            </div>
+            <ul className="grid gap-x-8 sm:grid-cols-2">
+              {typeLine && <FactRow icon={Building2}>{typeLine}</FactRow>}
+              <FactRow icon={LISTING_FEATURE_GROUP_ICONS[LISTING_FURNITURE_GROUP]}>
+                {listing.furnished ? t('common.furnished') : t('common.unfurnished')}
+              </FactRow>
+              <FactRow icon={LISTING_FEATURE_GROUP_ICONS.spese_incluse}>
+                {billItems.length
+                  ? `${t('filters.bills')}: ${billItems.map((item) => t(`newListing.feature.${item}` as TranslationKey)).join(', ')}`
+                  : t('listingDetail.billsNotIncluded')}
+              </FactRow>
+              <FactRow icon={CircleCheck}>{listing.available ? t('common.availableNow') : t('common.notAvailable')}</FactRow>
+            </ul>
 
-            {/* Tipologia, taglio and house rules (tipologia_proprieta, taglio_appartamento, animali_consentiti, fumatori_consentiti). */}
-            <div className="mt-8">
-              <p className="eyebrow mb-3">{t('listingDetail.roomRules')}</p>
-              <div className="grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-3">
-                {listing.propertyType && (
-                  <Feature icon={Building2} label={t(`propertyType.${listing.propertyType}` as TranslationKey)} />
-                )}
-                {listing.apartmentLayout && (
-                  <Feature icon={BedDouble} label={t(`apartmentLayout.${listing.apartmentLayout}` as TranslationKey)} />
-                )}
-                <Feature
-                  icon={LISTING_PETS_ICON}
-                  label={t(listing.petsAllowed ? 'newListing.petsAllowed' : 'listingDetail.petsNotAllowed')}
-                />
-                <Feature
-                  icon={LISTING_SMOKERS_ICON}
-                  label={t(listing.smokersAllowed ? 'newListing.smokersAllowed' : 'listingDetail.smokersNotAllowed')}
-                />
-              </div>
-            </div>
+            {listing.description && (
+              <Section title={t('listingDetail.aboutRoom')}>
+                <p className="max-w-2xl whitespace-pre-line text-[15px] leading-7 text-ink">{listing.description}</p>
+              </Section>
+            )}
 
-            {/* Features grouped by type, like the columns of `stanze`; empty groups are hidden. */}
-            {LISTING_FEATURE_GROUP_KEYS.map((group) => {
-              const items = listing.features?.[group] ?? [];
-              const furnishedOnly = group === LISTING_FURNITURE_GROUP && listing.furnished && items.length === 0;
-              if (items.length === 0 && !furnishedOnly) return null;
-              const Icon = LISTING_FEATURE_GROUP_ICONS[group];
-              return (
-                <div key={group} className="mt-8">
-                  <p className="eyebrow mb-3">{t(`newListing.group.${group}` as TranslationKey)}</p>
-                  <div className="grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-3">
-                    {furnishedOnly ? (
-                      <Feature icon={Icon} label={t('common.furnished')} />
-                    ) : (
-                      items.map((item) => (
-                        <Feature key={item} icon={Icon} label={t(`newListing.feature.${item}` as TranslationKey)} />
-                      ))
-                    )}
-                  </div>
+            {featureItems.length > 0 && (
+              <Section title={t('listingDetail.whatYouGet')}>
+                <ul className="grid gap-x-8 sm:grid-cols-2">
+                  {featureItems.map((item) => (
+                    <FactRow key={item.key} icon={item.icon}>
+                      {item.label}
+                    </FactRow>
+                  ))}
+                </ul>
+              </Section>
+            )}
+
+            <Section title={t('listingDetail.houseRules')}>
+              <ul className="grid gap-x-8 sm:grid-cols-2">
+                <FactRow icon={LISTING_PETS_ICON}>
+                  {t(listing.petsAllowed ? 'newListing.petsAllowed' : 'listingDetail.petsNotAllowed')}
+                </FactRow>
+                <FactRow icon={LISTING_SMOKERS_ICON}>
+                  {t(listing.smokersAllowed ? 'newListing.smokersAllowed' : 'listingDetail.smokersNotAllowed')}
+                </FactRow>
+              </ul>
+            </Section>
+
+            <Section title={t('listingDetail.ownerLabel')}>
+              <div className="flex items-center gap-4 rounded-2xl border border-pine/10 bg-paper p-5 shadow-rest">
+                <Avatar name={listing.owner} size="lg" />
+                <div className="min-w-0">
+                  <p className="truncate text-lg font-black text-pine">{listing.owner}</p>
+                  <p className="mt-0.5 flex items-center gap-1.5 text-sm font-bold text-sage">
+                    <CircleCheck size={14} className="text-shutter" aria-hidden /> {t('listingDetail.identityChecked')}
+                  </p>
+                  <p className="mt-0.5 text-sm text-sage">{t('listingDetail.noReviews')}</p>
                 </div>
-              );
-            })}
+              </div>
+              <p className="mt-4 flex items-start gap-2 text-sm leading-6 text-sage">
+                <ShieldCheck size={16} className="mt-1 shrink-0 text-shutter" aria-hidden /> {t('listingDetail.keepConversation')}
+              </p>
+            </Section>
           </div>
 
-          <aside className="surface h-fit rounded-2xl p-5 sm:p-6">
-            <div className="flex items-center gap-3">
-              <Avatar name={listing.owner} size="lg" />
-              <div>
-                <p className="text-xs font-black uppercase tracking-wider text-[#527067]">
-                  {t('listingDetail.yourHost')}
-                </p>
-                <h2 className="font-black text-[#085041]">{listing.owner}</h2>
-                <p className="mt-0.5 flex items-center gap-1 text-xs font-bold text-[#527067]">
-                  <CircleCheck size={13} className="text-[#0F6E56]" /> {t('listingDetail.identityChecked')}
-                </p>
-              </div>
-            </div>
-
-            <div className="my-5 border-t border-[#e1ebe4] pt-5">
-              <p className="text-sm leading-6 text-[#527067]">{t('listingDetail.questionText')}</p>
-              {acceptedConversation && (
-                <>
-                  <p className="mt-2 text-sm font-bold text-[#0F6E56]">
-                    {t('listingDetail.alreadyHaveRoom')}
-                  </p>
-                  <Link
-                    href={`${APP_ROUTES.MESSAGES}/${acceptedConversation.id}`}
-                    className="mt-2 block text-sm font-medium text-[#0F6E56] hover:underline"
-                    data-testid={LISTING_DETAIL_TEST_IDS.LINK_ACCEPTED_CHAT}
-                  >
-                    {t('listingDetail.goToChat')}
-                  </Link>
-                </>
-              )}
-              {!listing.available && (
-                <p className="mt-2 text-sm font-bold text-[#a74b32]">
-                  {t('listingDetail.roomUnavailable')}
-                </p>
-              )}
-              {existingListingConversation && !acceptedConversation && (
-                <Link
-                  href={`${APP_ROUTES.MESSAGES}/${existingListingConversation.id}`}
-                  className="mt-4 block text-sm font-bold text-[#0F6E56] hover:underline"
-                  data-testid={LISTING_DETAIL_TEST_IDS.LINK_EXISTING_CHAT}
-                >
-                  {t('listingDetail.openExistingChat')}
-                </Link>
-              )}
-              {isOwnListing && (
-                <p className="mt-4 text-sm font-bold text-[#527067]" data-testid={LISTING_DETAIL_TEST_IDS.STATUS_OWN_LISTING}>
-                  {t('listingDetail.cannotMessageSelf')}
-                </p>
-              )}
-              {!isOwnListing && !existingListingConversation && !acceptedConversation && listing.available && (
-                <button
-                  type="button"
-                  onClick={() => setShowContact(true)}
-                  aria-label={t('listingDetail.contactOwner')}
-                  title={t('listingDetail.contactOwner')}
-                  data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_CONTACT_OWNER}
-                  disabled={startConversation.isPending || isLoadingConversations}
-                  className="mt-4 h-12 w-full min-w-[80px] shrink-0 rounded-xl bg-[#EF9F27] px-4 font-extrabold text-[#2C2C2A] transition-all duration-200 hover:bg-[#e6a53d] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {t('listingDetail.contactOwner')}
-                </button>
-              )}
-              {!isOwnListing && !listing.available && !existingListingConversation && !acceptedConversation && (
-                <button
-                  type="button"
-                  disabled
-                  aria-label={t('listingDetail.contactOwner')}
-                  data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_CONTACT_OWNER}
-                  className="mt-4 h-12 w-full rounded-xl bg-[#EF9F27] px-4 font-extrabold text-[#2C2C2A] opacity-50"
-                >
-                  {t('listingDetail.contactOwner')}
-                </button>
-              )}
-            </div>
-
-            <p className="flex items-start gap-2 text-xs leading-5 text-[#527067]">
-              <ShieldCheck size={15} className="mt-0.5 shrink-0 text-[#0F6E56]" />{' '}
-              {t('listingDetail.keepConversation')}
+          <aside
+            className="w-full rounded-2xl border border-pine/10 bg-paper p-6 shadow-lift laptop:sticky laptop:top-[104px] laptop:w-[340px]"
+            data-testid={DETAIL_TEST_IDS.CARD_REQUEST}
+          >
+            <p className="flex items-baseline gap-1">
+              <span className="text-[28px] font-black tracking-[-0.03em] tabular-nums text-pine">{format.price(listing.price)}</span>
+              <span className="text-sm font-bold text-sage">{t('common.perMonth')}</span>
             </p>
+            {billItems.length > 0 && (
+              <span className="mt-2 inline-flex rounded-full bg-mint-mist px-3 py-1 text-xs font-black text-pine">
+                {t('common.someBillsIncluded')}
+              </span>
+            )}
+
+            <div className="mt-5">{requestState}</div>
+
+            <dl className="mt-6 space-y-2 border-t border-line pt-5 text-sm">
+              <div className="flex justify-between gap-4">
+                <dt className="text-sage">{t('listingDetail.rent')}</dt>
+                <dd className="font-extrabold tabular-nums text-ink">{format.price(listing.price)}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-sage">{t('filters.bills')}</dt>
+                <dd className="text-right font-extrabold text-ink">
+                  {billItems.length
+                    ? billItems.map((item) => t(`newListing.feature.${item}` as TranslationKey)).join(', ')
+                    : t('listingDetail.none')}
+                </dd>
+              </div>
+            </dl>
           </aside>
         </div>
-
-        {showContact && !isOwnListing && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#085041]/35 p-4 sm:items-center">
-            <div className="surface page-enter w-full max-w-md rounded-2xl p-6 shadow-[var(--shadow-lg)]">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="eyebrow">{t('listingDetail.modalSayHello')}</p>
-                  <h2 className="mt-1 text-2xl font-black text-[#085041]">
-                    {t('listingDetail.message')} {listing.owner.split(' ')[0]}
-                  </h2>
-                </div>
-                <button
-                  onClick={closeContact}
-                  className="rounded-lg p-2 text-[#527067] hover:bg-[#E1F5EE]"
-                  data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_CLOSE_CONTACT}
-                >
-                  <X size={18} />
-                </button>
-              </div>
-              <form onSubmit={sendFirstMessage}>
-                <p className="mt-3 text-sm leading-6 text-[#527067]">
-                  {t('listingDetail.modalInfoRequest')}
-                </p>
-                <div className="mt-4 rounded-xl bg-[#E1F5EE] p-3 text-xs font-bold text-[#085041]">
-                  {t('listingDetail.modalTip')}
-                </div>
-                <textarea
-                  value={firstMessage}
-                  onChange={(event) => setFirstMessage(event.target.value)}
-                  rows={4}
-                  maxLength={MESSAGE_MAX_LENGTH_CHARS}
-                  autoFocus
-                  placeholder={t('listingDetail.firstMessagePlaceholder')}
-                  className="mt-4 w-full resize-none rounded-xl border border-[#c8ddd2] bg-[#F1EFE8] p-3 text-sm outline-none placeholder:text-[#82978e] focus:border-[#0F6E56]"
-                  data-testid={LISTING_DETAIL_TEST_IDS.INPUT_FIRST_MESSAGE}
-                />
-                {startConversation.isError && (
-                  <p className="mt-2 text-xs font-bold text-[#a74b32]" data-testid={LISTING_DETAIL_TEST_IDS.STATUS_CONTACT_ERROR}>
-                    {getStartConversationErrorMessage()}
-                  </p>
-                )}
-                <Button
-                  type="submit"
-                  className="mt-4 w-full"
-                  disabled={!firstMessage.trim() || startConversation.isPending}
-                  data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_CONTACT_SEND}
-                >
-                  <Send size={16} /> {t('listingDetail.sendMessage')}
-                </Button>
-              </form>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Phones and tablets: the request lives on the bottom edge. */}
+      <div aria-hidden className="h-[calc(80px+env(safe-area-inset-bottom))] laptop:hidden" />
+      <div
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-paper pb-[env(safe-area-inset-bottom)] laptop:hidden"
+        data-testid={DETAIL_TEST_IDS.BAR_MOBILE_REQUEST}
+      >
+        <div className="mx-auto flex h-20 max-w-[1120px] items-center justify-between gap-4 px-5">
+          <p className="min-w-0">
+            <span className="block text-lg font-black tabular-nums text-pine">
+              {format.price(listing.price)}
+              <span className="text-sm font-bold text-sage">{t('common.perMonth')}</span>
+            </span>
+            <span className="block truncate text-xs font-bold text-sage">
+              {listing.available ? t('common.availableNow') : t('common.notAvailable')}
+            </span>
+          </p>
+          {canRequest ? (
+            <button
+              type="button"
+              onClick={() => setContactOpen(true)}
+              disabled={startConversation.isPending || isLoadingConversations}
+              className="h-12 shrink-0 rounded-xl bg-sun px-6 text-[15px] font-black text-ink transition-colors hover:bg-sun-hover disabled:opacity-50"
+            >
+              {t('listingDetail.requestShort')}
+            </button>
+          ) : isOwnListing ? (
+            <Link href={editHref} className="flex h-12 shrink-0 items-center rounded-xl bg-mint-mist px-5 text-sm font-extrabold text-pine">
+              {t('dashboard.editListing')}
+            </Link>
+          ) : acceptedConversation || existingListingConversation ? (
+            <Link
+              href={`${APP_ROUTES.MESSAGES}/${(acceptedConversation ?? existingListingConversation)!.id}`}
+              className="flex h-12 shrink-0 items-center rounded-xl bg-mint-mist px-5 text-sm font-extrabold text-pine"
+            >
+              {t('listingDetail.goToChat')}
+            </Link>
+          ) : (
+            <Link href={similarHref} className="flex h-12 shrink-0 items-center rounded-xl border border-outline px-5 text-sm font-extrabold text-pine">
+              {t('listingDetail.similarRooms')}
+            </Link>
+          )}
+        </div>
+      </div>
+
+      <DialogPrimitive.Root open={showContact && !isOwnListing} onOpenChange={setContactOpen}>
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-scrim data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+          <DialogPrimitive.Content
+            aria-describedby={undefined}
+            onOpenAutoFocus={(event) => {
+              event.preventDefault();
+              document.getElementById('first-message')?.focus();
+            }}
+            className="fixed inset-x-0 bottom-0 z-50 max-h-[92dvh] overflow-y-auto rounded-t-[20px] bg-paper p-6 pb-[calc(24px+env(safe-area-inset-bottom))] shadow-float data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom-6 sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:w-full sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:pb-6"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="eyebrow">{t('listingDetail.modalSayHello')}</p>
+                <DialogPrimitive.Title className="mt-1 text-2xl font-black tracking-[-0.04em] text-pine">
+                  {t('listingDetail.message')} {ownerFirstName}
+                </DialogPrimitive.Title>
+              </div>
+              <DialogPrimitive.Close
+                aria-label={t('searchBar.close')}
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-sage transition-colors hover:bg-mint-mist hover:text-pine"
+                data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_CLOSE_CONTACT}
+              >
+                <X size={20} />
+              </DialogPrimitive.Close>
+            </div>
+            <form onSubmit={sendFirstMessage}>
+              <p className="mt-3 text-sm leading-6 text-sage">{t('listingDetail.modalInfoRequest')}</p>
+              <p className="mt-4 rounded-xl bg-mint-mist p-3 text-xs font-bold leading-5 text-pine">{t('listingDetail.modalTip')}</p>
+              <label htmlFor="first-message" className="sr-only">
+                {t('listingDetail.message')} {ownerFirstName}
+              </label>
+              <textarea
+                id="first-message"
+                value={firstMessage}
+                onChange={(event) => setFirstMessage(event.target.value)}
+                rows={4}
+                maxLength={MESSAGE_MAX_LENGTH_CHARS}
+                placeholder={t('listingDetail.firstMessagePlaceholder')}
+                className="mt-4 w-full resize-none rounded-xl border border-field bg-cream p-3 text-base text-ink outline-none placeholder:text-sage focus:border-shutter focus:ring-[3px] focus:ring-mint-wash/40 sm:text-sm"
+                data-testid={LISTING_DETAIL_TEST_IDS.INPUT_FIRST_MESSAGE}
+              />
+              {startConversation.isError && (
+                <p className="mt-2 text-sm font-bold text-terracotta" role="alert" data-testid={LISTING_DETAIL_TEST_IDS.STATUS_CONTACT_ERROR}>
+                  {getStartConversationErrorMessage()}
+                </p>
+              )}
+              <button
+                type="submit"
+                className="mt-4 flex h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-sun text-[15px] font-black text-ink transition-colors hover:bg-sun-hover disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!firstMessage.trim() || startConversation.isPending}
+                data-testid={LISTING_DETAIL_TEST_IDS.BUTTON_CONTACT_SEND}
+              >
+                <Send size={16} aria-hidden /> {t('listingDetail.sendRequest')}
+              </button>
+            </form>
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
     </AppShell>
   );
 }

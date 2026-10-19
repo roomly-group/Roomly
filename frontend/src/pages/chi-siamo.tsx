@@ -12,8 +12,8 @@ export function ChiSiamoPage() {
       intro={t('chiSiamo.intro')}
     >
       <div>
-        <h2 className="mb-2 text-lg font-black text-[#2C2C2A]">{t('chiSiamo.missionTitle')}</h2>
-        <p className="text-sm leading-relaxed text-[#527067]">
+        <h2 className="mb-2 text-lg font-black text-ink">{t('chiSiamo.missionTitle')}</h2>
+        <p className="text-sm leading-relaxed text-sage">
           {t('chiSiamo.missionText')}
         </p>
       </div>
@@ -37,8 +37,8 @@ export function ChiSiamoPage() {
       </div>
 
       <div>
-        <h2 className="mb-2 text-lg font-black text-[#2C2C2A]">{t('chiSiamo.teamTitle')}</h2>
-        <p className="text-sm leading-relaxed text-[#527067]">
+        <h2 className="mb-2 text-lg font-black text-ink">{t('chiSiamo.teamTitle')}</h2>
+        <p className="text-sm leading-relaxed text-sage">
           {t('chiSiamo.teamText')}
         </p>
       </div>
@@ -48,12 +48,12 @@ export function ChiSiamoPage() {
 
 function ValueCard({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
   return (
-    <div className="rounded-[20px] border border-[#0850411a] bg-[#F1EFE8]/60 p-6">
-      <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-[#E1F5EE] text-[#085041]">
+    <div className="rounded-[20px] border border-pine/10 bg-paper p-6 shadow-rest">
+      <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-mint-mist text-pine">
         {icon}
       </div>
-      <h3 className="mb-1.5 text-base font-black text-[#2C2C2A]">{title}</h3>
-      <p className="text-sm leading-relaxed text-[#527067]">{text}</p>
+      <h3 className="mb-1.5 text-base font-black text-ink">{title}</h3>
+      <p className="text-sm leading-relaxed text-sage">{text}</p>
     </div>
   );
 }

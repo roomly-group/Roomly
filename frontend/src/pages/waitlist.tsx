@@ -1,1065 +1,334 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'wouter';
 import {
-  Sparkle,
-  ShieldCheck,
-  MessageCircle,
-  Search,
-  UserPlus,
+  ArrowRight,
+  Check,
+  Clock3,
+  GraduationCap,
   KeyRound,
   MapPin,
+  MessageCircle,
+  Search,
+  ShieldCheck,
+  UserPlus,
   Wallet,
-  Clock3,
-  Plus,
-  Check,
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
-import roomlyMark from '@assets/logo_no_background.png';
+import { useFormat } from '@/hooks/use-format';
 import { SiteFooter } from '@/components/layout/site-footer';
 import { Navbar } from '@/components/layout/navbar';
-import { Skeleton } from '@/components/ui/skeleton';
-import { motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { ListingPhotoPlaceholder } from '@/components/shared/listing-card';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { APP_ROUTES, SHARED_TEST_IDS } from '@/lib/constants';
 import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 
 // ===================== CONFIGURATION =====================
 
-/** Waitlist fallback displayed when the count endpoint is unavailable or invalid (people). */
-const WAITLIST_FALLBACK_COUNT = 1284 as const;
+/** Below this many sign-ups the count is not shown: a tiny number reads as an empty room, not as proof. */
+const SOCIAL_PROOF_MIN_COUNT = 100 as const;
 /** Delay before scrolling to the FAQ after an anchor navigation (ms). */
 const FAQ_HASH_SCROLL_DELAY_MS = 100 as const;
 /** Anchor identifying the FAQ section in the waitlist page URL. */
 const WAITLIST_FAQ_HASH = '#faq' as const;
 /** Browser event used to detect changes to the current URL hash. */
 const HASH_CHANGE_EVENT_NAME = 'hashchange' as const;
-/** Entrance, hover, FAQ, and stagger animation configuration used throughout this page. */
-const WAITLIST_MOTION_CONFIG = {
-  ENTRY_DURATION_S: 0.6,
-  CARD_DURATION_S: 0.5,
-  SHORT_DURATION_S: 0.4,
-  FAST_DURATION_S: 0.3,
-  BUTTON_DURATION_S: 0.2,
-  DELAY_0_1_S: 0.1,
-  DELAY_0_2_S: 0.2,
-  DELAY_0_3_S: 0.3,
-  DELAY_0_4_S: 0.4,
-  DELAY_0_6_S: 0.6,
-  DELAY_0_8_S: 0.8,
-  DELAY_0_9_S: 0.9,
-  DELAY_1_S: 1,
-  DELAY_1_1_S: 1.1,
-  DELAY_1_2_S: 1.2,
-  DELAY_1_3_S: 1.3,
-  ENTRY_OFFSET_Y_PX: 20,
-  HIGHLIGHT_OFFSET_Y_PX: 10,
-  BADGE_HOVER_SCALE: 1.3,
-  BADGE_TAP_SCALE: 1.1,
-  BUTTON_HOVER_SCALE: 1.05,
-  BUTTON_TAP_SCALE: 0.95,
-  CARD_HOVER_SCALE: 1.02,
-  CARD_TAP_SCALE: 0.98,
-  FEATURE_HOVER_SCALE: 1.03,
-  FEATURE_TAP_SCALE: 0.97,
-  FAQ_TAP_SCALE: 0.99,
-  SPRING_STIFFNESS_VALUE: 300,
-  SPRING_DAMPING_VALUE: 20,
-  FAQ_HOVER_BACKGROUND_COLOR: '#f8f9fa',
+/** Price shown on the labelled example card in the hero (EUR per month). */
+const EXAMPLE_PRICE_EUR = 450 as const;
+/** Distance shown on the labelled example card in the hero (km). */
+const EXAMPLE_DISTANCE_KM = 0.8 as const;
+/** Stable selectors for the waitlist page. */
+const WAITLIST_TEST_IDS = {
+  LINK_LOGIN: 'link-waitlist-login',
+  LINK_REGISTER_FINAL: 'link-waitlist-register-final',
+  TEXT_SOCIAL_PROOF: 'text-waitlist-count',
 } as const;
 
-/* =============================================================
-   FAQ
-============================================================= */
+const FAQ_KEYS = [1, 2, 3, 4, 5] as const;
+const SECTION_TITLE_CLASS = 'display-heading text-[clamp(2rem,4.4vw,2.75rem)] text-pine';
 
-const getFAQItems = (t: (key: string) => string) => [
-  {
-    question: t('waitlist.faqQuestion1'),
-    answer: t('waitlist.faqAnswer1'),
-  },
-  {
-    question: t('waitlist.faqQuestion2'),
-    answer: t('waitlist.faqAnswer2'),
-  },
-  {
-    question: t('waitlist.faqQuestion3'),
-    answer: t('waitlist.faqAnswer3'),
-  },
-  {
-    question: t('waitlist.faqQuestion4'),
-    answer: t('waitlist.faqAnswer4'),
-  },
-  {
-    question: t('waitlist.faqQuestion5'),
-    answer: t('waitlist.faqAnswer5'),
-  },
-];
-
-/* =============================================================
-   PAGE
-============================================================= */
-
-export function WaitlistPage() {
+/** The mechanism in one glance: a labelled example card with distance to the university leading. */
+function ExampleCard() {
   const { t } = useLanguage();
-
-  const FAQ_ITEMS = getFAQItems(t);
-
-  const [waitlistCount, setWaitlistCount] = useState<number | null>(null);
-  const [openFaq, setOpenFaq] = useState<number | null>(0);
-
-  /* ===========================================================
-     WAITLIST COUNT
-  =========================================================== */
-
-  useEffect(() => {
-    fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.WAITLIST_COUNT}`)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error ${response.status}`);
-        }
-
-        return response.json();
-      })
-      .then((data) => {
-        if (typeof data.count === 'number') {
-          setWaitlistCount(data.count);
-        } else {
-          setWaitlistCount(WAITLIST_FALLBACK_COUNT);
-        }
-      })
-      .catch((error) => {
-        console.error('Failed to fetch waitlist count:', error);
-        setWaitlistCount(WAITLIST_FALLBACK_COUNT);
-      });
-  }, []);
-
-  /* ===========================================================
-     FAQ HASH SCROLL
-  =========================================================== */
-
-  useEffect(() => {
-    const scrollToFaqIfNeeded = () => {
-      if (window.location.hash === WAITLIST_FAQ_HASH) {
-        setTimeout(() => {
-          document
-            .getElementById('faq')
-            ?.scrollIntoView({ behavior: 'smooth' });
-        }, FAQ_HASH_SCROLL_DELAY_MS);
-      }
-    };
-
-    scrollToFaqIfNeeded();
-
-    window.addEventListener(HASH_CHANGE_EVENT_NAME, scrollToFaqIfNeeded);
-
-    return () => {
-      window.removeEventListener(HASH_CHANGE_EVENT_NAME, scrollToFaqIfNeeded);
-    };
-  }, []);
-
+  const format = useFormat();
   return (
-    <div className="min-h-screen bg-[#F1EFE8]">
-      <div className="mx-auto max-w-[1040px] px-6 py-6">
-        <Navbar />
-
-        {/* =========================================================
-            HERO
-        ========================================================= */}
-
-        <section className="relative mt-2 overflow-hidden rounded-[28px] bg-gradient-to-br from-[#E1F5EE] via-[#9FE1CB] to-[#7FD1AE] px-6 py-16 text-center sm:px-10 sm:py-20">
-
-          <div className="pointer-events-none absolute -right-28 -top-32 h-[280px] w-[280px] rounded-full border border-[#08504124]" />
-
-          <div className="pointer-events-none absolute -bottom-20 -left-16 h-[180px] w-[180px] rounded-full bg-white/25" />
-
-          <motion.div
-            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S }}
-          >
-            <div className="relative z-10 mx-auto inline-flex items-center gap-2 rounded-full border border-[#08504129] bg-[#08504114] px-4 py-1.5 text-xs font-extrabold text-[#085041]">
-              <motion.span
-                whileHover={{ scale: WAITLIST_MOTION_CONFIG.BADGE_HOVER_SCALE }}
-                whileTap={{ scale: WAITLIST_MOTION_CONFIG.BADGE_TAP_SCALE }}
-                transition={{
-                  type: 'spring',
-                  stiffness: WAITLIST_MOTION_CONFIG.SPRING_STIFFNESS_VALUE,
-                  damping: WAITLIST_MOTION_CONFIG.SPRING_DAMPING_VALUE,
-                }}
-                className="h-1.5 w-1.5 rounded-full bg-[#EF9F27]"
-              />
-
-              {t('waitlist.badge')}
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_2_S }}
-          >
-            <div className="relative z-10 mx-auto mt-7 flex h-[76px] w-[76px] items-center justify-center rounded-[20px] bg-white shadow-[0_14px_30px_rgba(8,80,65,0.1)]">
-              <img
-                src={roomlyMark}
-                alt="Roomly"
-                className="h-13 w-13 object-contain"
-              />
-            </div>
-          </motion.div>
-
-          <motion.h1
-            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_4_S }}
-            className="relative z-10 mx-auto mt-7 max-w-lg text-4xl font-black leading-[1.1] text-[#085041] sm:text-5xl"
-          >
-            {t('waitlist.title')}
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_6_S }}
-            className="relative z-10 mx-auto mt-4 max-w-md text-[17px] leading-relaxed text-[#085041]/75"
-          >
-            {t('waitlist.subtitle')}
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_8_S }}
-            className="relative z-10 mt-8 flex flex-col items-center w-full"
-          >
-            {/* Login Button */}
-            <Link href={APP_ROUTES.LOGIN}>
-              <motion.button
-                whileHover={{ scale: WAITLIST_MOTION_CONFIG.BUTTON_HOVER_SCALE }}
-                whileTap={{ scale: WAITLIST_MOTION_CONFIG.BUTTON_TAP_SCALE }}
-                type="button"
-                aria-label={t('waitlist.ctaLogin')}
-                title={t('waitlist.ctaLogin')}
-                className="w-full h-12 rounded-xl bg-[#EF9F27] px-4 font-extrabold text-[#2C2C2A] transition-all duration-200 hover:bg-[#e6a53d] active:scale-[0.98] mb-3"
-              >
-                {t('waitlist.ctaLogin')}
-              </motion.button>
-            </Link>
-
-            {/* "or" Text */}
-            <motion.p
-              initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_9_S }}
-              className="w-full text-center text-xs text-[#085041]/60 mb-4"
-            >
-              {t('waitlist.ctaOr')}
-            </motion.p>
-
-            {/* Existing Sign-up Button (now moved down) */}
-            <Link href={APP_ROUTES.REGISTER}>
-              <motion.button
-                whileHover={{ scale: WAITLIST_MOTION_CONFIG.BUTTON_HOVER_SCALE }}
-                whileTap={{ scale: WAITLIST_MOTION_CONFIG.BUTTON_TAP_SCALE }}
-                type="button"
-                aria-label={t('waitlist.ctaRegister')}
-                title={t('waitlist.ctaRegister')}
-                data-testid={SHARED_TEST_IDS.BUTTON_SEARCH}
-                className="w-full h-12 rounded-xl bg-[#EF9F27] px-4 font-extrabold text-[#2C2C2A] transition-all duration-200 hover:bg-[#e6a53d] active:scale-[0.98]"
-              >
-                {t('waitlist.ctaRegister')}
-              </motion.button>
-            </Link>
-          </motion.div>
-
-          <motion.p
-            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_1_S }}
-            className="relative z-10 mt-3 text-xs text-[#085041]/60"
-          >
-            {t('waitlist.ctaNote')}
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_1_2_S }}
-            className="relative z-10 mt-6 inline-block rounded-full border border-[#08504129] bg-white/60 px-5 py-2 text-sm font-semibold text-[#085041]"
-          >
-            <Sparkle
-              size={14}
-              className="mr-1.5 inline -translate-y-px"
-            />
-
-            {waitlistCount !== null ? (
-              <strong className="font-black">
-                {waitlistCount.toLocaleString()}
-              </strong>
-            ) : (
-              <Skeleton className="inline-block h-4 w-10 align-middle" />
-            )}
-
-            {' '}
-
-            {t('waitlist.socialProofSuffix')}
-          </motion.div>
-        </section>
-
-        {/* =========================================================
-            STATS
-        ========================================================= */}
-
-        <section className="grid grid-cols-2 gap-4 py-10">
-          <motion.div
-            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_2_S }}
-          >
-            <Stat
-              value={
-                waitlistCount !== null
-                  ? waitlistCount.toLocaleString()
-                  : null
-              }
-              label={t('waitlist.statPositionsLabel')}
-            />
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_4_S }}
-          >
-            <Stat
-              value="4,8/5"
-              label={t('waitlist.statRatingLabel')}
-            />
-          </motion.div>
-        </section>
-
-        {/* =========================================================
-            HOW IT WORKS
-        ========================================================= */}
-
-        <section className="py-6">
-          <motion.div
-            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_2_S }}
-          >
-            <div className="mb-8 text-center">
-              <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-[#0F6E56]">
-                {t('waitlist.howItWorksEyebrow')}
-              </p>
-
-              <h2 className="text-[28px] font-black text-[#2C2C2A] sm:text-[32px]">
-                {t('waitlist.howItWorksTitle')}
-              </h2>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_4_S }}
-          >
-            <div className="grid gap-5 sm:grid-cols-3">
-              <motion.div
-                whileHover={{ scale: WAITLIST_MOTION_CONFIG.CARD_HOVER_SCALE }}
-                whileTap={{ scale: WAITLIST_MOTION_CONFIG.CARD_TAP_SCALE }}
-                transition={{ duration: WAITLIST_MOTION_CONFIG.FAST_DURATION_S }}
-              >
-                <StepCard
-                  icon={<UserPlus size={20} />}
-                  step="1"
-                  title={t('waitlist.step1Title')}
-                  text={t('waitlist.step1Text')}
-                />
-              </motion.div>
-
-              <motion.div
-                whileHover={{ scale: WAITLIST_MOTION_CONFIG.CARD_HOVER_SCALE }}
-                whileTap={{ scale: WAITLIST_MOTION_CONFIG.CARD_TAP_SCALE }}
-                transition={{ duration: WAITLIST_MOTION_CONFIG.FAST_DURATION_S }}
-              >
-                <StepCard
-                  icon={<Search size={20} />}
-                  step="2"
-                  title={t('waitlist.step2Title')}
-                  text={t('waitlist.step2Text')}
-                />
-              </motion.div>
-
-              <motion.div
-                whileHover={{ scale: WAITLIST_MOTION_CONFIG.CARD_HOVER_SCALE }}
-                whileTap={{ scale: WAITLIST_MOTION_CONFIG.CARD_TAP_SCALE }}
-                transition={{ duration: WAITLIST_MOTION_CONFIG.FAST_DURATION_S }}
-              >
-                <StepCard
-                  icon={<KeyRound size={20} />}
-                  step="3"
-                  title={t('waitlist.step3Title')}
-                  text={t('waitlist.step3Text')}
-                />
-              </motion.div>
-            </div>
-          </motion.div>
-        </section>
-
-        {/* =========================================================
-            FEATURE CARDS
-        ========================================================= */}
-
-        <section className="grid gap-5 py-14 sm:grid-cols-2">
-          <motion.div
-            whileHover={{ scale: WAITLIST_MOTION_CONFIG.FEATURE_HOVER_SCALE }}
-            whileTap={{ scale: WAITLIST_MOTION_CONFIG.FEATURE_TAP_SCALE }}
-            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_2_S }}
-          >
-            <FeatureCard
-              icon={
-                <ShieldCheck
-                  size={20}
-                  className="text-[#E1F5EE]"
-                />
-              }
-              title={t('waitlist.feature1Title')}
-              text={t('waitlist.feature1Text')}
-            />
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: WAITLIST_MOTION_CONFIG.FEATURE_HOVER_SCALE }}
-            whileTap={{ scale: WAITLIST_MOTION_CONFIG.FEATURE_TAP_SCALE }}
-            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_4_S }}
-          >
-            <FeatureCard
-              icon={
-                <MessageCircle
-                  size={20}
-                  className="text-[#E1F5EE]"
-                />
-              }
-              title={t('waitlist.feature3Title')}
-              text={t('waitlist.feature3Text')}
-            />
-          </motion.div>
-        </section>
-
-        {/* =========================================================
-            WHY ROOMLY
-        ========================================================= */}
-
-        <section className="py-10">
-          <motion.div
-            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_2_S }}
-          >
-            <div className="mb-8 text-center">
-              <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-[#0F6E56]">
-                {t('waitlist.whyRoomly')}
-              </p>
-
-              <h2 className="text-[28px] font-black text-[#2C2C2A] sm:text-[32px]">
-                {t('waitlist.whyRoomlyTitle')}
-              </h2>
-
-              <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-[#527067]">
-                {t('waitlist.whyRoomlyDescription')}
-              </p>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_4_S }}
-          >
-            <div className="grid gap-4 sm:grid-cols-3">
-
-              <motion.div
-                whileHover={{ scale: WAITLIST_MOTION_CONFIG.CARD_HOVER_SCALE }}
-                whileTap={{ scale: WAITLIST_MOTION_CONFIG.CARD_TAP_SCALE }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: WAITLIST_MOTION_CONFIG.CARD_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_1_S }}
-              >
-                <WhyCard
-                  icon={<ShieldCheck size={19} />}
-                  title={t(
-                    'waitlist.whyRoomlyTransparencyTitle'
-                  )}
-                  text={t(
-                    'waitlist.whyRoomlyTransparencyText'
-                  )}
-                />
-              </motion.div>
-
-              <motion.div
-                whileHover={{ scale: WAITLIST_MOTION_CONFIG.CARD_HOVER_SCALE }}
-                whileTap={{ scale: WAITLIST_MOTION_CONFIG.CARD_TAP_SCALE }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: WAITLIST_MOTION_CONFIG.CARD_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_2_S }}
-              >
-                <WhyCard
-                  icon={<Search size={19} />}
-                  title={t(
-                    'waitlist.whyRoomlyEverythingTitle'
-                  )}
-                  text={t(
-                    'waitlist.whyRoomlyEverythingText'
-                  )}
-                />
-              </motion.div>
-
-              <motion.div
-                whileHover={{ scale: WAITLIST_MOTION_CONFIG.CARD_HOVER_SCALE }}
-                whileTap={{ scale: WAITLIST_MOTION_CONFIG.CARD_TAP_SCALE }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: WAITLIST_MOTION_CONFIG.CARD_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_3_S }}
-              >
-                <WhyCard
-                  icon={<UserPlus size={19} />}
-                  title={t(
-                    'waitlist.whyRoomlyStudentsTitle'
-                  )}
-                  text={t(
-                    'waitlist.whyRoomlyStudentsText'
-                  )}
-                />
-              </motion.div>
-
-            </div>
-          </motion.div>
-        </section>
-
-        {/* =========================================================
-            WHAT STUDENTS LOOK FOR
-        ========================================================= */}
-
-        <section className="py-10">
-          <motion.div
-            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_2_S }}
-          >
-            <div className="mb-8 text-center">
-              <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-[#0F6E56]">
-                {t('waitlist.previewEyebrow')}
-              </p>
-
-              <h2 className="text-[28px] font-black text-[#2C2C2A] sm:text-[32px]">
-                {t('waitlist.previewTitle')}
-              </h2>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_4_S }}
-          >
-            <div className="grid gap-5 sm:grid-cols-3">
-
-              <motion.div
-                whileHover={{ scale: WAITLIST_MOTION_CONFIG.CARD_HOVER_SCALE }}
-                whileTap={{ scale: WAITLIST_MOTION_CONFIG.CARD_TAP_SCALE }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: WAITLIST_MOTION_CONFIG.CARD_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_1_S }}
-              >
-                <MiniPoint
-                  icon={<MapPin size={18} />}
-                  text={t('waitlist.point1')}
-                />
-              </motion.div>
-
-              <motion.div
-                whileHover={{ scale: WAITLIST_MOTION_CONFIG.CARD_HOVER_SCALE }}
-                whileTap={{ scale: WAITLIST_MOTION_CONFIG.CARD_TAP_SCALE }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: WAITLIST_MOTION_CONFIG.CARD_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_2_S }}
-              >
-                <MiniPoint
-                  icon={<Wallet size={18} />}
-                  text={t('waitlist.point2')}
-                />
-              </motion.div>
-
-              <motion.div
-                whileHover={{ scale: WAITLIST_MOTION_CONFIG.CARD_HOVER_SCALE }}
-                whileTap={{ scale: WAITLIST_MOTION_CONFIG.CARD_TAP_SCALE }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: WAITLIST_MOTION_CONFIG.CARD_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_3_S }}
-              >
-                <MiniPoint
-                  icon={<Clock3 size={18} />}
-                  text={t('waitlist.point3')}
-                />
-              </motion.div>
-
-            </div>
-          </motion.div>
-        </section>
-
-        {/* =========================================================
-            FEATURE HIGHLIGHT
-        ========================================================= */}
-
-        <section className="py-10">
-          <motion.div
-            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_2_S }}
-          >
-            <div className="relative overflow-hidden rounded-[28px] bg-[#085041] px-8 py-12 sm:px-12">
-
-              <div className="pointer-events-none absolute -right-24 -top-28 h-[240px] w-[240px] rounded-full border border-white/10" />
-
-              <div className="pointer-events-none absolute -bottom-24 -left-16 h-[190px] w-[190px] rounded-full bg-white/5" />
-
-              <div className="relative z-10 grid gap-10 sm:grid-cols-[1.2fr_0.8fr] sm:items-center">
-
-                <div>
-                  <motion.div
-                    initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_4_S }}
-                  >
-                    <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-bold text-[#E1F5EE]">
-                      <Sparkle size={13} />
-                      {t('waitlist.featureHighlightBadge')}
-                    </div>
-                  </motion.div>
-
-                  <motion.h2
-                    initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_6_S }}
-                    className="max-w-lg text-[28px] font-black leading-tight text-white sm:text-[34px]"
-                  >
-                    {t('waitlist.featureHighlightTitle')}
-                    <br />
-                    {t('waitlist.featureHighlightTitleAlt')}
-                  </motion.h2>
-
-                  <motion.p
-                    initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_8_S }}
-                    className="mt-4 max-w-lg text-[15px] leading-relaxed text-[#E1F5EE]/70"
-                  >
-                    {t('waitlist.featureHighlightDescription')}
-                  </motion.p>
-                </div>
-
-                <motion.div
-                  initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_1_S }}
-                  className="space-y-3"
-                >
-                  <motion.div
-                    initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.HIGHLIGHT_OFFSET_Y_PX }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: WAITLIST_MOTION_CONFIG.SHORT_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_1_1_S }}
-                  >
-                    <HighlightItem
-                      text={t(
-                        'waitlist.featureHighlightItem1'
-                      )}
-                    />
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.HIGHLIGHT_OFFSET_Y_PX }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: WAITLIST_MOTION_CONFIG.SHORT_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_1_2_S }}
-                  >
-                    <HighlightItem
-                      text={t(
-                        'waitlist.featureHighlightItem2'
-                      )}
-                    />
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.HIGHLIGHT_OFFSET_Y_PX }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: WAITLIST_MOTION_CONFIG.SHORT_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_1_3_S }}
-                  >
-                    <HighlightItem
-                      text={t(
-                        'waitlist.featureHighlightItem3'
-                      )}
-                    />
-                  </motion.div>
-                </motion.div>
-
-              </div>
-            </div>
-          </motion.div>
-        </section>
-
-        {/* =========================================================
-            FAQ
-        ========================================================= */}
-
-        <section
-          id="faq"
-          className="scroll-mt-8 py-10"
-        >
-          <motion.div
-            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_2_S }}
-          >
-            <div className="mb-8 text-center">
-              <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-[#0F6E56]">
-                {t('waitlist.faqEyebrow')}
-              </p>
-
-              <h2 className="text-[28px] font-black text-[#2C2C2A] sm:text-[32px]">
-                {t('waitlist.faqTitle')}
-              </h2>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_4_S }}
-          >
-            <div className="mx-auto max-w-2xl space-y-3">
-
-              {FAQ_ITEMS.map((item, index) => {
-                const isOpen = openFaq === index;
-
-                return (
-                  <motion.div
-                    key={item.question}
-                    initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      duration: WAITLIST_MOTION_CONFIG.CARD_DURATION_S,
-                      delay: index * WAITLIST_MOTION_CONFIG.DELAY_0_1_S,
-                    }}
-                  >
-                    <div className="overflow-hidden rounded-2xl border border-[#0850411a] bg-white">
-
-                      <motion.button
-                        type="button"
-                        onClick={() =>
-                          setOpenFaq(isOpen ? null : index)
-                        }
-                        aria-expanded={isOpen}
-                        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
-                        whileHover={{
-                          backgroundColor: WAITLIST_MOTION_CONFIG.FAQ_HOVER_BACKGROUND_COLOR,
-                        }}
-                        whileTap={{ scale: WAITLIST_MOTION_CONFIG.FAQ_TAP_SCALE }}
-                      >
-                        <span className="text-sm font-black text-[#2C2C2A]">
-                          {item.question}
-                        </span>
-
-                        <Plus
-                          size={18}
-                          className={`shrink-0 text-[#085041] transition-transform duration-200 ${
-                            isOpen ? 'rotate-45' : ''
-                          }`}
-                        />
-                      </motion.button>
-
-                      {isOpen && (
-                        <motion.p
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: WAITLIST_MOTION_CONFIG.FAST_DURATION_S }}
-                          className="px-5 pb-4 text-sm leading-relaxed text-[#527067]"
-                        >
-                          {item.answer}
-                        </motion.p>
-                      )}
-
-                    </div>
-                  </motion.div>
-                );
-              })}
-
-            </div>
-          </motion.div>
-        </section>
-
-        {/* =========================================================
-            FINAL CTA
-        ========================================================= */}
-
-        <section className="relative my-14 overflow-hidden rounded-[28px] bg-[#085041] px-8 py-14 text-center sm:px-14">
-
-          <div className="pointer-events-none absolute -right-28 -top-32 h-[280px] w-[280px] rounded-full border border-white/10" />
-
-          <div className="pointer-events-none absolute -bottom-20 -left-16 h-[180px] w-[180px] rounded-full bg-white/5" />
-
-          <motion.div
-            initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_2_S }}
-          >
-            <div className="relative z-10">
-
-              <motion.h2
-                initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_4_S }}
-                className="mx-auto max-w-md text-[28px] font-black leading-tight text-white sm:text-[32px]"
-              >
-                {t('waitlist.finalTitle')}
-              </motion.h2>
-
-              <motion.p
-                initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_6_S }}
-                className="mx-auto mt-3 max-w-sm text-[15px] leading-relaxed text-[#E1F5EE]/75"
-              >
-                {t('waitlist.finalSubtitle')}
-              </motion.p>
-
-              <motion.div
-                initial={{ opacity: 0, y: WAITLIST_MOTION_CONFIG.ENTRY_OFFSET_Y_PX }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: WAITLIST_MOTION_CONFIG.ENTRY_DURATION_S, delay: WAITLIST_MOTION_CONFIG.DELAY_0_8_S }}
-                className="mt-7"
-              >
-                <Link href={APP_ROUTES.REGISTER}>
-                  <motion.button
-                    whileHover={{ scale: WAITLIST_MOTION_CONFIG.BUTTON_HOVER_SCALE }}
-                    whileTap={{ scale: WAITLIST_MOTION_CONFIG.BUTTON_TAP_SCALE }}
-                    transition={{ duration: WAITLIST_MOTION_CONFIG.BUTTON_DURATION_S }}
-                    type="button"
-                    className="h-12 rounded-xl bg-[#EF9F27] px-6 font-extrabold text-[#2C2C2A] transition-all duration-200 hover:bg-[#e6a53d] active:scale-[0.98]"
-                  >
-                    {t('waitlist.ctaRegister')}
-                  </motion.button>
-                </Link>
-              </motion.div>
-
-            </div>
-          </motion.div>
-        </section>
-      </div>
-
-      <SiteFooter />
-    </div>
-  );
-}
-
-/* =============================================================
-   STAT
-============================================================= */
-
-function Stat({
-  value,
-  label,
-}: {
-  value: string | null;
-  label: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-[#0850411f] bg-white px-4 py-6 text-center">
-      <div className="flex items-center justify-center text-[28px] font-black text-[#085041] sm:text-[32px]">
-        {value !== null ? (
-          value
-        ) : (
-          <Skeleton className="h-7 w-16 sm:h-8" />
-        )}
-      </div>
-
-      <div className="mt-1 text-xs font-semibold text-[#527067]">
-        {label}
-      </div>
-    </div>
-  );
-}
-
-/* =============================================================
-   STEP CARD
-============================================================= */
-
-function StepCard({
-  icon,
-  step,
-  title,
-  text,
-}: {
-  icon: React.ReactNode;
-  step: string;
-  title: string;
-  text: string;
-}) {
-  return (
-    <div className="rounded-[20px] border border-[#0850411a] bg-white p-6">
-      <div className="mb-4 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#E1F5EE] text-[#085041]">
-          {icon}
-        </div>
-
-        <span className="text-xs font-black text-[#9fb3ab]">
-          {step.padStart(2, '0')}
+    <div className="floaty relative w-[300px] rotate-[-3deg] rounded-2xl border border-pine/10 bg-paper p-3 shadow-float">
+      <div className="relative">
+        <ListingPhotoPlaceholder id={1} showLabel={false} className="aspect-[20/15] rounded-xl" />
+        <span className="absolute left-3 top-3 rounded-lg bg-pine px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-mint-mist">
+          {t('waitlist.exampleLabel')}
         </span>
       </div>
-
-      <h3 className="mb-1.5 text-base font-black text-[#2C2C2A]">
-        {title}
-      </h3>
-
-      <p className="text-sm leading-relaxed text-[#527067]">
-        {text}
-      </p>
-    </div>
-  );
-}
-
-/* =============================================================
-   FEATURE CARD
-============================================================= */
-
-function FeatureCard({
-  icon,
-  title,
-  text,
-  amber = false,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  text: string;
-  amber?: boolean;
-}) {
-  return (
-    <div
-      className={`relative overflow-hidden rounded-[20px] p-7 ${
-        amber
-          ? 'bg-[#EF9F27] text-[#2C2C2A]'
-          : 'bg-[#085041] text-[#E1F5EE]'
-      }`}
-    >
-      {!amber && (
-        <>
-          <div className="pointer-events-none absolute -right-20 -top-24 h-[190px] w-[190px] rounded-full border border-white/10" />
-
-          <div className="pointer-events-none absolute -bottom-16 -left-10 h-[130px] w-[130px] rounded-full bg-white/5" />
-        </>
-      )}
-
-      <div className="relative z-10">
-        <div
-          className={`mb-5 flex h-11 w-11 items-center justify-center rounded-xl ${
-            amber ? 'bg-[#2C2C2A1a]' : 'bg-white/10'
-          }`}
-        >
-          {icon}
-        </div>
-
-        <h3
-          className={`mb-2 text-lg font-black ${
-            amber ? 'text-[#2C2C2A]' : 'text-white'
-          }`}
-        >
-          {title}
-        </h3>
-
-        <p
-          className={`text-sm leading-relaxed ${
-            amber
-              ? 'text-[#2C2C2A]/70'
-              : 'text-[#E1F5EE]/75'
-          }`}
-        >
-          {text}
+      <div className="space-y-[3px] px-1 pb-1 pt-3">
+        <p className="text-base font-extrabold text-pine">{t('waitlist.exampleTitle')}</p>
+        <p className="flex items-center gap-1.5 text-sm font-extrabold text-pine">
+          <GraduationCap size={15} className="text-shutter" aria-hidden />
+          {t('waitlist.exampleDistance').replace('{km}', format.km(EXAMPLE_DISTANCE_KM))}
+        </p>
+        <p className="flex items-center gap-1.5 text-xs font-extrabold text-sage">
+          <span className="h-1.5 w-1.5 rounded-full bg-shutter" aria-hidden /> {t('common.availableNow')}
+        </p>
+        <p className="pt-1 text-sm text-sage">
+          <span className="text-base font-black tabular-nums text-shutter">{format.price(EXAMPLE_PRICE_EUR)}</span>
+          {t('common.perMonth')}
         </p>
       </div>
     </div>
   );
 }
 
-/* =============================================================
-   WHY ROOMLY CARD
-============================================================= */
+export function WaitlistPage() {
+  const { t } = useLanguage();
+  const [waitlistCount, setWaitlistCount] = useState<number | null>(null);
 
-function WhyCard({
-  icon,
-  title,
-  text,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  text: string;
-}) {
+  // Real sign-up count only: when the endpoint fails nothing is shown, never a made-up number.
+  useEffect(() => {
+    fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.WAITLIST_COUNT}`)
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+        return response.json();
+      })
+      .then((data) => {
+        if (typeof data.count === 'number') setWaitlistCount(data.count);
+      })
+      .catch((error) => {
+        console.error('Failed to fetch waitlist count:', error);
+      });
+  }, []);
+
+  useEffect(() => {
+    const scrollToFaqIfNeeded = () => {
+      if (window.location.hash === WAITLIST_FAQ_HASH) {
+        setTimeout(() => {
+          document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' });
+        }, FAQ_HASH_SCROLL_DELAY_MS);
+      }
+    };
+    scrollToFaqIfNeeded();
+    window.addEventListener(HASH_CHANGE_EVENT_NAME, scrollToFaqIfNeeded);
+    return () => window.removeEventListener(HASH_CHANGE_EVENT_NAME, scrollToFaqIfNeeded);
+  }, []);
+
+  const showCount = waitlistCount !== null && waitlistCount >= SOCIAL_PROOF_MIN_COUNT;
+
+  const steps = [
+    { icon: UserPlus, title: t('waitlist.step1Title'), text: t('waitlist.step1Text') },
+    { icon: Search, title: t('waitlist.step2Title'), text: t('waitlist.step2Text') },
+    { icon: KeyRound, title: t('waitlist.step3Title'), text: t('waitlist.step3Text') },
+  ];
+  const reasons = [
+    { icon: ShieldCheck, title: t('waitlist.whyRoomlyTransparencyTitle'), text: t('waitlist.whyRoomlyTransparencyText') },
+    { icon: Search, title: t('waitlist.whyRoomlyEverythingTitle'), text: t('waitlist.whyRoomlyEverythingText') },
+    { icon: GraduationCap, title: t('waitlist.whyRoomlyStudentsTitle'), text: t('waitlist.whyRoomlyStudentsText') },
+  ];
+  const needs = [
+    { icon: MapPin, text: t('waitlist.point1') },
+    { icon: Wallet, text: t('waitlist.point2') },
+    { icon: Clock3, text: t('waitlist.point3') },
+  ];
+
   return (
-    <div className="group rounded-[20px] border border-[#0850411a] bg-white p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(8,80,65,0.07)]">
+    <div className="flex min-h-[100dvh] flex-col bg-cream text-ink">
+      <header className="mx-auto flex h-20 w-full max-w-[1320px] items-center px-5 lg:px-8">
+        <div className="w-full">
+          <Navbar />
+        </div>
+      </header>
 
-      <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl bg-[#E1F5EE] text-[#085041]">
-        {icon}
-      </div>
+      <main className="mx-auto w-full max-w-[1320px] flex-1 px-5 pb-16 lg:px-8">
+        {/* Hero: the promise, one amber action, and the mechanism shown on a labelled example. */}
+        <section className="relative overflow-hidden rounded-[2rem] bg-mint-wash px-6 py-12 sm:px-10 sm:py-16 lg:px-16 lg:py-20">
+          <div aria-hidden className="pointer-events-none absolute -right-24 -top-28 h-[340px] w-[340px] rounded-full border-[36px] border-mint-mist/50" />
+          <div aria-hidden className="pointer-events-none absolute -right-2 -top-6 h-[170px] w-[170px] rounded-full border-[22px] border-mint-mist/40" />
 
-      <h3 className="mb-2 text-base font-black text-[#2C2C2A]">
-        {title}
-      </h3>
+          <div className="relative grid items-center gap-12 lg:grid-cols-[1.25fr_1fr]">
+            <div className="page-enter">
+              <p className="inline-flex items-center gap-2 rounded-full bg-mint-mist px-3.5 py-1.5 text-xs font-extrabold text-pine">
+                <span className="h-1.5 w-1.5 rounded-full bg-shutter" aria-hidden /> {t('waitlist.badge')}
+              </p>
+              <h1 className="display-heading mt-6 max-w-xl text-[clamp(3rem,8vw,4.5rem)] text-pine">{t('waitlist.title')}</h1>
+              <p className="mt-5 max-w-lg text-[17px] leading-7 text-pine-text">{t('waitlist.subtitle')}</p>
 
-      <p className="text-sm leading-relaxed text-[#527067]">
-        {text}
-      </p>
-    </div>
-  );
-}
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Link
+                  href={APP_ROUTES.REGISTER}
+                  className="inline-flex h-[52px] items-center justify-center gap-2 rounded-xl bg-sun px-7 text-[15px] font-black text-ink transition-[background-color,transform] duration-200 hover:bg-sun-hover active:scale-[0.98]"
+                  data-testid={SHARED_TEST_IDS.BUTTON_SEARCH}
+                >
+                  {t('waitlist.ctaRegister')} <ArrowRight size={17} aria-hidden />
+                </Link>
+                <Link
+                  href={APP_ROUTES.LOGIN}
+                  className="inline-flex h-[52px] items-center justify-center rounded-xl border border-pine/20 px-7 text-[15px] font-black text-pine transition-colors hover:bg-mint-mist"
+                  data-testid={WAITLIST_TEST_IDS.LINK_LOGIN}
+                >
+                  {t('waitlist.ctaLogin')}
+                </Link>
+              </div>
+              <p className="mt-4 text-sm text-pine-text">{t('waitlist.ctaNote')}</p>
 
-/* =============================================================
-   HIGHLIGHT ITEM
-============================================================= */
+              {showCount && (
+                <p className="mt-6 text-sm font-bold text-pine" data-testid={WAITLIST_TEST_IDS.TEXT_SOCIAL_PROOF}>
+                  <span className="text-lg font-black tabular-nums">{waitlistCount.toLocaleString()}</span>{' '}
+                  {t('waitlist.socialProofSuffix')}
+                </p>
+              )}
+            </div>
 
-function HighlightItem({ text }: { text: string }) {
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-      <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#E1F5EE] text-[#085041]">
-        <Check size={15} strokeWidth={3} />
-      </div>
+            <div className="hidden justify-center lg:flex" aria-hidden>
+              <ExampleCard />
+            </div>
+          </div>
+        </section>
 
-      <span className="text-sm font-semibold text-white">
-        {text}
-      </span>
-    </div>
-  );
-}
+        {/* How it works: a real sequence, so the numbers carry information. */}
+        <section className="mt-20" aria-labelledby="waitlist-how">
+          <p className="eyebrow mb-3">{t('waitlist.howItWorksEyebrow')}</p>
+          <h2 id="waitlist-how" className={SECTION_TITLE_CLASS}>
+            {t('waitlist.howItWorksTitle')}
+          </h2>
+          <ol className="relative mt-10 grid gap-10 md:grid-cols-3 md:gap-8">
+            {steps.map((step, index) => {
+              const Icon = step.icon;
+              return (
+                <li
+                  key={step.title}
+                  className={`relative ${index < steps.length - 1 ? 'md:after:absolute md:after:left-16 md:after:right-0 md:after:top-6 md:after:h-px md:after:bg-outline' : ''}`}
+                >
+                  <span className="relative grid h-12 w-12 place-items-center rounded-full bg-pine text-mint-mist ring-8 ring-cream">
+                    <Icon size={20} aria-hidden />
+                  </span>
+                  <p className="mt-5 text-xs font-black tabular-nums tracking-[0.15em] text-shutter">0{index + 1}</p>
+                  <h3 className="mt-1 text-lg font-black text-pine">{step.title}</h3>
+                  <p className="mt-2 max-w-sm text-[15px] leading-6 text-sage">{step.text}</p>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
 
-/* =============================================================
-   MINI POINT
-============================================================= */
+        {/* Pine band: the two promises the product actually keeps. */}
+        <section className="on-dark relative mt-20 overflow-hidden rounded-[2rem] bg-pine px-6 py-12 text-mint-mist sm:px-10 lg:px-16 lg:py-16">
+          <div aria-hidden className="pointer-events-none absolute -bottom-44 -right-28 h-[320px] w-[320px] rounded-full border-[34px] border-shutter/50" />
+          <div className="relative grid gap-12 lg:grid-cols-[1.1fr_1fr]">
+            <div>
+              <p className="eyebrow text-mint-wash">{t('waitlist.featureHighlightBadge')}</p>
+              <h2 className="display-heading mt-3 max-w-lg text-[clamp(2rem,4.4vw,2.75rem)] text-mint-mist">
+                {t('waitlist.featureHighlightTitle')} <span className="text-mint-wash">{t('waitlist.featureHighlightTitleAlt')}</span>
+              </h2>
+              <p className="mt-5 max-w-lg text-[15px] leading-7 text-mint-wash">{t('waitlist.featureHighlightDescription')}</p>
+              <ul className="mt-7 space-y-3">
+                {(['waitlist.featureHighlightItem1', 'waitlist.featureHighlightItem2', 'waitlist.featureHighlightItem3'] as const).map((key) => (
+                  <li key={key} className="flex items-center gap-3 text-[15px] font-bold">
+                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-mint-mist text-pine" aria-hidden>
+                      <Check size={15} strokeWidth={3} />
+                    </span>
+                    {t(key)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="grid gap-4 self-center">
+              {[
+                { icon: ShieldCheck, title: t('waitlist.feature1Title'), text: t('waitlist.feature1Text') },
+                { icon: MessageCircle, title: t('waitlist.feature3Title'), text: t('waitlist.feature3Text') },
+              ].map((feature) => {
+                const Icon = feature.icon;
+                return (
+                  <div key={feature.title} className="rounded-2xl bg-shutter/45 p-6">
+                    <span className="grid h-11 w-11 place-items-center rounded-xl bg-mint-mist text-pine" aria-hidden>
+                      <Icon size={20} />
+                    </span>
+                    <h3 className="mt-4 text-lg font-black text-mint-mist">{feature.title}</h3>
+                    <p className="mt-1.5 text-sm leading-6 text-mint-wash">{feature.text}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
 
-function MiniPoint({
-  icon,
-  text,
-}: {
-  icon: React.ReactNode;
-  text: string;
-}) {
-  return (
-    <div className="flex items-center gap-3 rounded-2xl border border-[#0850411a] bg-white px-5 py-4">
-      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#E1F5EE] text-[#085041]">
-        {icon}
-      </div>
+        {/* Why Roomly, and what students away from home look for. */}
+        <section className="mt-20 grid gap-12 lg:grid-cols-[1fr_1.3fr]" aria-labelledby="waitlist-why">
+          <div>
+            <p className="eyebrow mb-3">{t('waitlist.whyRoomly')}</p>
+            <h2 id="waitlist-why" className={SECTION_TITLE_CLASS}>
+              {t('waitlist.whyRoomlyTitle')}
+            </h2>
+            <p className="mt-4 max-w-md text-[15px] leading-7 text-sage">{t('waitlist.whyRoomlyDescription')}</p>
 
-      <p className="text-sm font-semibold text-[#2C2C2A]">
-        {text}
-      </p>
+            <h3 className="mt-10 text-lg font-black text-pine">{t('waitlist.previewTitle')}</h3>
+            <ul className="mt-4 space-y-3">
+              {needs.map((need) => {
+                const Icon = need.icon;
+                return (
+                  <li key={need.text} className="flex items-center gap-3 text-[15px] font-bold text-ink">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-mint-mist text-shutter" aria-hidden>
+                      <Icon size={17} />
+                    </span>
+                    {need.text}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+          <ul className="divide-y divide-line self-start rounded-2xl border border-pine/10 bg-paper px-6 shadow-rest sm:px-8">
+            {reasons.map((reason) => {
+              const Icon = reason.icon;
+              return (
+                <li key={reason.title} className="flex gap-4 py-6">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-mint-mist text-shutter" aria-hidden>
+                    <Icon size={20} />
+                  </span>
+                  <div>
+                    <h3 className="text-lg font-black text-pine">{reason.title}</h3>
+                    <p className="mt-1 text-[15px] leading-6 text-sage">{reason.text}</p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+
+        <section id="faq" className="mt-20 scroll-mt-8" aria-labelledby="waitlist-faq">
+          <div className="mx-auto max-w-3xl">
+            <p className="eyebrow mb-3">{t('waitlist.faqEyebrow')}</p>
+            <h2 id="waitlist-faq" className={SECTION_TITLE_CLASS}>
+              {t('waitlist.faqTitle')}
+            </h2>
+            <Accordion type="single" collapsible defaultValue="faq-1" className="mt-8 border-t border-line">
+              {FAQ_KEYS.map((n) => (
+                <AccordionItem key={n} value={`faq-${n}`} className="border-line">
+                  <AccordionTrigger className="min-h-14 py-4 text-left text-base font-black text-pine hover:no-underline [&>svg]:h-5 [&>svg]:w-5 [&>svg]:text-shutter">
+                    {t(`waitlist.faqQuestion${n}`)}
+                  </AccordionTrigger>
+                  <AccordionContent className="max-w-2xl pb-5 text-[15px] leading-7 text-sage">
+                    {t(`waitlist.faqAnswer${n}`)}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
+        </section>
+
+        {/* Close: back to the one action. */}
+        <section className="relative mt-20 overflow-hidden rounded-[2rem] bg-mint-wash px-6 py-14 text-center sm:px-10">
+          <div aria-hidden className="pointer-events-none absolute -left-20 -top-24 h-[260px] w-[260px] rounded-full border-[30px] border-mint-mist/50" />
+          <div className="relative">
+            <KeyRound size={28} className="mx-auto text-shutter" aria-hidden />
+            <h2 className="display-heading mx-auto mt-4 max-w-xl text-[clamp(2rem,4.4vw,2.75rem)] text-pine">{t('waitlist.finalTitle')}</h2>
+            <p className="mx-auto mt-4 max-w-md text-[15px] leading-7 text-pine-text">{t('waitlist.finalSubtitle')}</p>
+            <Link
+              href={APP_ROUTES.REGISTER}
+              className="mt-8 inline-flex h-[52px] items-center justify-center gap-2 rounded-xl bg-sun px-7 text-[15px] font-black text-ink transition-[background-color,transform] duration-200 hover:bg-sun-hover active:scale-[0.98]"
+              data-testid={WAITLIST_TEST_IDS.LINK_REGISTER_FINAL}
+            >
+              {t('waitlist.ctaRegister')} <ArrowRight size={17} aria-hidden />
+            </Link>
+          </div>
+        </section>
+      </main>
+
+      <SiteFooter />
     </div>
   );
 }

@@ -47,8 +47,8 @@ export function ContattiPage() {
       </div>
 
       <div>
-        <h2 className="mb-2 text-lg font-black text-[#2C2C2A]">{t('contatti.ownerTitle')}</h2>
-        <p className="text-sm leading-relaxed text-[#527067]">
+        <h2 className="mb-2 text-lg font-black text-ink">{t('contatti.ownerTitle')}</h2>
+        <p className="text-sm leading-relaxed text-sage">
           {t('contatti.ownerText')}
         </p>
       </div>
@@ -68,17 +68,17 @@ function ContactCard({
   action: { label: string; href: string };
 }) {
   return (
-    <div className="rounded-[20px] border border-[#0850411a] bg-[#F1EFE8]/60 p-6">
-      <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-[#E1F5EE] text-[#085041]">
+    <div className="rounded-[20px] border border-pine/10 bg-paper p-6 shadow-rest">
+      <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-mint-mist text-pine">
         {icon}
       </div>
-      <h3 className="mb-1.5 text-base font-black text-[#2C2C2A]">{title}</h3>
-      <p className="mb-3 text-sm leading-relaxed text-[#527067]">{text}</p>
+      <h3 className="mb-1.5 text-base font-black text-ink">{title}</h3>
+      <p className="mb-3 text-sm leading-relaxed text-sage">{text}</p>
       <a
         href={action.href}
         target={action.href.startsWith('http') ? '_blank' : undefined}
         rel={action.href.startsWith('http') ? 'noopener noreferrer' : undefined}
-        className="text-sm font-extrabold text-[#085041] hover:text-[#0F6E56]"
+        className="text-sm font-extrabold text-pine hover:text-shutter"
       >
         {action.label} →
       </a>

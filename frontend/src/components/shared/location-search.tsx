@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { GraduationCap, MapPin, Search, X } from 'lucide-react';
+import { GraduationCap, Search, X } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
@@ -46,7 +46,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
   return (
     <>
       {text.slice(0, index)}
-      <span className="text-[#0F6E56]">{text.slice(index, index + q.length)}</span>
+      <span className="text-shutter">{text.slice(index, index + q.length)}</span>
       {text.slice(index + q.length)}
     </>
   );
@@ -66,6 +66,12 @@ type LocationSearchProps = {
    * when every change triggers a request).
    */
   commit?: 'live' | 'explicit';
+  /** Called when a suggestion is picked (click or Enter on a highlighted row). */
+  onSelect?: (value: string) => void;
+  /** "field": standalone input with its own fill and icon. "bare": no chrome, for a segment inside the search pill. */
+  appearance?: 'field' | 'bare';
+  placeholder?: string;
+  'aria-label'?: string;
   className?: string;
   inputClassName?: string;
   'data-testid'?: string;
@@ -77,6 +83,10 @@ export function LocationSearch({
   options,
   loading = false,
   commit = 'live',
+  onSelect,
+  appearance = 'field',
+  placeholder,
+  'aria-label': ariaLabel,
   className,
   inputClassName,
   'data-testid': testId,
@@ -125,6 +135,7 @@ export function LocationSearch({
   const select = (place: string) => {
     setQuery(place);
     onChange(place);
+    onSelect?.(place);
     setOpen(false);
     setActive(-1);
   };
@@ -180,8 +191,14 @@ export function LocationSearch({
 
   return (
     <div ref={rootRef} className={cn('relative', className)}>
-      <div className="flex min-h-12 items-center gap-2 rounded-xl bg-[#F1EFE8] px-3 text-[#527067] focus-within:ring-2 focus-within:ring-[#0F6E56]/40">
-        <MapPin size={18} className="shrink-0 text-[#0F6E56]" aria-hidden />
+      <div
+        className={cn(
+          'flex items-center gap-2 text-sage',
+          appearance === 'field' &&
+            'min-h-12 rounded-xl border border-field bg-cream px-3 focus-within:border-shutter focus-within:ring-[3px] focus-within:ring-mint-wash/40',
+        )}
+      >
+        {appearance === 'field' && <GraduationCap size={18} className="shrink-0 text-shutter" aria-hidden />}
         <input
           ref={inputRef}
           type="text"
@@ -190,11 +207,11 @@ export function LocationSearch({
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={open && active >= 0 ? `${listId}-${active}` : undefined}
-          aria-label={t('searchBar.where')}
+          aria-label={ariaLabel ?? t('searchBar.where')}
           autoComplete="off"
           spellCheck={false}
           value={query}
-          placeholder={loading ? '…' : t('searchBar.where')}
+          placeholder={loading ? '…' : placeholder ?? t('searchBar.where')}
           onFocus={() => setOpen(true)}
           onClick={() => setOpen(true)}
           onChange={(event) => {
@@ -207,7 +224,7 @@ export function LocationSearch({
           }}
           onKeyDown={onKeyDown}
           className={cn(
-            'w-full min-w-0 bg-transparent text-sm font-bold text-[#2C2C2A] outline-none placeholder:text-[#82978e]',
+            'w-full min-w-0 bg-transparent text-sm font-bold text-ink outline-none placeholder:text-sage',
             inputClassName,
           )}
           data-testid={testId}
@@ -217,7 +234,7 @@ export function LocationSearch({
             type="button"
             onClick={clear}
             aria-label={t('searchBar.clear')}
-            className="shrink-0 rounded-full p-1 text-[#527067] transition hover:bg-[#d6e7de] hover:text-[#085041]"
+            className="shrink-0 rounded-full p-1.5 text-sage transition hover:bg-mint-mist hover:text-pine"
           >
             <X size={15} />
           </button>
@@ -226,11 +243,14 @@ export function LocationSearch({
 
       {open && (
         <div
-          className="absolute left-0 top-[calc(100%+8px)] z-30 w-full min-w-[260px] overflow-hidden rounded-2xl border border-[#d6e7de] bg-white shadow-[var(--shadow-lg)] sm:min-w-[320px]"
+          className={cn(
+            'absolute left-0 z-40 w-full min-w-[260px] overflow-hidden rounded-2xl border border-pine/10 bg-paper shadow-float sm:min-w-[340px]',
+            appearance === 'bare' ? 'top-[calc(100%+22px)]' : 'top-[calc(100%+8px)]',
+          )}
           data-testid={testId ? `${testId}-list` : undefined}
         >
           {suggestions.length > 0 && (
-            <p className="px-4 pb-1 pt-3 text-xs font-bold text-[#527067]">
+            <p className="px-4 pb-1 pt-3 text-xs font-extrabold text-sage">
               {showingSuggested ? t('searchBar.suggested') : t('searchBar.results')}
             </p>
           )}
@@ -249,11 +269,11 @@ export function LocationSearch({
                 }}
                 onMouseEnter={() => setActive(index)}
                 className={cn(
-                  'flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 text-sm font-bold text-[#2C2C2A]',
-                  index === active && 'bg-[#E1F5EE]',
+                  'flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 text-sm font-bold text-ink',
+                  index === active && 'bg-mint-mist',
                 )}
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#E1F5EE] text-[#0F6E56]">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-mint-mist text-shutter">
                   <GraduationCap size={18} aria-hidden />
                 </span>
                 <span className="min-w-0 truncate">
@@ -264,7 +284,7 @@ export function LocationSearch({
           </ul>
 
           {suggestions.length === 0 && (
-            <div className="flex items-center gap-3 px-4 py-5 text-sm text-[#527067]">
+            <div className="flex items-center gap-3 px-4 py-5 text-sm text-sage">
               <Search size={16} aria-hidden />
               <span>{t('searchBar.noResults')}</span>
             </div>
