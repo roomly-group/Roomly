@@ -136,7 +136,7 @@ export function WaitlistPage() {
 
       <main className="mx-auto w-full max-w-[1320px] flex-1 px-5 pb-16 lg:px-8">
         {/* Hero: the promise, one amber action, and the mechanism shown on a labelled example. */}
-        <section className="relative overflow-hidden rounded-[2rem] bg-mint-wash px-6 py-12 sm:px-10 sm:py-16 lg:px-16 lg:py-20">
+        <section className="relative overflow-hidden rounded-2xl bg-mint-wash px-6 py-12 sm:px-10 sm:py-16 lg:px-16 lg:py-20">
 
           <div className="relative grid items-center gap-12 lg:grid-cols-[1.25fr_1fr]">
             <div className="page-enter">
@@ -204,7 +204,7 @@ export function WaitlistPage() {
         </section>
 
         {/* Pine band: the two promises the product actually keeps. */}
-        <section className="on-dark relative mt-20 overflow-hidden rounded-[2rem] bg-pine px-6 py-12 text-mint-mist sm:px-10 lg:px-16 lg:py-16">
+        <section className="on-dark relative mt-20 overflow-hidden rounded-2xl bg-pine px-6 py-12 text-mint-mist sm:px-10 lg:px-16 lg:py-16">
           <div className="relative grid gap-12 lg:grid-cols-[1.1fr_1fr]">
             <div>
               <h2 className="display-heading mt-3 max-w-lg text-[clamp(2rem,4.4vw,2.75rem)] text-mint-mist">
@@ -304,7 +304,7 @@ export function WaitlistPage() {
         </section>
 
         {/* Close: back to the one action. */}
-        <section className="relative mt-20 overflow-hidden rounded-[2rem] bg-mint-wash px-6 py-14 text-center sm:px-10">
+        <section className="relative mt-20 overflow-hidden rounded-2xl bg-mint-wash px-6 py-14 text-center sm:px-10">
           <div className="relative">
             <KeyRound size={28} className="mx-auto text-shutter" aria-hidden />
             <h2 className="display-heading mx-auto mt-4 max-w-xl text-[clamp(2rem,4.4vw,2.75rem)] text-pine">{t('waitlist.finalTitle')}</h2>
