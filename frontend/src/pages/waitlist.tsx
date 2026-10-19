@@ -137,8 +137,6 @@ export function WaitlistPage() {
       <main className="mx-auto w-full max-w-[1320px] flex-1 px-5 pb-16 lg:px-8">
         {/* Hero: the promise, one amber action, and the mechanism shown on a labelled example. */}
         <section className="relative overflow-hidden rounded-[2rem] bg-mint-wash px-6 py-12 sm:px-10 sm:py-16 lg:px-16 lg:py-20">
-          <div aria-hidden className="pointer-events-none absolute -right-24 -top-28 h-[340px] w-[340px] rounded-full border-[36px] border-mint-mist/50" />
-          <div aria-hidden className="pointer-events-none absolute -right-2 -top-6 h-[170px] w-[170px] rounded-full border-[22px] border-mint-mist/40" />
 
           <div className="relative grid items-center gap-12 lg:grid-cols-[1.25fr_1fr]">
             <div className="page-enter">
@@ -182,7 +180,6 @@ export function WaitlistPage() {
 
         {/* How it works: a real sequence, so the numbers carry information. */}
         <section className="mt-20" aria-labelledby="waitlist-how">
-          <p className="eyebrow mb-3">{t('waitlist.howItWorksEyebrow')}</p>
           <h2 id="waitlist-how" className={SECTION_TITLE_CLASS}>
             {t('waitlist.howItWorksTitle')}
           </h2>
@@ -208,10 +205,8 @@ export function WaitlistPage() {
 
         {/* Pine band: the two promises the product actually keeps. */}
         <section className="on-dark relative mt-20 overflow-hidden rounded-[2rem] bg-pine px-6 py-12 text-mint-mist sm:px-10 lg:px-16 lg:py-16">
-          <div aria-hidden className="pointer-events-none absolute -bottom-44 -right-28 h-[320px] w-[320px] rounded-full border-[34px] border-shutter/50" />
           <div className="relative grid gap-12 lg:grid-cols-[1.1fr_1fr]">
             <div>
-              <p className="eyebrow text-mint-wash">{t('waitlist.featureHighlightBadge')}</p>
               <h2 className="display-heading mt-3 max-w-lg text-[clamp(2rem,4.4vw,2.75rem)] text-mint-mist">
                 {t('waitlist.featureHighlightTitle')} <span className="text-mint-wash">{t('waitlist.featureHighlightTitleAlt')}</span>
               </h2>
@@ -250,7 +245,6 @@ export function WaitlistPage() {
         {/* Why Roomly, and what students away from home look for. */}
         <section className="mt-20 grid gap-12 lg:grid-cols-[1fr_1.3fr]" aria-labelledby="waitlist-why">
           <div>
-            <p className="eyebrow mb-3">{t('waitlist.whyRoomly')}</p>
             <h2 id="waitlist-why" className={SECTION_TITLE_CLASS}>
               {t('waitlist.whyRoomlyTitle')}
             </h2>
@@ -291,7 +285,6 @@ export function WaitlistPage() {
 
         <section id="faq" className="mt-20 scroll-mt-8" aria-labelledby="waitlist-faq">
           <div className="mx-auto max-w-3xl">
-            <p className="eyebrow mb-3">{t('waitlist.faqEyebrow')}</p>
             <h2 id="waitlist-faq" className={SECTION_TITLE_CLASS}>
               {t('waitlist.faqTitle')}
             </h2>
@@ -312,7 +305,6 @@ export function WaitlistPage() {
 
         {/* Close: back to the one action. */}
         <section className="relative mt-20 overflow-hidden rounded-[2rem] bg-mint-wash px-6 py-14 text-center sm:px-10">
-          <div aria-hidden className="pointer-events-none absolute -left-20 -top-24 h-[260px] w-[260px] rounded-full border-[30px] border-mint-mist/50" />
           <div className="relative">
             <KeyRound size={28} className="mx-auto text-shutter" aria-hidden />
             <h2 className="display-heading mx-auto mt-4 max-w-xl text-[clamp(2rem,4.4vw,2.75rem)] text-pine">{t('waitlist.finalTitle')}</h2>

@@ -184,7 +184,6 @@ export function UserPreferencesPage({ owner = false }: { owner?: boolean }) {
               <SlidersHorizontal size={18} />
             </span>
             <div>
-              <p className="eyebrow">{t('preferences.sectionEyebrow')}</p>
               <h2 className="mt-1 text-xl font-black text-[#085041]">{t('preferences.sectionTitle')}</h2>
             </div>
           </div>

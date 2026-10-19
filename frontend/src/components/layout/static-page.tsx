@@ -22,7 +22,6 @@ export function StaticPage({
 
       <main className="mx-auto w-full max-w-[1120px] flex-1 px-5 pb-16 lg:px-8">
         <section className="pt-6 sm:pt-10">
-          <p className="eyebrow mb-3">{eyebrow}</p>
           <h1 className="display-heading max-w-2xl text-[clamp(2.25rem,5vw,2.75rem)] text-pine">{title}</h1>
           {intro && <p className="mt-4 max-w-xl text-[17px] leading-7 text-pine-text">{intro}</p>}
 

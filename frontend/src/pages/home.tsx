@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, KeyRound, ShieldCheck } from 'lucide-react';
+import { ArrowRight, KeyRound } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { getListListingsQueryKey, useListListings } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
@@ -87,7 +87,6 @@ export function Home() {
     <AppShell>
       <div className="mx-auto max-w-[1320px] px-5 pb-16 pt-8 lg:px-8 lg:pt-10">
         <section aria-labelledby="home-title" className="page-enter">
-          <p className="eyebrow mb-3">{t('home.badge')}</p>
           <h1 id="home-title" className="display-heading max-w-3xl text-[clamp(2.25rem,5vw,2.75rem)] text-pine">
             {t('home.title1')} <span className="text-shutter">{t('home.title2')}</span>
           </h1>
@@ -101,7 +100,6 @@ export function Home() {
         <section className="mt-10" aria-labelledby="home-available">
           <div className="mb-6 flex items-end justify-between gap-4">
             <div>
-              <p className="eyebrow mb-2">{t('home.startEyebrow')}</p>
               <h2 id="home-available" className={SECTION_TITLE_CLASS}>
                 {t('home.startTitle1')} {t('home.startTitle2')}
               </h2>
@@ -140,7 +138,6 @@ export function Home() {
 
         {universities.length > 0 && (
           <section className="mt-16" aria-labelledby="home-universities">
-            <p className="eyebrow mb-2">{t('home.universitiesEyebrow')}</p>
             <h2 id="home-universities" className={SECTION_TITLE_CLASS}>
               {t('home.universitiesTitle')}
             </h2>
@@ -167,9 +164,6 @@ export function Home() {
 
         <section className="mt-16 grid gap-5 lg:grid-cols-[1fr_1.45fr]">
           <div className="relative overflow-hidden rounded-[2rem] bg-sun p-7 sm:p-10">
-            <div aria-hidden className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full border-[30px] border-cream/30" />
-            <div aria-hidden className="pointer-events-none absolute -right-6 -top-6 h-36 w-36 rounded-full border-[18px] border-cream/20" />
-            <p className="eyebrow relative text-ink">{t('home.ownersEyebrow')}</p>
             <h2 className="display-heading relative mt-3 max-w-md text-[clamp(1.75rem,3.4vw,2.5rem)] text-ink">
               {t('home.ownersHeadline')}
             </h2>
@@ -186,13 +180,9 @@ export function Home() {
           </div>
 
           <div className="on-dark rounded-[2rem] bg-pine p-7 text-mint-mist sm:p-10">
-            <p className="eyebrow text-mint-wash">{t('home.whyEyebrow')}</p>
             <h2 className="display-heading mt-3 text-[clamp(1.75rem,3.4vw,2.5rem)] text-mint-mist">{t('home.trustBoxTitle')}</h2>
             <p className="mt-4 max-w-lg text-[15px] leading-6 text-mint-wash">{t('home.trustBoxText')}</p>
             <div className="mt-8 flex items-start gap-4 border-t border-mint-mist/15 pt-6">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-shutter text-mint-mist" aria-hidden>
-                <ShieldCheck size={21} />
-              </span>
               <div>
                 <h3 className="text-lg font-black">{t('home.trustTitle')}</h3>
                 <p className="mt-1 text-sm leading-6 text-mint-wash">{t('home.trustText')}</p>

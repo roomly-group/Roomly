@@ -165,7 +165,7 @@ export function Navbar() {
       <img
         src={roomlyMark}
         alt={isApp ? '' : 'Roomly'}
-        className={isApp ? 'h-11 w-11 object-contain' : 'h-8 w-8 object-contain'}
+        className={isApp ? 'h-8 w-8 object-contain' : 'h-8 w-8 object-contain'}
       />
       <span
         className={
@@ -184,34 +184,25 @@ export function Navbar() {
       <header className="sticky top-0 z-30 border-b border-line bg-cream/95 backdrop-blur">
         {/* On phones the browse pages keep only the search pill up here: the tab bar carries navigation. */}
         <div
-          className={`mx-auto h-20 max-w-[1320px] items-center justify-between gap-4 px-5 lg:px-8 ${
+          className={`mx-auto h-16 max-w-[1320px] items-center justify-between gap-6 px-5 lg:px-8 ${
             browse ? 'hidden sm:flex' : 'flex'
           }`}
         >
           {logo}
 
-          {!owner && !browse && <CompactSearchPill />}
-
-          <nav aria-label={t('nav.primary')} className="hidden items-center gap-1 lg:flex">
+          <nav aria-label={t('nav.primary')} className="mr-auto hidden items-center lg:flex">
             {links.map((link) => {
-              const Icon = link.icon;
               const active = isActive(link.href);
               return (
                 <Link
                   key={link.href}
                   href={link.href}
                   aria-current={active ? 'page' : undefined}
-                  className={`flex items-center gap-2.5 rounded-xl py-1.5 pl-1.5 pr-4 text-[15px] font-extrabold transition-colors ${
-                    active ? 'bg-mint-mist text-pine' : 'text-sage hover:bg-mint-mist/60 hover:text-pine'
+                  className={`relative flex h-16 items-center px-3 text-[15px] font-extrabold transition-colors after:absolute after:inset-x-3 after:bottom-0 after:h-[3px] after:rounded-t-full ${
+                    active ? 'text-pine after:bg-pine' : 'text-sage after:bg-transparent hover:text-pine'
                   }`}
                   data-testid={`${NAVBAR_TEST_IDS.LINK_NAV_PREFIX}${link.key}`}
                 >
-                  <span
-                    className={`grid h-8 w-8 place-items-center rounded-lg ${active ? 'bg-mint-wash text-pine' : 'bg-line text-sage'}`}
-                    aria-hidden
-                  >
-                    <Icon size={17} strokeWidth={2.2} />
-                  </span>
                   {link.label}
                 </Link>
               );
@@ -219,6 +210,7 @@ export function Navbar() {
           </nav>
 
           <div className="flex items-center gap-2">
+            {!owner && !browse && <CompactSearchPill />}
             {showSwitch && (
               <Link
                 href={switchHref}

@@ -467,7 +467,7 @@ export function ListingDetail() {
 
         <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
           <div className="min-w-0">
-            {typeLine && <p className="eyebrow mb-3">{typeLine}</p>}
+            {typeLine && <p className="mb-2 text-[15px] font-bold text-sage">{typeLine}</p>}
             <h1 className="display-heading max-w-3xl break-words text-[clamp(2.25rem,5vw,2.75rem)] text-pine">{listing.title}</h1>
           </div>
           <button
@@ -720,7 +720,6 @@ export function ListingDetail() {
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="eyebrow">{t('listingDetail.modalSayHello')}</p>
                 <DialogPrimitive.Title className="mt-1 text-2xl font-black tracking-[-0.04em] text-pine">
                   {t('listingDetail.message')} {ownerFirstName}
                 </DialogPrimitive.Title>

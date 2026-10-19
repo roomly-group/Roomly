@@ -12,7 +12,6 @@ export function PageIntro({
   return (
     <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div>
-        <p className="eyebrow mb-3">{eyebrow}</p>
         <h1 className="display-heading max-w-2xl text-4xl text-pine sm:text-5xl">
           {title}
         </h1>

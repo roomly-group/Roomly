@@ -86,7 +86,6 @@ export function SearchPage() {
     <AppShell>
       <div className="mx-auto max-w-[1320px] px-5 pb-16 pt-8 lg:px-8 lg:pt-10">
         <div>
-          <p className="eyebrow mb-3">{t('searchPage.eyebrow')}</p>
           <h1 className="display-heading max-w-3xl text-[clamp(2.25rem,5vw,2.75rem)] text-pine">
             {params.zone ? t('searchPage.nearTitle').replace('{university}', params.zone) : t('searchPage.title')}
           </h1>

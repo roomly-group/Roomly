@@ -29,7 +29,6 @@ export function WaitlistConfirmedPage() {
 
       <main className="mx-auto w-full max-w-[1120px] flex-1 px-5 pb-16 lg:px-8">
         <section className="relative overflow-hidden rounded-[2rem] bg-mint-wash px-6 py-12 sm:px-12 sm:py-16">
-          <div aria-hidden className="pointer-events-none absolute -right-24 -top-28 h-[300px] w-[300px] rounded-full border-[34px] border-mint-mist/50" />
 
           <div className="relative grid items-center gap-10 md:grid-cols-[1.4fr_1fr]">
             <div className="page-enter">
@@ -51,7 +50,6 @@ export function WaitlistConfirmedPage() {
         </section>
 
         <section className="mt-16" aria-labelledby="confirmed-next">
-          <p className="eyebrow mb-3">{t('waitlistConfirmed.whatNextEyebrow')}</p>
           <h2 id="confirmed-next" className="display-heading text-[clamp(2rem,4.4vw,2.75rem)] text-pine">
             {t('waitlistConfirmed.whatNextTitle')}
           </h2>

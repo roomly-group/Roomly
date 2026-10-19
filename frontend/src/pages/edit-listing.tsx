@@ -415,7 +415,6 @@ export function EditListingPage() {
 
           <aside className="space-y-5">
             <div className="surface rounded-2xl p-5">
-              <p className="eyebrow">{t('newListing.photosLabel')}</p>
               <h2 className="mt-1 font-black text-[#085041]">{t('newListing.photosHeadline')}</h2>
               <p className="mt-1 text-[11px] text-[#82978e]">{t('newListing.photosNote')}</p>
               <label className={`mt-4 flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#b7d7ca] bg-[#E1F5EE] p-3 text-center transition hover:bg-[#d6f0e6] ${isSaving ? 'cursor-not-allowed opacity-60' : ''}`}>

@@ -62,7 +62,6 @@ export function LanguageSetting() {
           <Globe size={18} />
         </span>
         <div className="flex-1">
-          <p className="eyebrow">{t('settings.language')}</p>
           <h2 className="mt-1 text-lg font-black text-pine">{t('settings.language')}</h2>
           <p className="mt-1 text-sm leading-6 text-sage">{t('settings.languageDesc')}</p>
           <p className="mt-3 text-xs font-extrabold uppercase tracking-wide text-shutter" data-testid={LANGUAGE_SELECTOR_TEST_IDS.TEXT_LANGUAGE_SOURCE}>
