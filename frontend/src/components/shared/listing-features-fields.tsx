@@ -1,15 +1,5 @@
 import { useState } from 'react';
-import {
-  Bath,
-  Cigarette,
-  CircleAlert,
-  CircleCheck,
-  PawPrint,
-  ReceiptText,
-  Sofa,
-  WashingMachine,
-  type LucideIcon,
-} from 'lucide-react';
+import { Check } from 'lucide-react';
 import type { ListingFeatureGroups } from '@workspace/api-client-react';
 import type { ListingFeatureGroup } from '@workspace/api-zod';
 import { useLanguage } from '@/lib/i18n';
@@ -23,18 +13,6 @@ import {
 } from '@/lib/constants';
 
 // ===================== CONFIGURATION =====================
-
-/** Icon shown next to each feature group (form and listing page). */
-export const LISTING_FEATURE_GROUP_ICONS: Record<ListingFeatureGroup, LucideIcon> = {
-  spese_incluse: ReceiptText,
-  elettrodomestici: WashingMachine,
-  arredi: Sofa,
-  servizi: Bath,
-};
-
-/** Icons of the stand-alone pets / smokers switches. */
-export const LISTING_PETS_ICON: LucideIcon = PawPrint;
-export const LISTING_SMOKERS_ICON: LucideIcon = Cigarette;
 
 /** Prefix of the `data-testid` of every switch / option of this block. */
 const TEST_ID_PREFIX = 'toggle-listing' as const;
@@ -68,13 +46,12 @@ type TranslationKey = Parameters<ReturnType<typeof useLanguage>['t']>[0];
 
 // ===================== COMPONENTS =====================
 
-/** On/off switch row, same look as the rest of the listing form. */
+/** On/off switch row: a ruled line with the label on the left and the switch at the end. */
 export function Toggle({
   label,
   checked,
   onChange,
   testId,
-  icon: Icon,
   badge,
   ariaControls,
 }: {
@@ -82,9 +59,7 @@ export function Toggle({
   checked: boolean;
   onChange: (value: boolean) => void;
   testId: string;
-  /** Optional icon; without it the check / alert circle is shown. */
-  icon?: LucideIcon;
-  /** Optional small text on the right (e.g. how many options are selected). */
+  /** Optional small text before the switch (e.g. how many options are selected). */
   badge?: string;
   /** Id of the panel this switch opens, for screen readers. */
   ariaControls?: string;
@@ -96,25 +71,14 @@ export function Toggle({
       aria-checked={checked}
       aria-controls={ariaControls}
       onClick={() => onChange(!checked)}
-      className={`flex w-full items-center justify-between gap-3 rounded-xl border p-3 text-left text-sm font-extrabold transition ${
-        checked ? 'border-[#9FE1CB] bg-[#E1F5EE] text-[#085041]' : 'border-[#d6e7de] text-[#527067]'
-      }`}
+      className="group flex min-h-14 w-full items-center justify-between gap-3 border-b border-line py-3 text-left text-[15px] font-extrabold text-ink transition-colors hover:text-pine"
       data-testid={testId}
     >
-      <span className="flex min-w-0 items-center gap-2">
-        {Icon ? (
-          <Icon size={17} className={checked ? 'shrink-0 text-[#0F6E56]' : 'shrink-0'} />
-        ) : checked ? (
-          <CircleCheck size={17} className="shrink-0 text-[#0F6E56]" />
-        ) : (
-          <CircleAlert size={17} className="shrink-0" />
-        )}
-        <span className="truncate">{label}</span>
-      </span>
-      <span className="flex shrink-0 items-center gap-2">
-        {badge && <span className="text-xs font-bold text-[#0F6E56]">{badge}</span>}
-        <span className={`h-5 w-9 rounded-full p-0.5 transition ${checked ? 'bg-[#0F6E56]' : 'bg-[#c8d4cd]'}`}>
-          <span className={`block h-4 w-4 rounded-full bg-[#F1EFE8] transition-transform ${checked ? 'translate-x-4' : ''}`} />
+      <span className="min-w-0 truncate">{label}</span>
+      <span className="flex shrink-0 items-center gap-3">
+        {badge && <span className="text-[13px] font-bold tabular-nums text-sage">{badge}</span>}
+        <span className={`h-6 w-10 rounded-full p-0.5 transition-colors ${checked ? 'bg-shutter' : 'bg-field/55 group-hover:bg-field/75'}`}>
+          <span className={`block h-5 w-5 rounded-full bg-paper transition-transform ${checked ? 'translate-x-4' : ''}`} />
         </span>
       </span>
     </button>
@@ -171,10 +135,10 @@ export function ListingFeaturesFields({
   return (
     <>
       {/* Tipologia (tipologia_proprieta) and, only for apartments, taglio (taglio_appartamento). */}
-      <div className={isApartment ? 'grid gap-x-3 sm:grid-cols-2' : ''}>
-        <label className="mb-5 block">
-          <span className="block text-sm font-black text-[#085041]">{t('newListing.propertyTypeLabel')}</span>
-          <span className="mb-2 mt-0.5 block text-xs font-bold text-[#82978e]">{t('newListing.propertyTypeHint')}</span>
+      <div className={isApartment ? 'grid gap-x-4 sm:grid-cols-2' : ''}>
+        <label className="mb-6 block">
+          <span className="block text-[13px] font-extrabold text-pine">{t('newListing.propertyTypeLabel')}</span>
+          <span className="mb-2 mt-1 block text-[13px] leading-5 text-sage">{t('newListing.propertyTypeHint')}</span>
           <select
             value={value.propertyType ?? ''}
             onChange={(event) => {
@@ -199,9 +163,9 @@ export function ListingFeaturesFields({
         </label>
 
         {isApartment && (
-          <label className="mb-5 block">
-            <span className="block text-sm font-black text-[#085041]">{t('newListing.layoutLabel')}</span>
-            <span className="mb-2 mt-0.5 block text-xs font-bold text-[#82978e]">{t('newListing.layoutHint')}</span>
+          <label className="mb-6 block">
+            <span className="block text-[13px] font-extrabold text-pine">{t('newListing.layoutLabel')}</span>
+            <span className="mb-2 mt-1 block text-[13px] leading-5 text-sage">{t('newListing.layoutHint')}</span>
             <select
               value={value.apartmentLayout ?? ''}
               onChange={(event) => onChange({ ...value, apartmentLayout: event.target.value || null })}
@@ -220,17 +184,15 @@ export function ListingFeaturesFields({
       </div>
 
       {/* House rules: each one is its own column (animali_consentiti, fumatori_consentiti). */}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="border-t border-line">
         <Toggle
           label={t('newListing.petsAllowed')}
-          icon={LISTING_PETS_ICON}
           checked={value.petsAllowed}
           onChange={(petsAllowed) => onChange({ ...value, petsAllowed })}
           testId={`${TEST_ID_PREFIX}-pets`}
         />
         <Toggle
           label={t('newListing.smokersAllowed')}
-          icon={LISTING_SMOKERS_ICON}
           checked={value.smokersAllowed}
           onChange={(smokersAllowed) => onChange({ ...value, smokersAllowed })}
           testId={`${TEST_ID_PREFIX}-smokers`}
@@ -238,8 +200,8 @@ export function ListingFeaturesFields({
       </div>
 
       {/* Feature groups: one switch each, opening the list of its options. */}
-      <p className="mb-2 mt-6 text-sm font-black text-[#085041]">{t('newListing.amenitiesTitle')}</p>
-      <div className="space-y-3">
+      <p className="mb-1 mt-10 text-[17px] font-black text-pine">{t('newListing.amenitiesTitle')}</p>
+      <div className="border-t border-line">
         {LISTING_FEATURE_GROUP_KEYS.map((group) => {
           const on = isGroupOn(group);
           const selected = value.features[group];
@@ -248,7 +210,6 @@ export function ListingFeaturesFields({
             <div key={group}>
               <Toggle
                 label={t(`newListing.group.${group}` as TranslationKey)}
-                icon={LISTING_FEATURE_GROUP_ICONS[group]}
                 checked={on}
                 onChange={(next) => setGroupOn(group, next)}
                 badge={on && selected.length > 0 ? `${selected.length}/${LISTING_FEATURE_GROUP_OPTIONS[group].length}` : undefined}
@@ -256,11 +217,8 @@ export function ListingFeaturesFields({
                 testId={`${TEST_ID_PREFIX}-group-${group}`}
               />
               {on && (
-                <div
-                  id={panelId}
-                  className="mt-2 rounded-xl border border-[#d6e7de] p-3"
-                >
-                  <p className="mb-2 text-xs font-bold text-[#82978e]">{t('newListing.groupPick')}</p>
+                <div id={panelId} className="border-b border-line pb-5 pt-3">
+                  <p className="mb-3 text-[13px] text-sage">{t('newListing.groupPick')}</p>
                   <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2 sm:grid-cols-3">
                     {LISTING_FEATURE_GROUP_OPTIONS[group].map((option) => {
                       const checked = selected.includes(option);
@@ -271,17 +229,21 @@ export function ListingFeaturesFields({
                           role="checkbox"
                           aria-checked={checked}
                           onClick={() => toggleOption(group, option)}
-                          className={`flex min-h-10 items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs font-extrabold transition ${
+                          className={`flex min-h-11 items-center gap-2.5 rounded-control border px-3 py-2 text-left text-sm font-bold transition-colors ${
                             checked
-                              ? 'border-[#9FE1CB] bg-[#E1F5EE] text-[#085041]'
-                              : 'border-[#d6e7de] text-[#527067] hover:bg-[#E1F5EE]/50'
+                              ? 'border-shutter bg-mint-mist text-pine'
+                              : 'border-line bg-paper text-ink hover:border-outline'
                           }`}
                           data-testid={`${TEST_ID_PREFIX}-${group}-${option}`}
                         >
-                          <CircleCheck
-                            size={15}
-                            className={`shrink-0 ${checked ? 'text-[#0F6E56]' : 'text-[#c8d4cd]'}`}
-                          />
+                          <span
+                            className={`grid h-4 w-4 shrink-0 place-items-center rounded-[3px] border-2 ${
+                              checked ? 'border-shutter bg-shutter text-paper' : 'border-field bg-paper'
+                            }`}
+                            aria-hidden
+                          >
+                            {checked && <Check size={11} strokeWidth={3.5} />}
+                          </span>
                           {t(`newListing.feature.${option}` as TranslationKey)}
                         </button>
                       );

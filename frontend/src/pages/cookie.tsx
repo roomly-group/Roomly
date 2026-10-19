@@ -1,30 +1,27 @@
-import { StaticPage } from '@/components/layout/static-page';
+import { LegalIndex, LegalSection, StaticPage } from '@/components/layout/static-page';
 import { useLanguage } from '@/lib/i18n';
+
+type TranslationKey = Parameters<ReturnType<typeof useLanguage>['t']>[0];
+
+// ===================== CONFIGURATION =====================
+
+/** Number of numbered clauses on this page (cookie.sectionNTitle / sectionNText). */
+const SECTION_COUNT = 5 as const;
 
 export function CookiePage() {
   const { t } = useLanguage();
+  const sections = Array.from({ length: SECTION_COUNT }, (_, index) => ({
+    id: `cookie-${index + 1}`,
+    title: t(`cookie.section${index + 1}Title` as TranslationKey),
+    text: t(`cookie.section${index + 1}Text` as TranslationKey),
+  }));
 
   return (
-    <StaticPage
-      eyebrow={t('footer.column.legal')}
-      title={t('footer.link.cookie')}
-      intro={t('cookie.intro')}
-    >
-      <LegalSection title={t('cookie.section1Title')}>{t('cookie.section1Text')}</LegalSection>
-      <LegalSection title={t('cookie.section2Title')}>{t('cookie.section2Text')}</LegalSection>
-      <LegalSection title={t('cookie.section3Title')}>{t('cookie.section3Text')}</LegalSection>
-      <LegalSection title={t('cookie.section4Title')}>{t('cookie.section4Text')}</LegalSection>
-      <LegalSection title={t('cookie.section5Title')}>{t('cookie.section5Text')}</LegalSection>
+    <StaticPage title={t('footer.link.cookie')} intro={t('cookie.intro')} aside={<LegalIndex sections={sections} />}>
+      {sections.map((section) => (
+        <LegalSection key={section.id} {...section} />
+      ))}
     </StaticPage>
-  );
-}
-
-function LegalSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <h2 className="mb-2 text-base font-black text-[#2C2C2A]">{title}</h2>
-      <p className="text-sm leading-relaxed text-[#527067]">{children}</p>
-    </div>
   );
 }
 

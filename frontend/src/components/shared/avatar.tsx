@@ -8,18 +8,21 @@ const AVATAR_TEST_ID_PREFIX = 'avatar-' as const;
 export function Avatar({
   name,
   size = 'md',
+  tone = 'mint',
 }: {
   name: string;
   size?: 'sm' | 'md' | 'lg';
+  /** "mint" for people in lists and chats, "shutter" for the signed-in account. */
+  tone?: 'mint' | 'shutter';
 }) {
   const sizes = {
-    sm: 'h-8 w-8 text-[10px]',
+    sm: 'h-8 w-8 text-[11px]',
     md: 'h-10 w-10 text-xs',
     lg: 'h-14 w-14 text-base',
   };
   return (
     <span
-      className={`inline-flex shrink-0 items-center justify-center rounded-full bg-[#9FE1CB] font-black text-[#085041] ${sizes[size]}`}
+      className={`inline-flex shrink-0 items-center justify-center rounded-full font-black ${tone === 'shutter' ? 'bg-shutter text-mint-mist' : 'bg-mint-wash text-pine'} ${sizes[size]}`}
       data-testid={`${AVATAR_TEST_ID_PREFIX}${name.replace(/\s/g, '-').toLowerCase()}`}
     >
       {initials(name)}

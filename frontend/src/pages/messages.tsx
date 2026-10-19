@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Check, ChevronLeft, Copy, Mail, MessageCircle, MoreHorizontal, Send, Trash2, X } from 'lucide-react';
+import { ChevronLeft, Copy, MoreHorizontal, Send, Trash2 } from 'lucide-react';
 import { Link, useLocation, useParams } from 'wouter';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -26,6 +26,7 @@ import { Button } from '@/components/shared/button';
 import { PageIntro } from '@/components/shared/page-intro';
 import { QueryError } from '@/components/shared/query-error';
 import { EmptyState } from '@/components/shared/empty-state';
+import { RequestStatus } from '@/components/shared/request-status';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { APP_ROUTES } from '@/lib/constants';
@@ -55,6 +56,8 @@ const YESTERDAY_THRESHOLD_HOURS = 48 as const;
 const CHAT_SCROLL_BOTTOM_THRESHOLD_PX = 120 as const;
 /** Scroll position that triggers loading older messages (px). */
 const CHAT_SCROLL_TOP_THRESHOLD_PX = 80 as const;
+/** Confirm-button colours for the destructive dialogs (reject, delete). */
+const DESTRUCTIVE_ACTION_CLASS = 'bg-terracotta text-paper hover:bg-terracotta/90' as const;
 /** Stable selectors used by conversation and message controls. */
 const MESSAGE_TEST_IDS = {
   MESSAGE_ROW_PREFIX: 'message-',
@@ -87,7 +90,7 @@ function sortMessages(list: Message[]): Message[] {
 
 // Quanti degli ultimi messaggi confermati rileggere a ogni poll.
 function TimeAgo({ value }: { value: string }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return <>{value}</>;
 
@@ -95,28 +98,32 @@ function TimeAgo({ value }: { value: string }) {
   if (hours < JUST_NOW_THRESHOLD_HOURS) return <>{t('messages.justNow')}</>;
   if (hours < HOURS_AGO_THRESHOLD_HOURS) return <>{t('messages.hoursAgo').replace('{h}', String(hours))}</>;
   if (hours < YESTERDAY_THRESHOLD_HOURS) return <>{t('messages.yesterday')}</>;
-  return <>{date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</>;
+  return <>{date.toLocaleDateString(language, { day: 'numeric', month: 'short' })}</>;
 }
 
 function MessageBubble({ message, viewerRole }: { message: Message; viewerRole: 'owner' | 'student' }) {
   const mine = message.sender === viewerRole;
   const isSystem = message.kind === 'system';
   if (isSystem) {
+    // System notes sit on the timeline like a ruled entry, not like a speaker.
     return (
-      <div className="flex justify-center items-center py-2" data-testid={`${MESSAGE_TEST_IDS.MESSAGE_ROW_PREFIX}${message.id}`}>
-        <p className="text-xs text-[#527067] italic">{message.body}</p>
+      <div
+        className="flex items-center gap-3 py-2 text-center text-[13px] font-bold text-sage before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line"
+        data-testid={`${MESSAGE_TEST_IDS.MESSAGE_ROW_PREFIX}${message.id}`}
+      >
+        <p className="max-w-[70%]">{message.body}</p>
       </div>
     );
   }
   return (
     <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`} data-testid={`${MESSAGE_TEST_IDS.MESSAGE_ROW_PREFIX}${message.id}`}>
       <div
-        className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-6 ${
-          mine ? 'rounded-br-md bg-[#0F6E56] text-[#E1F5EE]' : 'rounded-bl-md bg-[#E1F5EE] text-[#085041]'
+        className={`max-w-[78%] rounded-control px-3.5 py-2.5 text-[15px] leading-6 ${
+          mine ? 'rounded-br-[2px] bg-shutter text-mint-mist' : 'rounded-bl-[2px] bg-mint-mist text-pine'
         }`}
       >
         <p className="whitespace-pre-wrap break-words">{message.body}</p>
-        <p className={`mt-1 text-[10px] font-bold ${mine ? 'text-[#9FE1CB]' : 'text-[#527067]'}`}>
+        <p className={`mt-0.5 text-[11px] font-bold tabular-nums ${mine ? 'text-mint-mist/90' : 'text-sage'}`}>
           <TimeAgo value={message.sentAt} />
         </p>
       </div>
@@ -135,39 +142,6 @@ function ConversationList({
 }) {
   const { t } = useLanguage();
 
-  const getStatusInfo = (status: Conversation['requestStatus']) => {
-    let text = '';
-    let colorBg = '';
-    let colorText = '';
-    switch (status) {
-      case 'in_attesa':
-        text = t('messages.status.in_attesa');
-        colorBg = 'bg-[#FFF4E5]';
-        colorText = 'text-[#B45309]';
-        break;
-      case 'accettata':
-        text = t('messages.status.accettata');
-        colorBg = 'bg-[#E1F5EE]';
-        colorText = 'text-[#0F6E56]';
-        break;
-      case 'rifiutata':
-        text = t('messages.status.rifiutata');
-        colorBg = 'bg-[#FEE2E2]';
-        colorText = 'text-[#a74b32]';
-        break;
-      case 'annullata':
-        text = t('messages.status.annullata');
-        colorBg = 'bg-[#E5E7EB]';
-        colorText = 'text-[#527067]';
-        break;
-      default:
-        text = status;
-        colorBg = 'bg-[#E5E7EB]';
-        colorText = 'text-[#527067]';
-    }
-    return { text, colorBg, colorText };
-  };
-
   if (!conversations.length) {
     return (
       <EmptyState
@@ -178,43 +152,43 @@ function ConversationList({
   }
 
   return (
-    <div className="divide-y divide-[#e1ebe4]">
+    <ul>
       {conversations.map((conversation) => {
-        const { text: statusText, colorBg, colorText } = getStatusInfo(conversation.requestStatus);
+        const selected = selectedId === conversation.id;
         return (
-          <Link
-            href={`${owner ? APP_ROUTES.OWNER_MESSAGES : APP_ROUTES.MESSAGES}/${conversation.id}`}
-            key={conversation.id}
-            className={`flex gap-3 p-4 transition-colors hover:bg-[#E1F5EE]/65 ${
-              selectedId === conversation.id ? 'bg-[#E1F5EE]' : ''
-            }`}
-            data-testid={`${MESSAGE_TEST_IDS.CONVERSATION_LINK_PREFIX}${conversation.id}`}
-          >
-            <Avatar name={conversation.participant} />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="truncate text-sm font-black text-[#085041]">{conversation.participant}</h3>
-                  <p className="truncate text-xs font-bold text-[#0F6E56]">{conversation.listingTitle}</p>
-                  <span className={`mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${colorBg} ${colorText}`}>
-                    {statusText}
+          <li key={conversation.id} className="border-b border-line last:border-b-0">
+            <Link
+              href={`${owner ? APP_ROUTES.OWNER_MESSAGES : APP_ROUTES.MESSAGES}/${conversation.id}`}
+              aria-current={selected ? 'page' : undefined}
+              className={`flex gap-3 px-4 py-4 transition-colors hover:bg-mint-mist/60 ${
+                selected ? 'bg-mint-mist' : ''
+              }`}
+              data-testid={`${MESSAGE_TEST_IDS.CONVERSATION_LINK_PREFIX}${conversation.id}`}
+            >
+              <Avatar name={conversation.participant} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline justify-between gap-2">
+                  <h3 className="truncate text-[15px] font-extrabold text-pine">{conversation.participant}</h3>
+                  <span className="shrink-0 text-xs font-bold tabular-nums text-sage">
+                    <TimeAgo value={conversation.updatedAt} />
                   </span>
                 </div>
-                <span className="shrink-0 text-[11px] font-bold text-[#82978e]">
-                  <TimeAgo value={conversation.updatedAt} />
-                </span>
+                <p className="truncate text-[13px] font-bold text-shutter">{conversation.listingTitle}</p>
+                <div className="mt-1.5 flex items-center gap-2">
+                  <p className={`min-w-0 flex-1 truncate text-sm ${conversation.unread ? 'font-extrabold text-ink' : 'text-sage'}`}>
+                    {conversation.preview}
+                  </p>
+                  {conversation.unread && (
+                    <span className="h-2 w-2 shrink-0 bg-shutter" role="img" aria-label={t('messages.unread')} />
+                  )}
+                </div>
+                <RequestStatus status={conversation.requestStatus} className="mt-2" />
               </div>
-              <div className="mt-1 flex items-center gap-2">
-                <p className={`truncate text-sm ${conversation.unread ? 'font-extrabold text-[#2C2C2A]' : 'text-[#527067]'}`}>
-                  {conversation.preview}
-                </p>
-                {conversation.unread && <span className="h-2 w-2 shrink-0 rounded-full bg-[#EF9F27]" />}
-              </div>
-            </div>
-          </Link>
+            </Link>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 }
 
@@ -278,41 +252,6 @@ function ConversationPanel({
   // they are the owner, so "mine" depends on the role in THIS conversation.
   const viewerRole: 'owner' | 'student' = conversation?.role ?? (owner ? 'owner' : 'student');
 
-  const getStatusInfo = (status: Conversation['requestStatus']) => {
-    let text = '';
-    let colorBg = '';
-    let colorText = '';
-    switch (status) {
-      case 'in_attesa':
-        text = t('messages.status.in_attesa');
-        colorBg = 'bg-[#FFF4E5]';
-        colorText = 'text-[#B45309]';
-        break;
-      case 'accettata':
-        text = t('messages.status.accettata');
-        colorBg = 'bg-[#E1F5EE]';
-        colorText = 'text-[#0F6E56]';
-        break;
-      case 'rifiutata':
-        text = t('messages.status.rifiutata');
-        colorBg = 'bg-[#FEE2E2]';
-        colorText = 'text-[#a74b32]';
-        break;
-      case 'annullata':
-        text = t('messages.status.annullata');
-        colorBg = 'bg-[#E5E7EB]';
-        colorText = 'text-[#527067]';
-        break;
-      default:
-        text = status;
-        colorBg = 'bg-[#E5E7EB]';
-        colorText = 'text-[#527067]';
-    }
-    return { text, colorBg, colorText };
-  };
-
-  const statusInfo = conversation ? getStatusInfo(conversation.requestStatus) : { text: "", colorBg: "", colorText: "" };
-
   const acceptConversation = useAcceptConversation();
   const rejectConversation = useRejectConversation();
   const cancelConversation = useCancelConversation();
@@ -326,7 +265,6 @@ function ConversationPanel({
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showReleaseDialog, setShowReleaseDialog] = useState(false);
-  const { text: statusText, colorBg: statusColorBg, colorText: statusColorText } = statusInfo;
   const actionPending =
     acceptConversation.isPending ||
     rejectConversation.isPending ||
@@ -536,150 +474,142 @@ function ConversationPanel({
 
   return (
     <>
-      <div className="flex h-[75vh] max-h-[720px] min-h-[520px] flex-col">
-        <div className="flex items-center justify-between border-b border-[#e1ebe4] p-5">
-          <div className="flex items-center gap-3">
-            <Link
-              href={owner ? APP_ROUTES.OWNER_MESSAGES : APP_ROUTES.MESSAGES}
-              className="-ml-2 rounded-lg p-2 text-[#527067] hover:bg-[#E1F5EE] lg:hidden"
-              aria-label={t('messages.back')}
-              data-testid={MESSAGE_TEST_IDS.LINK_BACK_TO_INBOX}
-            >
-              <ChevronLeft size={20} />
-            </Link>
-            {conversation && <Avatar name={conversation.participant} size="sm" />}
-            <div>
-              <h2 className="font-black text-[#085041]">
-                {conversation?.participant ?? t('messages.conversationFallback')}
-              </h2>
-              <p className="text-xs font-bold text-[#527067]">
-                {conversation?.listingTitle ?? t('messages.roomlyMessagesFallback')}
-              </p>
-              <span className={`mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusColorBg} ${statusColorText}`}>
-                {statusText}
-              </span>
-              {conversation?.roomStatus === 'affittata' && (
-                <span className="ml-2 rounded-full bg-[#FCE8C8] px-2 py-0.5 text-xs font-bold text-[#8A4B08]">
-                  {t('messages.roomRented')}
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
+      <div className="flex h-[calc(100dvh-176px)] min-h-[400px] flex-col lg:h-[75vh] lg:max-h-[720px] lg:min-h-[520px]">
+        <div className="flex items-center gap-3 border-b border-line px-3 py-3 sm:px-5">
+          <Link
+            href={owner ? APP_ROUTES.OWNER_MESSAGES : APP_ROUTES.MESSAGES}
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-control text-pine hover:bg-mint-mist lg:hidden"
+            aria-label={t('messages.back')}
+            data-testid={MESSAGE_TEST_IDS.LINK_BACK_TO_INBOX}
+          >
+            <ChevronLeft size={20} />
+          </Link>
+          {conversation && <Avatar name={conversation.participant} size="sm" />}
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-[17px] font-black text-pine">
+              {conversation?.participant ?? t('messages.conversationFallback')}
+            </h2>
+            <p className="truncate text-[13px] font-bold text-shutter">
+              {conversation?.listingTitle ?? t('messages.roomlyMessagesFallback')}
+            </p>
             {conversation && (
-              <>
-                {conversation.requestStatus === 'in_attesa' && conversation.role === 'owner' && (
-                  <>
-                    <Button
-                      variant="amber"
-                      onClick={() => setShowAcceptDialog(true)}
-                      disabled={actionPending}
-                      aria-label={t('messages.accept')}
-                      title={t('messages.accept')}
-                      data-testid={MESSAGE_TEST_IDS.BUTTON_ACCEPT_CONVERSATION}
-                      className="h-11 rounded-full px-5"
-                    >
-                      <Check size={16} /> {t('messages.accept')}
-                    </Button>
-                    <Button
-                      variant="amber"
-                      onClick={() => setShowRejectDialog(true)}
-                      disabled={actionPending}
-                      aria-label={t('messages.reject')}
-                      title={t('messages.reject')}
-                      data-testid={MESSAGE_TEST_IDS.BUTTON_REJECT_CONVERSATION}
-                      className="h-11 rounded-full px-5"
-                    >
-                      <X size={16} /> {t('messages.reject')}
-                    </Button>
-                  </>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <RequestStatus status={conversation.requestStatus} />
+                {conversation.roomStatus === 'affittata' && (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-pine">
+                    <span className="h-2 w-2 bg-pine" aria-hidden />
+                    {t('messages.roomRented')}
+                  </span>
                 )}
-                {conversation.requestStatus === 'in_attesa' && conversation.role === 'student' && (
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowCancelDialog(true)}
-                    disabled={actionPending}
-                    data-testid={MESSAGE_TEST_IDS.BUTTON_CANCEL_CONVERSATION}
-                  >
-                    <X size={16} /> {t('messages.cancelRequest')}
-                  </Button>
-                )}
-                {conversation.requestStatus === 'accettata' && conversation.role === 'owner' && (
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowReleaseDialog(true)}
-                    disabled={actionPending}
-                    data-testid={MESSAGE_TEST_IDS.BUTTON_RELEASE_LISTING}
-                  >
-                    {t('messages.releaseRoom')}
-                  </Button>
-                )}
-              </>
+              </div>
             )}
           </div>
-          <div className="flex items-center">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className="rounded-lg p-2 text-[#527067] hover:bg-[#E1F5EE]"
-                  data-testid={MESSAGE_TEST_IDS.BUTTON_CONVERSATION_MORE}
-                  aria-label={t('messages.moreOptions')}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-control text-pine hover:bg-mint-mist"
+                data-testid={MESSAGE_TEST_IDS.BUTTON_CONVERSATION_MORE}
+                aria-label={t('messages.moreOptions')}
+              >
+                <MoreHorizontal size={19} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={copyListing} data-testid={MESSAGE_TEST_IDS.MENU_COPY_LISTING}>
+                <Copy size={15} className="mr-2" /> {t('messages.copyListingName')}
+              </DropdownMenuItem>
+              {requestStatus === 'annullata' && (
+                <DropdownMenuItem
+                  onSelect={() => setShowDeleteDialog(true)}
+                  className="text-terracotta"
+                  data-testid={MESSAGE_TEST_IDS.MENU_DELETE_CONVERSATION}
                 >
-                  <MoreHorizontal size={19} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={copyListing} data-testid={MESSAGE_TEST_IDS.MENU_COPY_LISTING}>
-                  <Copy size={15} className="mr-2" /> {t('messages.copyListingName')}
+                  <Trash2 size={15} className="mr-2" /> {t('messages.deleteChat')}
                 </DropdownMenuItem>
-                {requestStatus === 'annullata' && (
-                  <DropdownMenuItem
-                    onSelect={() => setShowDeleteDialog(true)}
-                    className="text-[#a74b32]"
-                    data-testid={MESSAGE_TEST_IDS.MENU_DELETE_CONVERSATION}
-                  >
-                    <Trash2 size={15} className="mr-2" /> {t('messages.deleteChat')}
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
+
+        {conversation &&
+          (conversation.requestStatus === 'in_attesa' ||
+            (conversation.requestStatus === 'accettata' && conversation.role === 'owner')) && (
+            <div className="flex flex-wrap items-center gap-2 border-b border-line bg-ground/60 px-3 py-3 sm:px-5">
+              {conversation.requestStatus === 'in_attesa' && conversation.role === 'owner' && (
+                <>
+                  <Button
+                    variant="amber"
+                    onClick={() => setShowAcceptDialog(true)}
+                    disabled={actionPending}
+                    data-testid={MESSAGE_TEST_IDS.BUTTON_ACCEPT_CONVERSATION}
+                  >
+                    {t('messages.accept')}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowRejectDialog(true)}
+                    disabled={actionPending}
+                    data-testid={MESSAGE_TEST_IDS.BUTTON_REJECT_CONVERSATION}
+                  >
+                    {t('messages.reject')}
+                  </Button>
+                </>
+              )}
+              {conversation.requestStatus === 'in_attesa' && conversation.role === 'student' && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCancelDialog(true)}
+                  disabled={actionPending}
+                  data-testid={MESSAGE_TEST_IDS.BUTTON_CANCEL_CONVERSATION}
+                >
+                  {t('messages.cancelRequest')}
+                </Button>
+              )}
+              {conversation.requestStatus === 'accettata' && conversation.role === 'owner' && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowReleaseDialog(true)}
+                  disabled={actionPending}
+                  data-testid={MESSAGE_TEST_IDS.BUTTON_RELEASE_LISTING}
+                >
+                  {t('messages.releaseRoom')}
+                </Button>
+              )}
+            </div>
+          )}
 
         {copied && (
           <p
-            className="border-b border-[#e1ebe4] bg-[#E1F5EE] px-5 py-2 text-xs font-extrabold text-[#0F6E56]"
+            className="border-b border-line bg-mint-mist px-5 py-2 text-[13px] font-extrabold text-shutter"
+            role="status"
             data-testid={MESSAGE_TEST_IDS.STATUS_LISTING_COPIED}
           >
             {t('messages.listingNameCopied')}
           </p>
         )}
 
-        <div ref={scrollRef} onScroll={handleScroll} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5">
-          {loadingOlder && <div className="skeleton mx-auto h-4 w-24 rounded-full" />}
+        <div ref={scrollRef} onScroll={handleScroll} className="min-h-0 flex-1 space-y-2.5 overflow-y-auto px-3 py-5 sm:px-5">
+          {loadingOlder && <div className="skeleton mx-auto h-4 w-24 rounded-sheet" />}
           {isLoading ? (
             <>
               {[1, 2, 3].map((item) => (
-                <div key={item} className={`skeleton h-12 w-2/3 rounded-2xl ${item % 2 ? '' : 'ml-auto'}`} />
+                <div key={item} className={`skeleton h-12 w-2/3 rounded-control ${item % 2 ? '' : 'ml-auto'}`} />
               ))}
             </>
           ) : isError ? (
-            <QueryError onRetry={() => refetch()} />
+            <QueryError inset onRetry={() => refetch()} />
           ) : messages.length ? (
             messages.map((message) => <MessageBubble key={message.id} message={message} viewerRole={viewerRole} />)
           ) : (
-            <div className="flex h-full flex-col items-center justify-center text-center">
-              <div className="rounded-xl bg-[#E1F5EE] p-3 text-[#0F6E56]">
-                <Mail size={22} />
-              </div>
-              <p className="mt-3 font-black text-[#085041]">{t('messages.startConversation')}</p>
-              <p className="mt-1 text-sm text-[#527067]">{t('messages.startConversationText')}</p>
+            <div className="flex h-full flex-col justify-end pb-4">
+              <p className="text-[17px] font-black text-pine">{t('messages.startConversation')}</p>
+              <p className="mt-1 max-w-sm text-sm leading-6 text-sage">{t('messages.startConversationText')}</p>
             </div>
           )}
         </div>
 
-        <form onSubmit={submit} className="border-t border-[#e1ebe4] p-4">
-          <div className="flex items-end gap-2 rounded-xl border border-[#c8ddd2] bg-[#F1EFE8] p-2 focus-within:border-[#0F6E56]">
+        <form onSubmit={submit} className="border-t border-line p-3 sm:p-4">
+          <div className="flex items-end gap-2 rounded-control border border-field bg-paper p-1.5 focus-within:border-shutter focus-within:ring-[3px] focus-within:ring-mint-wash/40">
             <textarea
               value={body}
               onChange={(event) => setBody(event.target.value)}
@@ -692,35 +622,38 @@ function ConversationPanel({
               }}
               maxLength={MESSAGE_MAX_LENGTH_CHARS}
               rows={1}
+              aria-label={t('messages.writeMessage')}
               placeholder={isClosed ? t('messages.closedChat') : t('messages.writeMessage')}
               disabled={isClosed || sendMessage.isPending}
-              className="max-h-28 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none placeholder:text-[#82978e]"
+              className="max-h-28 min-h-11 flex-1 resize-none bg-transparent px-2.5 py-2.5 text-base text-ink outline-none placeholder:text-sage disabled:cursor-not-allowed"
               data-testid={MESSAGE_TEST_IDS.INPUT_MESSAGE_BODY}
             />
             <Button
               type="submit"
-              className="h-10 w-10 shrink-0 rounded-lg p-0"
+              aria-label={t('messages.send')}
+              title={t('messages.send')}
+              className="h-11 w-11 shrink-0 p-0"
               disabled={!body.trim() || isClosed || sendMessage.isPending}
               data-testid={MESSAGE_TEST_IDS.BUTTON_SEND_MESSAGE}
             >
-              <Send size={16} />
+              <Send size={17} />
             </Button>
           </div>
           {sendMessage.isError && (
-            <p className="mt-2 text-xs font-bold text-[#a74b32]">
+            <p className="mt-2 text-[13px] font-bold text-terracotta" role="alert">
               {isClosed ? t('messages.closedChat') : t('messages.sendError')}
             </p>
           )}
         </form>
       </div>
       <AlertDialog open={showAcceptDialog} onOpenChange={setShowAcceptDialog}>
-        <AlertDialogContent className="w-[300px] sm:w-[350px]">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('messages.acceptConversation')}</AlertDialogTitle>
             <AlertDialogDescription>{t('messages.acceptConversationDescription')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t('common.tryAgain')}</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => void acceptRequest()}
               disabled={actionPending}
@@ -731,16 +664,17 @@ function ConversationPanel({
         </AlertDialogContent>
       </AlertDialog>
       <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-        <AlertDialogContent className="w-[300px] sm:w-[350px]">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('messages.rejectConversation')}</AlertDialogTitle>
             <AlertDialogDescription>{t('messages.rejectConversationDescription')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t('common.tryAgain')}</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => void rejectRequest()}
               disabled={actionPending}
+              className={DESTRUCTIVE_ACTION_CLASS}
             >
               {t('messages.reject')}
             </AlertDialogAction>
@@ -755,7 +689,11 @@ function ConversationPanel({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('messages.keepChat')}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void deleteChat()} data-testid={MESSAGE_TEST_IDS.BUTTON_CONFIRM_DELETE_CONVERSATION}>
+            <AlertDialogAction
+              onClick={() => void deleteChat()}
+              className={DESTRUCTIVE_ACTION_CLASS}
+              data-testid={MESSAGE_TEST_IDS.BUTTON_CONFIRM_DELETE_CONVERSATION}
+            >
               {t('messages.deleteChat')}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -763,13 +701,13 @@ function ConversationPanel({
       </AlertDialog>
 
       <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-        <AlertDialogContent className="w-[300px] sm:w-[350px]">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('messages.cancelConversation')}</AlertDialogTitle>
             <AlertDialogDescription>{t('messages.cancelConversationDescription')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t('common.tryAgain')}</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => void cancelRequest()}
               disabled={actionPending}
@@ -780,13 +718,13 @@ function ConversationPanel({
         </AlertDialogContent>
       </AlertDialog>
       <AlertDialog open={showReleaseDialog} onOpenChange={setShowReleaseDialog}>
-        <AlertDialogContent className="w-[300px] sm:w-[350px]">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('messages.releaseListing')}</AlertDialogTitle>
             <AlertDialogDescription>{t('messages.releaseListingDescription')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t('common.tryAgain')}</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => void releaseRoom()}
               disabled={actionPending}
@@ -815,39 +753,35 @@ export function MessagesPage({ owner = false }: { owner?: boolean }) {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-[1320px] px-5 py-8 lg:px-8 lg:py-12">
-        <PageIntro
-          eyebrow={owner ? t('messages.ownerInboxEyebrow') : t('messages.yourMessagesEyebrow')}
-          title={owner ? t('messages.ownerTitle') : t('messages.studentTitle')}
-          description={owner ? t('messages.ownerDescription') : t('messages.studentDescription')}
-        />
+      <div className={`mx-auto max-w-[1320px] px-5 lg:px-8 lg:py-12 ${selectedId ? 'pb-4 pt-3' : 'py-8'}`}>
+        {/* With a chat open on a phone the chat owns the screen; the title stays for screen readers. */}
+        <PageIntro title={t('nav.messages')} className={selectedId ? 'max-lg:sr-only' : undefined} />
 
-        <div className="grid min-h-[520px] overflow-hidden rounded-2xl border border-[#d6e7de] bg-[#F8F8F2] lg:grid-cols-[360px_1fr]">
+        <div className="grid overflow-hidden lg:min-h-[520px] rounded-sheet border border-hairline bg-paper lg:grid-cols-[360px_1fr]">
           <section
-            className={`border-b border-[#d6e7de] lg:block lg:border-b-0 lg:border-r ${selectedId ? 'hidden' : ''}`}
+            aria-labelledby="inbox-title"
+            className={`border-b border-line lg:block lg:border-b-0 lg:border-r ${selectedId ? 'hidden' : ''}`}
           >
-            <div className="flex items-center justify-between border-b border-[#e1ebe4] p-4">
-              <h2 className="font-black text-[#085041]">{t('messages.inbox')}</h2>
-              <span className="rounded-full bg-[#E1F5EE] px-2.5 py-1 text-xs font-black text-[#0F6E56]">
-                {conversations.length}
-              </span>
+            <div className="flex items-baseline justify-between border-b border-line px-4 py-4">
+              <h2 id="inbox-title" className="text-[17px] font-black text-pine">{t('messages.inbox')}</h2>
+              <span className="text-sm font-bold tabular-nums text-sage">{conversations.length}</span>
             </div>
 
             {isLoading ? (
-              <div className="space-y-4 p-4">
+              <div className="space-y-5 p-4">
                 {[1, 2, 3].map((item) => (
                   <div key={item} className="flex gap-3">
                     <div className="skeleton h-10 w-10 rounded-full" />
                     <div className="flex-1 space-y-2">
-                      <div className="skeleton h-3 w-1/2 rounded" />
-                      <div className="skeleton h-3 w-4/5 rounded" />
+                      <div className="skeleton h-3 w-1/2 rounded-sheet" />
+                      <div className="skeleton h-3 w-4/5 rounded-sheet" />
                     </div>
                   </div>
                 ))}
               </div>
             ) : isError ? (
               <div className="p-4">
-                <QueryError onRetry={() => refetch()} />
+                <QueryError inset onRetry={() => refetch()} />
               </div>
             ) : (
               <ConversationList conversations={conversations} selectedId={selectedId} owner={owner} />
@@ -862,10 +796,9 @@ export function MessagesPage({ owner = false }: { owner?: boolean }) {
                 owner={owner}
               />
             ) : (
-              <div className="flex h-full flex-col items-center justify-center p-8 text-center">
-                <MessageCircle size={30} className="mb-3 text-[#9FE1CB]" />
-                <p className="font-black text-[#085041]">{t('messages.pickConversation')}</p>
-                <p className="mt-1 text-sm text-[#527067]">{t('messages.pickConversationText')}</p>
+              <div className="flex h-full flex-col justify-center px-10 py-12">
+                <p className="text-[22px] font-black leading-tight text-pine">{t('messages.pickConversation')}</p>
+                <p className="mt-2 max-w-sm text-[15px] leading-6 text-sage">{t('messages.pickConversationText')}</p>
               </div>
             )}
           </section>

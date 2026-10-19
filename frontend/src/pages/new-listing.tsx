@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, CircleAlert, CircleCheck, ShieldCheck, Upload, X } from 'lucide-react';
+import { ChevronLeft, CircleAlert, CircleCheck, Upload, X } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useCreateListing } from '@workspace/api-client-react';
 import type { ListingInput } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
 import { AppShell } from '@/components/layout/app-shell';
 import { PageIntro } from '@/components/shared/page-intro';
+import { SectionHead } from '@/components/shared/section-head';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import {
   EMPTY_LISTING_FEATURES,
@@ -37,9 +38,9 @@ type ListingForm = ListingInput & ListingFeaturesValue & {
 
 function Field({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
   return (
-    <label className="mb-5 block">
-      <span className="block text-sm font-black text-[#085041]">{label}</span>
-      <span className="mb-2 mt-0.5 block text-xs font-bold text-[#82978e]">{hint}</span>
+    <label className="mb-6 block">
+      <span className="block text-[13px] font-extrabold text-pine">{label}</span>
+      <span className="mb-2 mt-1 block text-[13px] leading-5 text-sage">{hint}</span>
       {children}
     </label>
   );
@@ -191,23 +192,24 @@ export function NewListingPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-[920px] px-5 py-8 lg:px-8 lg:py-12">
+      <div className="mx-auto max-w-[1320px] px-5 pb-20 pt-6 lg:px-8 lg:pt-8">
         <Link
           href={APP_ROUTES.OWNER_DASHBOARD}
-          className="mb-6 inline-flex items-center gap-2 text-sm font-black text-[#0F6E56]"
+          className="inline-flex min-h-11 items-center gap-1.5 text-[15px] font-extrabold text-shutter underline decoration-shutter/40 underline-offset-4 hover:decoration-2 hover:decoration-shutter"
           data-testid={LISTING_FORM_TEST_IDS.LINK_BACK_OWNER}
         >
-          <ChevronLeft size={16} /> {t('newListing.dashboardLink')}
+          <ChevronLeft size={16} aria-hidden /> {t('newListing.dashboardLink')}
         </Link>
 
         <PageIntro
-          eyebrow={t('newListing.eyebrow')}
-          title={t('newListing.title')}
-          description={t('newListing.description')}
+          title={t('newListing.eyebrow')}
+          lede={t('newListing.description')}
+          className="mt-4"
         />
 
-        <form onSubmit={submit} className="grid gap-6 lg:grid-cols-[1fr_300px]">
-          <div className="surface rounded-2xl p-5 sm:p-7">
+        <form onSubmit={submit} className="max-w-2xl">
+          <div className="min-w-0">
+            <SectionHead title={t('newListing.sectionListing')} className="mb-6" />
             <Field label={t('newListing.titleLabel')} hint={t('newListing.titleHint')}>
               <input
                 value={form.title}
@@ -221,28 +223,28 @@ export function NewListingPage() {
             <Field label={t('newListing.addressLabel')} hint={t('newListing.addressHint')}>
               <AddressAutocomplete onPlaceSelect={handleAddressSelect} onClear={handleAddressClear} />
               {form.latitude !== 0 && form.longitude !== 0 && (
-                <span className="mt-2 flex items-center gap-1.5 text-xs font-bold text-[#0F6E56]">
-                  <CircleCheck size={14} />
+                <span className="mt-2 flex items-center gap-1.5 text-[13px] font-bold text-shutter">
+                  <CircleCheck size={14} className="shrink-0" aria-hidden />
                   {[form.address, form.postcode, form.city].filter(Boolean).join(', ')}
                 </span>
               )}
               {addressError && (
-                <span className="mt-2 flex items-center gap-1.5 text-xs font-bold text-[#a74b32]">
-                  <CircleAlert size={14} /> {t('newListing.addressRequired')}
+                <span className="mt-2 flex items-center gap-1.5 text-[13px] font-bold text-terracotta" role="alert">
+                  <CircleAlert size={14} className="shrink-0" aria-hidden /> {t('newListing.addressRequired')}
                 </span>
               )}
             </Field>
 
             <Field label={t('newListing.priceLabel')} hint={t('newListing.priceHint')}>
               <div className="relative">
-                <span className="absolute left-4 top-3 font-black text-[#0F6E56]">€</span>
+                <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 font-extrabold text-sage" aria-hidden>€</span>
                 <input
                   type="number"
                   min="1"
                   value={form.price || ''}
                   onChange={(event) => update('price', event.target.value)}
                   placeholder={LISTING_PRICE_PLACEHOLDER}
-                  className="form-input"
+                  className="form-input tabular-nums"
                   style={{ paddingLeft: LISTING_PRICE_INPUT_PADDING_LEFT_PX }}
                   data-testid={LISTING_FORM_TEST_IDS.INPUT_LISTING_PRICE}
                 />
@@ -261,52 +263,13 @@ export function NewListingPage() {
             </Field>
 
             {/* Room type, house rules and feature groups (columns of `stanze`). */}
-            <ListingFeaturesFields
-              value={form}
-              onChange={(features) => setForm((current) => ({ ...current, ...features }))}
-            />
-
-            {fieldsError && (
-              <p className="mt-5 flex items-center gap-2 rounded-xl bg-[#f7ddd1] px-4 py-3 text-sm font-bold text-[#a74b32]">
-                <CircleAlert size={16} /> {t('newListing.fieldsRequired')}
-              </p>
-            )}
-
-            {createListing.isError && (
-              <p className="mt-5 flex items-center gap-2 rounded-xl bg-[#f7ddd1] px-4 py-3 text-sm font-bold text-[#a74b32]">
-                <CircleAlert size={16} />{' '}
-                {(createListing.error as any)?.status === 401
-                  ? t('newListing.publishErrorAuth')
-                  : (createListing.error as any)?.status === 400
-                    ? t('newListing.publishErrorAddress')
-                    : t('newListing.publishError')}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={createListing.isPending || isUploadingPhotos}
-              data-testid={LISTING_FORM_TEST_IDS.BUTTON_PUBLISH_LISTING}
-              className="mt-2 h-12 w-full rounded-xl bg-[#EF9F27] px-6 font-extrabold text-[#2C2C2A] transition-all duration-200 hover:bg-[#e6a53d] active:scale-[0.98] disabled:opacity-60 sm:w-auto"
-            >
-              {isUploadingPhotos
-                ? createdListingId
-                  ? t('newListing.photosUploading')
-                  : t('newListing.publishing')
-                : createdListingId
-                  ? t('newListing.photosRetry')
-                  : t('newListing.publish')}
-            </button>
-          </div>
-
-          <aside className="space-y-5">
-            <div className="surface rounded-2xl p-5">
-              <p className="eyebrow">{t('newListing.photosLabel')}</p>
-              <h2 className="mt-1 font-black text-[#085041]">{t('newListing.photosHeadline')}</h2>
-              <p className="mt-1 text-[11px] text-[#82978e]">{t('newListing.photosNote')}</p>
-              <label className={`mt-4 flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#b7d7ca] bg-[#E1F5EE] p-3 text-center transition hover:bg-[#d6f0e6] ${createdListingId || isUploadingPhotos ? 'cursor-not-allowed opacity-60' : ''}`}>
-                <Upload size={20} className="text-[#0F6E56]" />
-                <span className="mt-2 text-xs font-extrabold text-[#527067]">{t('newListing.photosSelect')}</span>
+            <section aria-labelledby="listing-photos" className="mt-14">
+              <SectionHead id="listing-photos" title={t('newListing.photosLabel')} />
+              <p className="mt-3 text-[15px] font-bold text-pine">{t('newListing.photosHeadline')}</p>
+              <p className="mt-1 text-[13px] leading-5 text-sage">{t('newListing.photosNote')}</p>
+              <label className={`mt-4 flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-sheet border-2 border-dashed border-outline bg-paper p-4 text-center transition-colors hover:border-shutter hover:bg-mint-mist focus-within:border-shutter focus-within:ring-[3px] focus-within:ring-mint-wash/40 ${createdListingId || isUploadingPhotos ? 'cursor-not-allowed opacity-60' : ''}`}>
+                <Upload size={20} className="text-shutter" aria-hidden />
+                <span className="mt-2 text-sm font-extrabold text-pine">{t('newListing.photosSelect')}</span>
                 <input
                   type="file"
                   accept="image/png,image/jpeg,.png,.jpg,.jpeg"
@@ -318,19 +281,19 @@ export function NewListingPage() {
                 />
               </label>
 
-              {photoError && <p className="mt-2 text-xs font-bold text-[#a74b32]">{photoError}</p>}
+              {photoError && <p className="mt-2 text-[13px] font-bold text-terracotta" role="alert">{photoError}</p>}
               {photoUploadError && (
-                <p className="mt-2 text-xs font-bold text-[#a74b32]" role="alert">
+                <p className="mt-2 text-[13px] font-bold text-terracotta" role="alert">
                   {t('newListing.photosUploadError')}
                 </p>
               )}
               {selectedPhotos.length > 0 && (
-                <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
                   {selectedPhotos.map((photo, index) => (
-                    <div key={`${photo.name}-${photo.lastModified}-${index}`} className="relative aspect-square overflow-hidden rounded-lg bg-[#E1F5EE]">
+                    <div key={`${photo.name}-${photo.lastModified}-${index}`} className="relative aspect-square overflow-hidden rounded-sheet bg-mint-mist">
                       <img src={photoPreviews[index]} alt={photo.name} className="h-full w-full object-cover" />
                       {index === 0 && (
-                        <span className="absolute bottom-1 left-1 rounded bg-[#085041]/90 px-1.5 py-1 text-[10px] font-black text-white">
+                        <span className="absolute bottom-1.5 left-1.5 rounded-sheet bg-pine px-1.5 py-0.5 text-[11px] font-extrabold text-mint-mist">
                           {t('newListing.photosCover')}
                         </span>
                       )}
@@ -341,7 +304,7 @@ export function NewListingPage() {
                             setSelectedPhotos((current) => current.filter((_, itemIndex) => itemIndex !== index));
                             setPhotoError(null);
                           }}
-                          className="absolute right-1 top-1 rounded-full bg-white/90 p-1 text-[#a74b32]"
+                          className="absolute right-1.5 top-1.5 grid h-9 w-9 place-items-center rounded-control bg-paper/95 text-terracotta shadow-float"
                           aria-label={t('newListing.photosRemove')}
                           title={t('newListing.photosRemove')}
                         >
@@ -353,19 +316,56 @@ export function NewListingPage() {
                 </div>
               )}
               {isUploadingPhotos && createdListingId && (
-                <p className="mt-2 text-xs font-bold text-[#0F6E56]">
+                <p className="mt-2 text-[13px] font-bold tabular-nums text-shutter" role="status">
                   {t('newListing.photosUploading')} ({uploadedPhotoCount}/{selectedPhotos.length})
                 </p>
               )}
+            </section>
+
+            <SectionHead title={t('newListing.sectionRoom')} className="mb-6 mt-14" />
+            <ListingFeaturesFields
+              value={form}
+              onChange={(features) => setForm((current) => ({ ...current, ...features }))}
+            />
+
+            {fieldsError && (
+              <p className="mt-6 flex items-start gap-2 rounded-sheet bg-terracotta-mist px-4 py-3 text-sm font-bold text-terracotta" role="alert">
+                <CircleAlert size={16} className="mt-0.5 shrink-0" aria-hidden /> {t('newListing.fieldsRequired')}
+              </p>
+            )}
+
+            {createListing.isError && (
+              <p className="mt-6 flex items-start gap-2 rounded-sheet bg-terracotta-mist px-4 py-3 text-sm font-bold text-terracotta" role="alert">
+                <CircleAlert size={16} className="mt-0.5 shrink-0" aria-hidden />{' '}
+                {(createListing.error as any)?.status === 401
+                  ? t('newListing.publishErrorAuth')
+                  : (createListing.error as any)?.status === 400
+                    ? t('newListing.publishErrorAddress')
+                    : t('newListing.publishError')}
+              </p>
+            )}
+
+            <div className="mt-12 border-t-[3px] border-pine pt-4">
+              <p className="text-[15px] font-extrabold text-pine">{t('newListing.promiseTitle')}</p>
+              <p className="mt-1.5 text-[15px] leading-6 text-ink">{t('newListing.promiseText')}</p>
             </div>
 
-            <div className="rounded-2xl bg-[#EF9F27] p-5">
-              <p className="flex items-center gap-2 text-sm font-black text-[#085041]">
-                <ShieldCheck size={17} /> {t('newListing.promiseTitle')}
-              </p>
-              <p className="mt-2 text-sm leading-6 text-[#624c2e]">{t('newListing.promiseText')}</p>
-            </div>
-          </aside>
+            <button
+              type="submit"
+              disabled={createListing.isPending || isUploadingPhotos}
+              data-testid={LISTING_FORM_TEST_IDS.BUTTON_PUBLISH_LISTING}
+              className="mt-10 inline-flex h-12 w-full items-center justify-center rounded-control bg-sun px-7 text-base font-extrabold text-ink transition-colors hover:bg-sun-hover active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+            >
+              {isUploadingPhotos
+                ? createdListingId
+                  ? t('newListing.photosUploading')
+                  : t('newListing.publishing')
+                : createdListingId
+                  ? t('newListing.photosRetry')
+                  : t('newListing.publish')}
+            </button>
+          </div>
+
         </form>
       </div>
     </AppShell>

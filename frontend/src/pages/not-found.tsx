@@ -1,30 +1,29 @@
 import { Link } from 'wouter';
-import { ArrowRight } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { APP_ROUTES } from '@/lib/constants';
+import { BrandBand } from '@/components/layout/auth-layout';
+import { CityPlan } from '@/components/shared/city-plan';
 
 export default function NotFound() {
   const { t } = useLanguage();
   return (
-    <div className="min-h-screen w-full flex items-center justify-center relative bg-[hsl(var(--primary))] overflow-hidden">
-      {/* Yellow circles on edges */}
-      <div className="absolute -top-16 -left-16 h-32 w-32 rounded-full bg-[hsl(var(--accent))]/40" />
-      <div className="absolute -bottom-16 -right-16 h-48 w-48 rounded-full bg-[hsl(var(--accent))]/35" />
-      <div className="absolute -top-24 -right-20 h-24 w-24 rounded-full bg-[hsl(var(--accent))]/45" />
-      <div className="absolute bottom-20 left-20 h-20 w-20 rounded-full bg-[hsl(var(--accent))]/50" />
-
-      <div className="relative z-10 flex flex-col items-center text-center space-y-6">
-        <h1 className="text-5xl font-bold text-white">
-          {t('notFound.heading')}
-        </h1>
-        <p className="text-lg text-white/90">
-          {t('notFound.text')}
-        </p>
-        <Link href={APP_ROUTES.HOME} className="inline-flex items-center gap-2 rounded-xl bg-white/20 px-6 py-3 text-white font-semibold hover:bg-white/25 transition-all duration-200">
-          {t('notFound.backHome')}
-          <ArrowRight size={16} className="text-white" />
-        </Link>
-      </div>
+    <div className="flex min-h-[100dvh] flex-col bg-ground text-ink">
+      <BrandBand />
+      <main className="mx-auto grid w-full max-w-[1320px] flex-1 content-start gap-12 px-5 pb-20 pt-12 lg:grid-cols-12 lg:items-center lg:gap-8 lg:px-8 lg:pt-16">
+        <div className="page-enter lg:col-span-5">
+          <h1 className="display-heading text-[clamp(2.5rem,5vw,3.5rem)] text-pine">{t('notFound.title')}</h1>
+          <p className="mt-4 max-w-md text-pretty text-[17px] leading-[1.55] text-pine-text">{t('notFound.text')}</p>
+          <Link
+            href={APP_ROUTES.HOME}
+            className="mt-8 inline-flex min-h-12 items-center rounded-control bg-sun px-6 text-base font-extrabold text-ink transition-colors hover:bg-sun-hover"
+          >
+            {t('notFound.backHome')}
+          </Link>
+        </div>
+        <div className="lg:col-span-6 lg:col-start-7">
+          <CityPlan variant="lost" className="max-w-xl lg:max-w-none" />
+        </div>
+      </main>
     </div>
   );
 }

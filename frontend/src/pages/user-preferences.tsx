@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { ArrowLeft, SlidersHorizontal } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { Link } from 'wouter';
 import {
   API_BASE_PATH,
@@ -9,6 +9,8 @@ import {
 } from '@workspace/api-zod';
 import { AppShell } from '@/components/layout/app-shell';
 import { PageIntro } from '@/components/shared/page-intro';
+import { SectionHead } from '@/components/shared/section-head';
+import { Button } from '@/components/shared/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -68,8 +70,8 @@ async function apiError(response: Response): Promise<Error> {
 
 function PreferenceField({ id, label, children }: { id: string; label: string; children: ReactNode }) {
   return (
-    <div className="space-y-2">
-      <Label htmlFor={id} className="font-bold text-[#085041]">{label}</Label>
+    <div className="flex flex-col gap-2">
+      <Label htmlFor={id}>{label}</Label>
       {children}
     </div>
   );
@@ -162,69 +164,64 @@ export function UserPreferencesPage({ owner = false }: { owner?: boolean }) {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-[920px] px-5 py-8 lg:px-8 lg:py-12">
+      <div className="mx-auto max-w-[1320px] px-5 pb-20 pt-6 lg:px-8 lg:pt-8">
+        <Link
+          href={backHref}
+          className="inline-flex min-h-11 items-center gap-1.5 text-[15px] font-extrabold text-shutter underline decoration-shutter/40 underline-offset-4 hover:decoration-2 hover:decoration-shutter"
+        >
+          <ChevronLeft size={16} aria-hidden /> {t('preferences.back')}
+        </Link>
         <PageIntro
-          eyebrow={t('preferences.eyebrow')}
-          title={t('preferences.title')}
-          description={t('preferences.description')}
-          action={
-            <Link
-              href={backHref}
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-[#0850411a] px-4 py-2.5 text-sm font-bold text-[#085041] transition-colors hover:bg-[#E1F5EE]"
-            >
-              <ArrowLeft size={16} />
-              {t('preferences.back')}
-            </Link>
-          }
+          title={t('preferences.eyebrow')}
+          lede={t('preferences.description')}
+          className="mt-4"
         />
 
-        <section className="surface rounded-2xl p-5 sm:p-7" data-testid="section-user-preferences">
-          <div className="mb-6 flex items-center gap-3">
-            <span className="rounded-xl bg-[#E1F5EE] p-2.5 text-[#0F6E56]">
-              <SlidersHorizontal size={18} />
-            </span>
-            <div>
-              <p className="eyebrow">{t('preferences.sectionEyebrow')}</p>
-              <h2 className="mt-1 text-xl font-black text-[#085041]">{t('preferences.sectionTitle')}</h2>
-            </div>
-          </div>
+        <section aria-labelledby="preferences-title" className="max-w-3xl" data-testid="section-user-preferences">
+          <SectionHead id="preferences-title" title={t('preferences.sectionTitle')} className="mb-6" />
 
           {loading ? (
-            <p className="text-sm text-[#527067]" role="status">{t('loading')}</p>
+            <p className="text-[15px] text-sage" role="status">{t('loading')}</p>
           ) : loadFailed ? (
             <div className="space-y-3">
-              <p className="text-sm font-semibold text-red-700" role="alert">{error}</p>
-              <button
+              <p className="text-sm font-bold text-terracotta" role="alert">{error}</p>
+              <Button
+                variant="outline"
                 type="button"
                 onClick={() => {
                   setError(null);
                   setLoading(true);
                   setLoadAttempt((attempt) => attempt + 1);
                 }}
-                className="rounded-xl border border-[#0850411a] px-4 py-2.5 text-sm font-bold text-[#085041] transition-colors hover:bg-[#E1F5EE]"
               >
                 {t('common.tryAgain')}
-              </button>
+              </Button>
             </div>
           ) : (
-            <form onSubmit={savePreferences} className="space-y-6">
-              <div className="grid gap-5 sm:grid-cols-2">
+            <form onSubmit={savePreferences} className="space-y-8">
+              <div className="grid gap-x-6 gap-y-6 sm:grid-cols-2">
                 <PreferenceField id="budget-max" label={t('preferences.budget')}>
-                  <Input
-                    id="budget-max"
-                    type="number"
-                    min="0"
-                    max="99999999.99"
-                    step="0.01"
-                    value={form.budget_max}
-                    onChange={(event) => {
-                      setForm((current) => ({ ...current, budget_max: event.target.value }));
-                      setError(null);
-                      setSaved(false);
-                    }}
-                    placeholder={t('preferences.budgetPlaceholder')}
-                    data-testid="input-preferences-budget"
-                  />
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-base font-extrabold text-sage" aria-hidden>
+                      €
+                    </span>
+                    <Input
+                      id="budget-max"
+                      type="number"
+                      min="0"
+                      max="99999999.99"
+                      step="0.01"
+                      value={form.budget_max}
+                      onChange={(event) => {
+                        setForm((current) => ({ ...current, budget_max: event.target.value }));
+                        setError(null);
+                        setSaved(false);
+                      }}
+                      placeholder={t('preferences.budgetPlaceholder')}
+                      className="pl-8 tabular-nums"
+                      data-testid="input-preferences-budget"
+                    />
+                  </div>
                 </PreferenceField>
 
                 {(['animali', 'fumatori'] as const).map((field) => {
@@ -359,17 +356,13 @@ export function UserPreferencesPage({ owner = false }: { owner?: boolean }) {
                 </PreferenceField>
               </div>
 
-              {error && <p className="text-sm font-semibold text-red-700" role="alert">{error}</p>}
-              {saved && <p className="text-sm font-semibold text-[#0F6E56]" role="status">{t('preferences.saved')}</p>}
-
-              <button
-                type="submit"
-                disabled={saving}
-                className="rounded-xl bg-[#085041] px-5 py-3 text-sm font-extrabold text-white transition-colors hover:bg-[#0F6E56] disabled:cursor-not-allowed disabled:opacity-60"
-                data-testid="button-save-preferences"
-              >
-                {saving ? t('preferences.saving') : t('preferences.save')}
-              </button>
+              <div className="flex flex-wrap items-center gap-4 border-t border-line pt-6">
+                <Button type="submit" disabled={saving} className="h-12 px-6 text-base" data-testid="button-save-preferences">
+                  {saving ? t('preferences.saving') : t('preferences.save')}
+                </Button>
+                {error && <p className="text-sm font-bold text-terracotta" role="alert">{error}</p>}
+                {saved && <p className="text-sm font-bold text-shutter" role="status">{t('preferences.saved')}</p>}
+              </div>
             </form>
           )}
         </section>

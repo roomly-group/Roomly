@@ -141,7 +141,7 @@ export function ListingDetail() {
             <div className="mb-7 flex flex-wrap items-center gap-5 border-b border-[#d6e7de] pb-6">
               <div>
                 <p className="text-2xl font-black text-[#0F6E56]">
-                  {formatPrice(listing.price)}
+                  {formatPrice(listing.price, 'it')}
                   <span className="text-sm font-bold text-[#527067]">{t('common.perMonth')}</span>
                 </p>
               </div>

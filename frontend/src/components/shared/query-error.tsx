@@ -1,4 +1,3 @@
-import { CircleAlert } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { Button } from '@/components/shared/button';
 
@@ -7,17 +6,23 @@ import { Button } from '@/components/shared/button';
 /** Test selector used by the retry action in the query error panel. */
 const QUERY_RETRY_TEST_ID = 'button-retry' as const;
 
-export function QueryError({ onRetry }: { onRetry?: () => void }) {
+/**
+ * Failed-load message with a retry. `inset` drops the sheet for use inside
+ * another sheet (the Terracotta heading carries it), so sheets never nest.
+ */
+export function QueryError({ onRetry, inset = false }: { onRetry?: () => void; inset?: boolean }) {
   const { t } = useLanguage();
   return (
-    <div className="surface flex flex-col items-center justify-center rounded-2xl px-6 py-14 text-center">
-      <span className="mb-3 rounded-full bg-[#f7ddd1] p-3 text-[#a74b32]">
-        <CircleAlert size={22} />
-      </span>
-      <h3 className="font-black text-[#085041]">{t('common.somethingWrong')}</h3>
-      <p className="mt-1 max-w-sm text-sm text-[#527067]">
-        {t('common.somethingWrongDesc')}
-      </p>
+    <div
+      role="alert"
+      className={
+        inset
+          ? 'py-6'
+          : 'rounded-sheet border border-terracotta/30 bg-terracotta-mist px-6 py-8 sm:px-10'
+      }
+    >
+      <h3 className="text-[17px] font-extrabold text-terracotta">{t('common.somethingWrong')}</h3>
+      <p className="mt-1.5 max-w-lg text-[15px] leading-6 text-ink">{t('common.somethingWrongDesc')}</p>
       {onRetry && (
         <Button variant="outline" onClick={onRetry} className="mt-5" data-testid={QUERY_RETRY_TEST_ID}>
           {t('common.tryAgain')}

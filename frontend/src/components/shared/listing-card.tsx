@@ -1,148 +1,115 @@
-import { ArrowRight, MapPin } from 'lucide-react';
-import { Link } from 'wouter';
+import { Link, useSearch } from 'wouter';
 import type { Listing } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
-import { APP_ROUTES, formatPrice, gradients, MAX_PAGE_ENTRY_DELAY_INDEX } from '@/lib/constants';
+import { useFormat } from '@/hooks/use-format';
+import { APP_ROUTES } from '@/lib/constants';
+import { Persiana } from '@/components/shared/persiana';
+import { Tratta } from '@/components/shared/tratta';
+import { TypeSwatch } from '@/components/shared/category-strip';
+import { cn } from '@/lib/utils';
+
+type TranslationKey = Parameters<ReturnType<typeof useLanguage>['t']>[0];
 
 // ===================== CONFIGURATION =====================
 
-/** Stable test selector prefixes for listing cards and their actions. */
+/** Stable test selector prefixes for listing cards. */
 const LISTING_CARD_TEST_IDS = {
   CARD_LISTING_PREFIX: 'card-listing-',
+  /** Kept from the old "Vedi stanza" link: now the title, inside the same card link. */
   LINK_VIEW_LISTING_PREFIX: 'link-view-listing-',
 } as const;
 
-export function ListingCard({
-  listing,
-  index = 0,
-  isClickable = false,
-}: {
-  listing: Listing;
-  index?: number;
-  isClickable?: boolean;
-}) {
+/** The no-photo placeholder, kept under its old name for the pages that import it. */
+export function ListingPhotoPlaceholder({ className, showLabel = true }: { id?: number; className?: string; showLabel?: boolean }) {
+  return <Persiana className={className} showLabel={showLabel} />;
+}
+
+/**
+ * Frameless listing card: the photo, then title and price on one baseline,
+ * the tratta to the university (when the search measured it), and the type
+ * swatch with availability. The whole card is one link.
+ */
+export function ListingCard({ listing }: { listing: Listing }) {
   const { t } = useLanguage();
-  // With a distance (search by university) the line reads "15.8 km from {searched
-  // university}"; otherwise it just names the room's closest university.
-  const locationLabel =
-    listing.distanceKm !== undefined
-      ? t('common.kmFromUniversity')
-          .replace('{km}', listing.distanceKm.toFixed(1))
-          .replace('{university}', listing.zone)
-      : listing.zone;
+  const format = useFormat();
+  const search = useSearch();
+  const someBillsIncluded = (listing.features?.spese_incluse?.length ?? 0) > 0;
 
-  if (isClickable) {
-    return (
-      <Link href={`${APP_ROUTES.LISTINGS}/${listing.id}`}>
-        <article
-          className={`surface page-enter delay-${Math.min(index + 1, MAX_PAGE_ENTRY_DELAY_INDEX)} group overflow-hidden rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-md)]`}
-          data-testid={`${LISTING_CARD_TEST_IDS.CARD_LISTING_PREFIX}${listing.id}`}
-        >
-          <div
-            className={`relative flex h-48 items-end bg-gradient-to-br ${gradients[index % gradients.length]} p-4`}
-          >
-            {listing.coverPhotoUrl && (
-              <>
-                <img src={listing.coverPhotoUrl} alt={listing.title} crossOrigin="anonymous" className="absolute inset-0 h-full w-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
-              </>
-            )}
-            <div className="relative flex w-full items-end justify-between">
-              <span className="rounded-lg bg-[#F1EFE8]/85 px-2.5 py-1 text-xs font-black text-[#085041] backdrop-blur">
-                {listing.available ? t('common.availableNow') : t('common.comingSoon')}
-              </span>
-              {listing.photos > 0 && (
-                <span className="text-xs font-bold text-[#085041]/70">
-                  {listing.photos} {t('common.photos')}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="p-4">
-            <div className="mb-2 flex items-start justify-between gap-3">
-              <div>
-                <p className="mb-1 flex items-center gap-1 text-xs font-extrabold text-[#527067]">
-                  <MapPin size={13} /> {locationLabel}
-                </p>
-                <h3 className="line-clamp-1 text-lg font-black text-[#085041]">
-                  {listing.title}
-                </h3>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between border-t border-[#e1ebe4] pt-3">
-              <p className="text-lg font-black text-[#0F6E56]">
-                {formatPrice(listing.price)}
-                <span className="text-xs font-bold text-[#527067]">{t('common.perMonth')}</span>
-              </p>
-              <span
-                className="flex items-center gap-1 text-sm font-black text-[#085041] hover:text-[#EF9F27]"
-                data-testid={`${LISTING_CARD_TEST_IDS.LINK_VIEW_LISTING_PREFIX}${listing.id}`}
-              >
-                {t('common.viewRoom')}{' '}
-                <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />
-              </span>
-            </div>
-          </div>
-        </article>
-      </Link>
-    );
-  }
+  // The detail page gets the search it came from: its back link keeps the filters
+  // and its distance is measured from the same university.
+  const detailHref = `${APP_ROUTES.LISTINGS}/${listing.id}${search ? `?${new URLSearchParams({ from: search })}` : ''}`;
+  const typeLabel = listing.apartmentLayout
+    ? t(`apartmentLayout.${listing.apartmentLayout}` as TranslationKey)
+    : listing.propertyType
+      ? t(`propertyType.${listing.propertyType}` as TranslationKey)
+      : '';
 
   return (
-    <article
-      className={`surface page-enter delay-${Math.min(index + 1, MAX_PAGE_ENTRY_DELAY_INDEX)} group overflow-hidden rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-md)]`}
+    <Link
+      href={detailHref}
+      className="group block rounded-sheet"
       data-testid={`${LISTING_CARD_TEST_IDS.CARD_LISTING_PREFIX}${listing.id}`}
     >
-      <div
-        className={`relative flex h-48 items-end bg-gradient-to-br ${gradients[index % gradients.length]} p-4`}
-      >
-        {listing.coverPhotoUrl && (
-          <>
-            <img src={listing.coverPhotoUrl} alt={listing.title} crossOrigin="anonymous" className="absolute inset-0 h-full w-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
-          </>
+      <div className="relative aspect-[4/3] overflow-hidden rounded-sheet bg-line">
+        {listing.coverPhotoUrl ? (
+          <img
+            src={listing.coverPhotoUrl}
+            alt=""
+            crossOrigin="anonymous"
+            loading="lazy"
+            className="h-full w-full object-cover transition-[filter] duration-200 group-hover:brightness-95"
+          />
+        ) : (
+          <Persiana className="h-full w-full" />
         )}
-        <div className="relative flex w-full items-end justify-between">
-          <span className="rounded-lg bg-[#F1EFE8]/85 px-2.5 py-1 text-xs font-black text-[#085041] backdrop-blur">
-            {listing.available ? t('common.availableNow') : t('common.comingSoon')}
+        {listing.photos > 1 && (
+          <span className="absolute bottom-3 right-3 rounded-sheet bg-chip-veil px-2 py-1 text-xs font-extrabold tabular-nums text-pine">
+            {listing.photos} {t('common.photos')}
           </span>
-          {listing.photos > 0 && (
-            <span className="text-xs font-bold text-[#085041]/70">
-              {listing.photos} {t('common.photos')}
-            </span>
-          )}
-        </div>
+        )}
       </div>
 
-      <div className="p-4">
-        <div className="mb-2 flex items-start justify-between gap-3">
-          <div>
-            <p className="mb-1 flex items-center gap-1 text-xs font-extrabold text-[#527067]">
-              <MapPin size={13} /> {locationLabel}
-            </p>
-            <h3 className="line-clamp-1 text-lg font-black text-[#085041]">
-              {listing.title}
-            </h3>
-          </div>
-        </div>
+      <div className="mt-3 flex items-baseline justify-between gap-3">
+        <h3
+          className="min-w-0 truncate text-[17px] font-extrabold tracking-[-0.01em] text-pine decoration-shutter decoration-2 underline-offset-4 group-hover:underline"
+          data-testid={`${LISTING_CARD_TEST_IDS.LINK_VIEW_LISTING_PREFIX}${listing.id}`}
+        >
+          {listing.title}
+        </h3>
+        <p className="shrink-0 text-[17px] font-black tabular-nums text-pine">
+          {format.price(listing.price)}
+          <span className="text-xs font-bold text-sage">{t('common.perMonth')}</span>
+        </p>
+      </div>
 
-        <div className="flex items-center justify-between border-t border-[#e1ebe4] pt-3">
-          <p className="text-lg font-black text-[#0F6E56]">
-            {formatPrice(listing.price)}
-            <span className="text-xs font-bold text-[#527067]">{t('common.perMonth')}</span>
+      {listing.distanceKm !== undefined ? (
+        <Tratta km={listing.distanceKm} university={listing.zone} className="mt-1.5" />
+      ) : (
+        listing.zone && (
+          <p className="mt-1 truncate text-sm font-bold text-sage">
+            {t('listingDetail.near')} {listing.zone}
           </p>
-          <Link
-            href={`${APP_ROUTES.LISTINGS}/${listing.id}`}
-            className="flex items-center gap-1 text-sm font-black text-[#085041] hover:text-[#EF9F27]"
-            data-testid={`${LISTING_CARD_TEST_IDS.LINK_VIEW_LISTING_PREFIX}${listing.id}`}
-          >
-            {t('common.viewRoom')}{' '}
-            <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />
-          </Link>
-        </div>
-      </div>
-    </article>
+        )
+      )}
+
+      <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-bold text-sage">
+        {typeLabel && (
+          <span className="inline-flex items-center gap-1.5">
+            <TypeSwatch type={listing.propertyType} />
+            {typeLabel}
+          </span>
+        )}
+        <span className={cn('inline-flex items-center gap-1.5', listing.available ? 'text-shutter' : 'text-sage')}>
+          {typeLabel && <span aria-hidden>·</span>}
+          {listing.available ? t('common.availableNow') : t('common.notAvailable')}
+        </span>
+        {someBillsIncluded && (
+          <span>
+            <span aria-hidden>· </span>
+            {t('common.someBillsIncluded')}
+          </span>
+        )}
+      </p>
+    </Link>
   );
 }

@@ -1,110 +1,68 @@
-import { useState, useEffect } from 'react';
-import { ArrowRight, KeyRound, ShieldCheck, Sparkles } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowRight } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { getListListingsQueryKey, useListListings } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
 import { AppShell } from '@/components/layout/app-shell';
 import { supabase } from '@/lib/supabase';
-import { Button } from '@/components/shared/button';
-import { LocationSearch } from '@/components/shared/location-search';
-import { useUniversities } from '@/hooks/use-universities';
 import { ListingCard } from '@/components/shared/listing-card';
 import { LoadingCards } from '@/components/shared/loading-cards';
 import { QueryError } from '@/components/shared/query-error';
 import { EmptyState } from '@/components/shared/empty-state';
-import { APP_ROUTES, SHARED_TEST_IDS } from '@/lib/constants';
+import { CategoryStrip } from '@/components/shared/category-strip';
+import { PageIntro } from '@/components/shared/page-intro';
+import { SectionHead } from '@/components/shared/section-head';
+import { browseHref, parseBrowseParams, useBrowseParams } from '@/hooks/use-browse-params';
+import { APP_ROUTES, LISTING_GRID_CLASS } from '@/lib/constants';
 import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 
 // ===================== CONFIGURATION =====================
 
-/** Number of listings shown in the featured listings section. */
-const FEATURED_LISTING_COUNT = 6 as const;
-/** Stable selectors for the homepage search and featured-listing controls. */
+/** Rooms shown on the home grid: two rows of four on desktop. */
+const FEATURED_LISTING_COUNT = 8 as const;
+/** Universities listed in the "Dove vuoi studiare?" table. */
+const UNIVERSITY_LINK_COUNT = 12 as const;
+/** Stable selectors for the homepage links. */
 const HOME_TEST_IDS = {
-  FORM_SEARCH: 'form-search',
-  INPUT_ZONE: 'input-zone',
-  INPUT_MAX_PRICE: 'input-max-price',
-  LINK_SEE_HOW_IT_WORKS: 'link-see-how-it-works',
   LINK_BROWSE_ALL: 'link-browse-all',
   LINK_EMPTY_SEARCH: 'link-empty-search',
   LINK_OWNER_CTA: 'link-owner-cta',
-  LINK_OTHER_LISTINGS_HOME: 'link-other-listings-home',
+  LINK_UNIVERSITY_PREFIX: 'link-university-',
 } as const;
 
-function SearchBar({
-  initialZone = '',
-  initialMax = '',
-  onSearch,
-}: {
-  initialZone?: string;
-  initialMax?: string;
-  onSearch: (zone: string, maxPrice: string) => void;
-}) {
-  const { t } = useLanguage();
-  const [zone, setZone] = useState(initialZone);
-  const [maxPrice, setMaxPrice] = useState(initialMax);
-  const { universities, loading } = useUniversities();
-
-  return (
-    <form
-      className="flex flex-col gap-2 rounded-2xl bg-[#085041] p-2.5 shadow-[var(--shadow-lg)] sm:flex-row"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onSearch(zone, maxPrice);
-      }}
-      data-testid={HOME_TEST_IDS.FORM_SEARCH}
-    >
-      <LocationSearch
-        className="flex-1"
-        value={zone}
-        onChange={setZone}
-        options={universities}
-        loading={loading}
-        data-testid={HOME_TEST_IDS.INPUT_ZONE}
-      />
-
-      <label className="flex min-h-12 w-full flex-1 items-center gap-2 rounded-xl bg-[#F1EFE8] px-3 text-[#527067] sm:max-w-[220px]">
-        <span className="text-lg font-black text-[#0F6E56]">€</span>
-        <input
-          type="number"
-          min="1"
-          value={maxPrice}
-          onChange={(event) => setMaxPrice(event.target.value)}
-          placeholder={t('searchBar.maxMonthly')}
-          className="w-full bg-transparent text-sm font-bold text-[#2C2C2A] outline-none placeholder:text-[#82978e]"
-          data-testid={HOME_TEST_IDS.INPUT_MAX_PRICE}
-        />
-      </label>
-
-      <button
-        type="submit"
-        aria-label="Cerca"
-        title="Cerca"
-        data-testid={SHARED_TEST_IDS.BUTTON_SEARCH}
-        className="h-12 min-w-[80px] shrink-0 rounded-xl bg-[#EF9F27] px-4 font-extrabold text-[#2C2C2A] transition-all duration-200 hover:bg-[#e6a53d] active:scale-[0.98]"
-      >
-        Cerca
-      </button>
-    </form>
-  );
-}
+const TEXT_LINK_CLASS =
+  'inline-flex min-h-11 shrink-0 items-center gap-1 text-[15px] font-extrabold text-shutter underline decoration-shutter/40 underline-offset-4 transition-colors hover:decoration-2 hover:decoration-shutter';
 
 export function Home() {
   const { t } = useLanguage();
   const [, setLocation] = useLocation();
+  const { update } = useBrowseParams();
   const { data, isLoading, isError, refetch } = useListListings(undefined, {
     query: { queryKey: getListListingsQueryKey() },
   });
-  const listings = data ?? [];
+  const listings = useMemo(() => data ?? [], [data]);
   const [isOwner, setIsOwner] = useState(false);
-  const onSearch = (nextZone: string, nextMaxPrice: string) => {
-    const query = new URLSearchParams();
-    if (nextZone) query.set('zone', nextZone);
-    const price = Number(nextMaxPrice);
-    if (nextMaxPrice && Number.isFinite(price) && price > 0) query.set('maxPrice', String(price));
-    const qs = query.toString();
-    setLocation(`${APP_ROUTES.SEARCH}${qs ? `?${qs}` : ''}`);
-  };
+
+  // Universities that really have rooms, with real counts: a room's zone is its closest university.
+  const universities = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const listing of listings) {
+      if (listing.zone) counts.set(listing.zone, (counts.get(listing.zone) ?? 0) + 1);
+    }
+    return [...counts]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, UNIVERSITY_LINK_COUNT);
+  }, [listings]);
+
+  // Legend counts by property type ('' = every room).
+  const typeCounts = useMemo(() => {
+    const counts: Record<string, number> = { '': listings.length };
+    for (const listing of listings) {
+      if (listing.propertyType) counts[listing.propertyType] = (counts[listing.propertyType] ?? 0) + 1;
+    }
+    for (const type of ['stanza', 'appartamento', 'residenza']) counts[type] ??= 0;
+    return counts;
+  }, [listings]);
 
   // Redirect non-admin users away from the home page
   useEffect(() => {
@@ -140,77 +98,47 @@ export function Home() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-[1320px] px-5 pb-16 pt-7 lg:px-8 lg:pt-12">
-        <section className="relative rounded-[2rem] bg-[#9FE1CB] px-6 py-10 sm:px-10 lg:px-16 lg:py-16">
-          <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[2rem]">
-            <div className="absolute -right-12 -top-16 h-64 w-64 rounded-full border-[34px] border-[#E1F5EE]/60" />
-            <div className="absolute -bottom-20 right-32 h-48 w-48 rounded-full bg-[#EF9F27]/25" />
-          </div>
+      <div className="mx-auto max-w-[1320px] px-5 pb-20 pt-10 lg:px-8 lg:pt-14">
+        <PageIntro
+          size="display"
+          title={
+            <>
+              {t('home.title1')} <span className="text-shutter">{t('home.title2')}</span>
+            </>
+          }
+          lede={t('home.subtitle')}
+          action={
+            !isLoading &&
+            !isError && (
+              <p className="text-[17px] font-extrabold text-pine lg:text-right" aria-live="polite">
+                <span className="tabular-nums">{listings.length}</span> {t('home.statText')}
+              </p>
+            )
+          }
+        />
 
-          <div className="relative z-10 max-w-2xl page-enter">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-[#E1F5EE] px-3 py-1.5 text-xs font-black text-[#085041]">
-              <Sparkles size={14} /> {t('home.badge')}
-            </div>
-            <h1 className="display-heading text-5xl text-[#085041] sm:text-7xl">
-              {t('home.title1')}
-              <br />
-              <span className="text-[#0F6E56]">{t('home.title2')}</span>
-            </h1>
-            <p className="mt-5 max-w-lg text-base leading-7 text-[#265c4d] sm:text-lg">
-              {t('home.subtitle')}
-            </p>
-            <div className="mt-8 max-w-2xl">
-              <SearchBar onSearch={onSearch} />
-            </div>
-          </div>
+        <CategoryStrip value="" onChange={(type) => update({ type })} counts={isLoading ? undefined : typeCounts} />
 
-        </section>
-
-        <section className="mt-7 flex flex-col gap-4 rounded-2xl border border-[#d6e7de] bg-[#E1F5EE] p-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
-          <div className="flex items-start gap-4">
-            <div className="rounded-xl bg-[#9FE1CB] p-2.5 text-[#085041]">
-              <ShieldCheck size={22} />
-            </div>
-            <div>
-              <h2 className="font-black text-[#085041]">{t('home.trustTitle')}</h2>
-              <p className="mt-1 text-sm text-[#527067]">{t('home.trustText')}</p>
-            </div>
-          </div>
-          <Link
-            href={APP_ROUTES.SEARCH}
-            className="inline-flex items-center gap-2 whitespace-nowrap text-sm font-black text-[#0F6E56] hover:text-[#085041]"
-            data-testid={HOME_TEST_IDS.LINK_SEE_HOW_IT_WORKS}
-          >
-            {t('home.seeAllRooms')} <ArrowRight size={16} />
-          </Link>
-        </section>
-
-        <section className="mt-14">
-          <div className="mb-6 flex items-end justify-between">
-            <div>
-              <p className="eyebrow mb-2">{t('home.startEyebrow')}</p>
-              <h2 className="display-heading text-3xl text-[#085041] sm:text-4xl">
-                {t('home.startTitle1')}
-                <br className="hidden sm:block" /> {t('home.startTitle2')}
-              </h2>
-            </div>
-            <Link
-              href={APP_ROUTES.SEARCH}
-              className="hidden items-center gap-1 text-sm font-black text-[#0F6E56] sm:flex"
-              data-testid={HOME_TEST_IDS.LINK_BROWSE_ALL}
-            >
-              {t('home.browseAll')} <ArrowRight size={16} />
-            </Link>
-          </div>
+        <section className="mt-10" aria-labelledby="home-available">
+          <SectionHead
+            id="home-available"
+            title={`${t('home.startTitle1')} ${t('home.startTitle2')}`}
+            className="mb-6"
+            action={
+              <Link href={APP_ROUTES.SEARCH} className={TEXT_LINK_CLASS} data-testid={HOME_TEST_IDS.LINK_BROWSE_ALL}>
+                {t('home.browseAll')} <ArrowRight size={16} aria-hidden />
+              </Link>
+            }
+          />
 
           {isLoading ? (
-            <LoadingCards />
+            <LoadingCards count={FEATURED_LISTING_COUNT} />
           ) : isError ? (
             <QueryError onRetry={() => refetch()} />
           ) : listings.length ? (
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {listings.slice(0, FEATURED_LISTING_COUNT).map((listing, index) => (
-                <ListingCard listing={listing} index={index} key={listing.id} isClickable={true} />
+            <div className={LISTING_GRID_CLASS}>
+              {listings.slice(0, FEATURED_LISTING_COUNT).map((listing) => (
+                <ListingCard listing={listing} key={listing.id} />
               ))}
             </div>
           ) : (
@@ -218,7 +146,7 @@ export function Home() {
               title={t('home.emptyTitle')}
               text={t('home.emptyText')}
               action={
-                <Link href={APP_ROUTES.SEARCH} className="text-sm font-black text-[#0F6E56]" data-testid={HOME_TEST_IDS.LINK_EMPTY_SEARCH}>
+                <Link href={APP_ROUTES.SEARCH} className={TEXT_LINK_CLASS} data-testid={HOME_TEST_IDS.LINK_EMPTY_SEARCH}>
                   {t('home.emptySearch')}
                 </Link>
               }
@@ -226,66 +154,59 @@ export function Home() {
           )}
         </section>
 
-        <section className="mt-16 grid gap-5 lg:grid-cols-[1fr_1.45fr]">
-          <div className="rounded-2xl bg-[#EF9F27] p-7 sm:p-9">
-            <p className="eyebrow text-[#085041]">{t('home.ownersEyebrow')}</p>
-            <h2 className="display-heading mt-3 text-4xl text-[#085041]">
-              {t('home.ownersHeadline')}
-            </h2>
-            <p className="mt-4 max-w-md text-sm leading-6 text-[#624c2e]">
-              {t('home.ownersText')}
-            </p>
-            {isOwner && (
-              <Link
-                href={APP_ROUTES.OWNER_DASHBOARD}
-                className="mt-7 inline-flex items-center gap-2 rounded-xl bg-[#085041] px-4 py-3 text-sm font-black text-[#E1F5EE] transition hover:bg-[#0F6E56]"
-                data-testid={HOME_TEST_IDS.LINK_OWNER_CTA}
-              >
-                {t('home.ownersCta')} <ArrowRight size={16} />
-              </Link>
-            )}
-          </div>
+        {universities.length > 0 && (
+          <section className="mt-[72px]" aria-labelledby="home-universities">
+            <SectionHead id="home-universities" title={t('home.universitiesTitle')} className="mb-2" />
+            <ul className="grid gap-x-12 md:grid-cols-2">
+              {universities.map(([name, count]) => (
+                <li key={name} className="border-b border-line">
+                  <Link
+                    href={browseHref({ ...parseBrowseParams(''), zone: name })}
+                    className="group flex min-h-14 items-baseline justify-between gap-6 py-3"
+                    data-testid={`${HOME_TEST_IDS.LINK_UNIVERSITY_PREFIX}${name}`}
+                  >
+                    <span className="min-w-0 text-[17px] font-extrabold text-pine decoration-shutter decoration-2 underline-offset-4 group-hover:underline">
+                      {name}
+                    </span>
+                    <span className="shrink-0 text-[15px] font-bold tabular-nums text-sage">
+                      {count === 1 ? t('home.universityRoomsOne') : t('home.universityRooms').replace('{n}', String(count))}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
-          <div className="grid gap-5 rounded-2xl bg-[#085041] p-7 text-[#E1F5EE] sm:grid-cols-2 sm:p-9">
-            <div>
-              <div className="mb-7 flex h-10 w-10 items-center justify-center rounded-xl bg-[#0F6E56]">
-                <ShieldCheck size={21} />
-              </div>
-              <h3 className="text-xl font-black">{t('home.trustBoxTitle')}</h3>
-              <p className="mt-2 text-sm leading-6 text-[#9FE1CB]">{t('home.trustBoxText')}</p>
-            </div>
-            <div className="flex flex-col justify-between border-t border-[#3a7767] pt-6 sm:border-l sm:border-t-0 sm:pl-7 sm:pt-0">
-              <div>
-                {isLoading ? (
-                  <p className="text-4xl font-black text-[#EF9F27]">
-                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
-                    </svg>
-                  </p>
-                ) : isError ? (
-                  <p className="text-4xl font-black text-[#EF9F27]">--</p>
-                ) : (
-                  <p className="text-4xl font-black text-[#EF9F27]">{listings.length}</p>
-                )}
-                <p className="mt-1 text-sm text-[#9FE1CB]">{t('home.statText')}</p>
-              </div>
+        <section className="mt-[72px]" aria-labelledby="home-owners">
+          <SectionHead id="home-owners" title={t('home.ownersEyebrow')} className="mb-8" />
+          <div className="grid gap-10 lg:grid-cols-12">
+            <div className="lg:col-span-6">
+              <p className="text-[22px] font-extrabold leading-snug tracking-[-0.015em] text-pine">{t('home.ownersHeadline')}</p>
+              <p className="mt-3 max-w-xl text-base leading-7 text-ink">{t('home.ownersText')}</p>
               {isOwner && (
                 <Link
-                  href={APP_ROUTES.SEARCH}
-                  className="mt-6 flex items-center gap-2 text-left text-sm font-black text-[#E1F5EE] hover:text-[#EF9F27]"
-                  data-testid={HOME_TEST_IDS.LINK_OTHER_LISTINGS_HOME}
+                  href={APP_ROUTES.OWNER_DASHBOARD}
+                  className="mt-6 inline-flex min-h-12 items-center gap-2 rounded-control bg-shutter px-5 text-[15px] font-extrabold text-mint-mist transition-colors hover:bg-pine"
+                  data-testid={HOME_TEST_IDS.LINK_OWNER_CTA}
                 >
-                  {t('nav.lookingForRoom')} <ArrowRight size={15} />
+                  {t('home.ownersCta')} <ArrowRight size={16} aria-hidden />
                 </Link>
               )}
             </div>
+            <dl className="border-t border-line lg:col-span-5 lg:col-start-8">
+              {[
+                { title: t('home.trustTitle'), text: t('home.trustText') },
+                { title: t('home.trustBoxTitle'), text: t('home.trustBoxText') },
+              ].map((fact) => (
+                <div key={fact.title} className="border-b border-line py-4">
+                  <dt className="text-[17px] font-extrabold text-pine">{fact.title}</dt>
+                  <dd className="mt-1 text-base leading-7 text-ink">{fact.text}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
         </section>
-
-        <div className="mt-10 flex items-center justify-center gap-2 text-xs font-bold text-[#527067]">
-          <KeyRound size={14} className="text-[#0F6E56]" /> {t('home.footerTagline')}
-        </div>
       </div>
     </AppShell>
   );

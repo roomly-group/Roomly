@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { clearRoleCache } from '@/lib/role-cache';
 import { clearAccountCache, useAccount } from '@/lib/account-cache';
 import { Link, useLocation } from 'wouter';
-import { ArrowRight, LogOut, Mail, UserRound } from 'lucide-react';
+import { ArrowRight, LogOut, Mail, Menu, UserRound } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n';
 import { Avatar } from '@/components/shared/avatar';
@@ -88,29 +88,31 @@ export function ProfileMenu({
       <button
         type="button"
         onClick={() => setMenuOpen((open) => !open)}
-        className="flex items-center gap-2 rounded-full border border-[#0850411f] bg-white py-1 pl-1 pr-3 transition-colors hover:border-[#08504140]"
+        className="flex min-h-11 items-center gap-2 rounded-full border border-mint-mist/30 py-1 pl-3 pr-1 transition-colors hover:border-mint-mist"
         data-testid={PROFILE_MENU_TEST_IDS.BUTTON_PROFILE_MENU}
         aria-expanded={menuOpen}
+        aria-label={`${displayName} · ${t('nav.openMenu')}`}
       >
         {accountLoading ? (
           <>
-            <Skeleton className="h-8 w-8 rounded-full" />
             <Skeleton className="hidden h-4 w-20 sm:block" />
+            <Skeleton className="h-8 w-8 rounded-full" />
           </>
         ) : (
           <>
+            <Menu size={16} className="text-mint-mist" aria-hidden />
+            <span className="hidden text-sm font-extrabold text-mint-mist sm:block">{displayName}</span>
             <Avatar name={displayName} size="sm" />
-            <span className="hidden text-sm font-extrabold text-[#085041] sm:block">{displayName}</span>
           </>
         )}
       </button>
 
       {menuOpen && (
         <div
-          className="absolute right-0 z-20 mt-2 w-72 rounded-2xl border border-[#0850411a] bg-white p-4 shadow-[0_16px_40px_rgba(8,80,65,0.14)]"
+          className="absolute right-0 z-20 mt-2 w-72 rounded-sheet border border-hairline bg-paper p-4 shadow-float"
           data-testid={PROFILE_MENU_TEST_IDS.PANEL_PROFILE_INFO}
         >
-          <div className="flex items-center gap-3 border-b border-[#0850411a] pb-4">
+          <div className="flex items-center gap-3 border-b border-pine/10 pb-4">
             {accountLoading ? (
               <>
                 <Skeleton className="h-10 w-10 rounded-full" />
@@ -123,8 +125,8 @@ export function ProfileMenu({
               <>
                 <Avatar name={displayName} size="md" />
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-black text-[#085041]">{displayName}</p>
-                  <p className="flex items-center gap-1 truncate text-xs font-semibold text-[#527067]">
+                  <p className="truncate text-sm font-black text-pine">{displayName}</p>
+                  <p className="flex items-center gap-1 truncate text-xs font-semibold text-sage">
                     <Mail size={12} className="shrink-0" />
                     {userEmail ?? t('waitlistConfirmed.emailUnavailable')}
                   </p>
@@ -138,7 +140,7 @@ export function ProfileMenu({
           <Link
             href={profileHref}
             onClick={() => setMenuOpen(false)}
-            className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#085041] py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#0F6E56]"
+            className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-control bg-pine py-2.5 text-sm font-bold text-mint-mist transition-colors hover:bg-shutter"
             data-testid={PROFILE_MENU_TEST_IDS.LINK_FULL_PROFILE}
           >
             <UserRound size={15} />
@@ -149,7 +151,7 @@ export function ProfileMenu({
           <button
             type="button"
             onClick={handleLogout}
-            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#0850411a] py-2.5 text-sm font-bold text-[#527067] transition-colors hover:border-[#08504140] hover:text-[#085041]"
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-control border border-pine/10 py-2.5 text-sm font-bold text-sage transition-colors hover:border-pine/25 hover:text-pine"
             data-testid={PROFILE_MENU_TEST_IDS.BUTTON_LOGOUT}
           >
             <LogOut size={15} />

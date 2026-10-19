@@ -50,9 +50,8 @@ export function ProtectedRoute({ allowedRoles, children, redirect }: ProtectedRo
     return (
       <div className="flex h-[100vh] items-center justify-center">
         <PageIntro
-          eyebrow={t('loading')}
           title={t('loading')}
-          description={t('loadingDescription')}
+          lede={t('loadingDescription')}
         />
       </div>
     );

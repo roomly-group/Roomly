@@ -56,7 +56,7 @@ export function RequireAdmin({
     return (
       <div className="flex h-[100vh] items-center justify-center">
         <div className="text-center">
-          <p className="mt-2 text-sm text-[#527067]">{t('loading')}</p>
+          <p className="mt-2 text-sm text-sage">{t('loading')}</p>
         </div>
       </div>
     );

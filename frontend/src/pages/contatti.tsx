@@ -1,4 +1,3 @@
-import { Mail, Instagram, Linkedin, Music2 } from 'lucide-react';
 import { StaticPage } from '@/components/layout/static-page';
 import { useLanguage } from '@/lib/i18n';
 import { SOCIAL_PROFILE_URLS } from '@/lib/constants';
@@ -13,76 +12,51 @@ const CONTACT_EMAIL_HREF = 'mailto:hello@roomly.it' as const;
 export function ContattiPage() {
   const { t } = useLanguage();
 
+  const channels = [
+    { title: t('contatti.emailTitle'), text: t('contatti.emailText'), label: CONTACT_EMAIL_ADDRESS, href: CONTACT_EMAIL_HREF },
+    { title: t('contatti.instagramTitle'), text: t('contatti.instagramText'), label: '@roomlygroup', href: SOCIAL_PROFILE_URLS.INSTAGRAM },
+    { title: t('contatti.tiktokTitle'), text: t('contatti.tiktokText'), label: '@roomlygroup', href: SOCIAL_PROFILE_URLS.TIKTOK },
+    { title: t('contatti.linkedinTitle'), text: t('contatti.linkedinText'), label: t('contatti.linkedinCta'), href: SOCIAL_PROFILE_URLS.LINKEDIN },
+  ];
+
   return (
     <StaticPage
-      eyebrow={t('footer.column.empresa')}
       title={t('contatti.title')}
       intro={t('contatti.intro')}
+      aside={
+        <section aria-labelledby="contact-owners" className="border-t-[3px] border-pine pt-4">
+          <h2 id="contact-owners" className="text-[19px] font-black text-pine">
+            {t('contatti.ownerTitle')}
+          </h2>
+          <p className="mt-2 text-base leading-7 text-ink">{t('contatti.ownerText')}</p>
+        </section>
+      }
     >
-      <div className="grid gap-5 sm:grid-cols-2">
-        <ContactCard
-          icon={<Mail size={20} />}
-          title={t('contatti.emailTitle')}
-          text={t('contatti.emailText')}
-          action={{ label: CONTACT_EMAIL_ADDRESS, href: CONTACT_EMAIL_HREF }}
-        />
-        <ContactCard
-          icon={<Instagram size={20} />}
-          title={t('contatti.instagramTitle')}
-          text={t('contatti.instagramText')}
-          action={{ label: '@roomlygroup', href: SOCIAL_PROFILE_URLS.INSTAGRAM }}
-        />
-        <ContactCard
-          icon={<Music2 size={20} />}
-          title={t('contatti.tiktokTitle')}
-          text={t('contatti.tiktokText')}
-          action={{ label: '@roomlygroup', href: SOCIAL_PROFILE_URLS.TIKTOK }}
-        />
-        <ContactCard
-          icon={<Linkedin size={20} />}
-          title={t('contatti.linkedinTitle')}
-          text={t('contatti.linkedinText')}
-          action={{ label: t('contatti.linkedinCta'), href: SOCIAL_PROFILE_URLS.LINKEDIN }}
-        />
-      </div>
+      <section aria-labelledby="contact-channels">
+        <h2 id="contact-channels" className="sr-only">
+          {t('contatti.title')}
+        </h2>
+        <ul className="border-t border-line">
+          {channels.map((channel) => (
+            <li key={channel.title} className="grid gap-x-6 gap-y-1 border-b border-line py-5 sm:grid-cols-[1fr_auto] sm:items-baseline">
+              <div>
+                <h3 className="text-[17px] font-extrabold text-pine">{channel.title}</h3>
+                <p className="mt-1 text-base leading-7 text-ink">{channel.text}</p>
+              </div>
+              <a
+                href={channel.href}
+                target={channel.href.startsWith('http') ? '_blank' : undefined}
+                rel={channel.href.startsWith('http') ? 'noopener noreferrer' : undefined}
+                className="inline-flex min-h-11 items-center text-[15px] font-extrabold text-shutter underline decoration-shutter/40 underline-offset-4 hover:decoration-2 hover:decoration-shutter"
+              >
+                {channel.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
 
-      <div>
-        <h2 className="mb-2 text-lg font-black text-[#2C2C2A]">{t('contatti.ownerTitle')}</h2>
-        <p className="text-sm leading-relaxed text-[#527067]">
-          {t('contatti.ownerText')}
-        </p>
-      </div>
     </StaticPage>
-  );
-}
-
-function ContactCard({
-  icon,
-  title,
-  text,
-  action,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  text: string;
-  action: { label: string; href: string };
-}) {
-  return (
-    <div className="rounded-[20px] border border-[#0850411a] bg-[#F1EFE8]/60 p-6">
-      <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-[#E1F5EE] text-[#085041]">
-        {icon}
-      </div>
-      <h3 className="mb-1.5 text-base font-black text-[#2C2C2A]">{title}</h3>
-      <p className="mb-3 text-sm leading-relaxed text-[#527067]">{text}</p>
-      <a
-        href={action.href}
-        target={action.href.startsWith('http') ? '_blank' : undefined}
-        rel={action.href.startsWith('http') ? 'noopener noreferrer' : undefined}
-        className="text-sm font-extrabold text-[#085041] hover:text-[#0F6E56]"
-      >
-        {action.label} →
-      </a>
-    </div>
   );
 }
 

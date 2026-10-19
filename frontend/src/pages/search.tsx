@@ -1,147 +1,160 @@
-import { useMemo, useState } from 'react';
-import { Check, ChevronLeft, SlidersHorizontal } from 'lucide-react';
-import { Link } from 'wouter';
+import { useCallback, useMemo, useState } from 'react';
+import { keepPreviousData } from '@tanstack/react-query';
+import type { Listing } from '@workspace/api-client-react';
 import { getListListingsQueryKey, useListListings } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
-import { useUniversities } from '@/hooks/use-universities';
+import { useFormat } from '@/hooks/use-format';
+import { BROWSE_FLAG_KEYS, useBrowseParams } from '@/hooks/use-browse-params';
 import { AppShell } from '@/components/layout/app-shell';
 import { Button } from '@/components/shared/button';
-import { LocationSearch } from '@/components/shared/location-search';
-import { PageIntro } from '@/components/shared/page-intro';
 import { ListingCard } from '@/components/shared/listing-card';
 import { LoadingCards } from '@/components/shared/loading-cards';
 import { QueryError } from '@/components/shared/query-error';
 import { EmptyState } from '@/components/shared/empty-state';
-import { APP_ROUTES } from '@/lib/constants';
+import { CategoryStrip } from '@/components/shared/category-strip';
+import { PageIntro } from '@/components/shared/page-intro';
+import { TrattaScaleKey } from '@/components/shared/tratta';
+import { FiltersSheet, type FilterFlags } from '@/components/shared/filters-sheet';
+import { LISTING_GRID_CLASS, SEARCH_RADIUS_KM } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 
 // ===================== CONFIGURATION =====================
 
-/** Stable selectors for search filters and actions. */
+/** Stable selectors for search results and actions. */
 const SEARCH_TEST_IDS = {
-  LINK_BACK_HOME: 'link-back-home',
-  INPUT_SEARCH_ZONE: 'input-search-zone',
-  INPUT_SEARCH_MAX: 'input-search-max',
-  BUTTON_FILTER_FURNISHED: 'button-filter-furnished',
+  TEXT_RESULTS: 'text-search-results',
+  GRID_RESULTS: 'grid-search-results',
   BUTTON_CLEAR_FILTERS: 'button-clear-filters',
 } as const;
 
+// Type and filters apply on the client: the API only filters by university and
+// budget, and returns every match at once, so the counts stay exact.
+function matches(listing: Listing, type: string, flags: FilterFlags) {
+  return (
+    (!type || listing.propertyType === type) &&
+    (!flags.furnished || listing.furnished) &&
+    (!flags.bills || (listing.features?.spese_incluse?.length ?? 0) > 0) &&
+    (!flags.pets || listing.petsAllowed) &&
+    (!flags.smokers || listing.smokersAllowed)
+  );
+}
+
 export function SearchPage() {
   const { t } = useLanguage();
-  const params = new URLSearchParams(window.location.search);
-  const [zone, setZone] = useState(params.get('zone') ?? '');
-  const [maxPrice, setMaxPrice] = useState(params.get('maxPrice') ?? '');
-  const [furnished, setFurnished] = useState(false);
-  const { universities, loading: universitiesLoading } = useUniversities();
+  const format = useFormat();
+  const { params, update } = useBrowseParams();
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const request = useMemo(
     () => ({
-      ...(zone ? { zone } : {}),
-      ...(maxPrice && Number(maxPrice) > 0 ? { maxPrice: Number(maxPrice) } : {}),
-      ...(furnished ? { furnished: true } : {}),
+      ...(params.zone ? { zone: params.zone } : {}),
+      ...(params.maxPrice ? { maxPrice: Number(params.maxPrice) } : {}),
     }),
-    [zone, maxPrice, furnished],
+    [params.zone, params.maxPrice],
   );
 
-  const { data, isLoading, isError, refetch } = useListListings(request, {
-    query: { queryKey: getListListingsQueryKey(request) },
+  // Keep the previous results on screen while a new budget or university loads.
+  const { data, isLoading, isError, isFetching, refetch } = useListListings(request, {
+    query: { queryKey: getListListingsQueryKey(request), placeholderData: keepPreviousData },
   });
-  const listings = data ?? [];
+
+  const flags = useMemo<FilterFlags>(
+    () => ({ furnished: params.furnished, bills: params.bills, pets: params.pets, smokers: params.smokers }),
+    [params.furnished, params.bills, params.pets, params.smokers],
+  );
+  const activeFilterCount = BROWSE_FLAG_KEYS.filter((key) => flags[key]).length;
+  const results = useMemo(() => (data ?? []).filter((listing) => matches(listing, params.type, flags)), [data, params.type, flags]);
+  const countFor = useCallback(
+    (draft: FilterFlags) => (data ?? []).filter((listing) => matches(listing, params.type, draft)).length,
+    [data, params.type],
+  );
+
+  const count = results.length;
+  // Legend counts: the current results under the active filters, per property type ('' = all types).
+  const typeCounts = useMemo(() => {
+    const scoped = (data ?? []).filter((listing) => matches(listing, '', flags));
+    const counts: Record<string, number> = { '': scoped.length, stanza: 0, appartamento: 0, residenza: 0 };
+    for (const listing of scoped) if (listing.propertyType) counts[listing.propertyType] = (counts[listing.propertyType] ?? 0) + 1;
+    return counts;
+  }, [data, flags]);
+  const resultLine = [
+    params.zone
+      ? (count === 1 ? t('searchPage.resultsNearOne') : t('searchPage.resultsNear'))
+          .replace('{n}', String(count))
+          .replace('{radius}', String(SEARCH_RADIUS_KM))
+      : (count === 1 ? t('searchPage.resultsAllOne') : t('searchPage.resultsAll')).replace('{n}', String(count)),
+    params.maxPrice ? t('searchPage.underBudget').replace('{price}', format.price(Number(params.maxPrice))) : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  const clearAll = () =>
+    update({ zone: '', maxPrice: '', type: '', furnished: false, bills: false, pets: false, smokers: false });
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-[1320px] px-5 py-8 lg:px-8 lg:py-12">
+      <div className="mx-auto max-w-[1320px] px-5 pb-20 pt-10 lg:px-8 lg:pt-14">
         <PageIntro
-          eyebrow={t('searchPage.eyebrow')}
-          title={t('searchPage.title')}
-          description={t('searchPage.description')}
+          title={params.zone ? t('searchPage.nearTitle').replace('{university}', params.zone) : t('searchPage.title')}
+          className="mb-8"
           action={
-            <Link
-              href={APP_ROUTES.HOME}
-              className="hidden items-center gap-2 text-sm font-black text-[#0F6E56] sm:flex"
-              data-testid={SEARCH_TEST_IDS.LINK_BACK_HOME}
-            >
-              <ChevronLeft size={16} /> {t('searchPage.backHome')}
-            </Link>
+            <div className="flex flex-col gap-1.5 lg:items-end">
+              <h2
+                className="min-h-6 text-[17px] font-extrabold text-pine lg:text-right"
+                aria-live="polite"
+                data-testid={SEARCH_TEST_IDS.TEXT_RESULTS}
+              >
+                {isLoading ? <span className="skeleton inline-block h-4 w-56 rounded-sheet align-middle" /> : resultLine}
+              </h2>
+              {/* The key only where the cards draw a tratta: a search by university. */}
+              {params.zone && <TrattaScaleKey />}
+            </div>
           }
         />
 
-        <div className="mb-8 flex flex-col gap-4 rounded-2xl bg-[#E1F5EE] p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3 text-sm font-extrabold text-[#085041]">
-            <div className="rounded-xl bg-[#9FE1CB] p-2">
-              <SlidersHorizontal size={18} />
-            </div>
-            <span>
-              {listings.length} {listings.length === 1 ? t('common.room') : t('common.rooms')}{' '}
-              {t('searchPage.toExplore')}
-            </span>
-          </div>
+        <CategoryStrip
+          value={params.type}
+          onChange={(type) => update({ type })}
+          counts={isLoading ? undefined : typeCounts}
+          filterCount={activeFilterCount}
+          onOpenFilters={() => setFiltersOpen(true)}
+        />
 
-          <div className="flex flex-wrap items-center gap-2">
-            <LocationSearch
-              className="w-full sm:w-72"
-              value={zone}
-              onChange={setZone}
-              options={universities}
-              loading={universitiesLoading}
-              commit="explicit"
-              data-testid={SEARCH_TEST_IDS.INPUT_SEARCH_ZONE}
-            />
-
-            <label className="flex items-center gap-2 rounded-xl border border-[#bedbcd] bg-[#F1EFE8] px-3 py-2 text-sm font-bold text-[#527067]">
-              <span className="font-black">€</span>
-              <input
-                value={maxPrice}
-                onChange={(event) => setMaxPrice(event.target.value)}
-                type="number"
-                placeholder={t('searchPage.max')}
-                className="w-16 bg-transparent outline-none"
-                data-testid={SEARCH_TEST_IDS.INPUT_SEARCH_MAX}
-              />
-            </label>
-
-            <button
-              onClick={() => setFurnished(!furnished)}
-              className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-extrabold transition ${
-                furnished
-                  ? 'border-[#0F6E56] bg-[#0F6E56] text-[#E1F5EE]'
-                  : 'border-[#bedbcd] bg-[#F1EFE8] text-[#527067]'
-              }`}
-              data-testid={SEARCH_TEST_IDS.BUTTON_FILTER_FURNISHED}
+        <div className="mt-8">
+          {isLoading ? (
+            <LoadingCards count={8} />
+          ) : isError ? (
+            <QueryError onRetry={() => refetch()} />
+          ) : count ? (
+            <div
+              className={cn(LISTING_GRID_CLASS, 'transition-opacity duration-200', isFetching && 'opacity-60')}
+              aria-busy={isFetching}
+              data-testid={SEARCH_TEST_IDS.GRID_RESULTS}
             >
-              {furnished && <Check size={15} />} {t('common.furnished')}
-            </button>
-          </div>
+              {results.map((listing) => (
+                <ListingCard listing={listing} key={listing.id} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title={t('searchPage.emptyTitle')}
+              text={t('searchPage.emptyText')}
+              action={
+                <Button variant="secondary" onClick={clearAll} data-testid={SEARCH_TEST_IDS.BUTTON_CLEAR_FILTERS}>
+                  {t('searchPage.clearFilters')}
+                </Button>
+              }
+            />
+          )}
         </div>
 
-        {isLoading ? (
-          <LoadingCards count={6} />
-        ) : isError ? (
-          <QueryError onRetry={() => refetch()} />
-        ) : listings.length ? (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {listings.map((listing, index) => (
-              <ListingCard listing={listing} index={index} key={listing.id} isClickable={true} />
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            title={t('searchPage.emptyTitle')}
-            text={t('searchPage.emptyText')}
-            action={
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setZone('');
-                  setMaxPrice('');
-                  setFurnished(false);
-                }}
-                data-testid={SEARCH_TEST_IDS.BUTTON_CLEAR_FILTERS}
-              >
-                {t('searchPage.clearFilters')}
-              </Button>
-            }
-          />
-        )}
+        <FiltersSheet
+          open={filtersOpen}
+          onOpenChange={setFiltersOpen}
+          value={flags}
+          onApply={(next) => update(next)}
+          countFor={countFor}
+        />
       </div>
     </AppShell>
   );

@@ -2,6 +2,7 @@ import { LanguageProvider } from '@/lib/i18n';
 import { useLocation } from 'wouter';
 import { SiteFooter } from '@/components/layout/site-footer';
 import { Navbar } from '@/components/layout/navbar';
+import { MobileTabBar } from '@/components/layout/mobile-tab-bar';
 import { APP_ROUTES } from '@/lib/constants';
 
 // Re-exported so existing imports (`import { Avatar } from '.../app-shell'`)
@@ -26,13 +27,15 @@ export function PersonaLanguageProvider({
 
 // AppShell wraps every page with the nav/header chrome. Navbar figures out
 // on its own (from the current route) which links and profile menu to show,
-// so no props need to be threaded through here anymore.
+// so no props need to be threaded through here anymore. The column layout
+// keeps the footer at the bottom of the viewport on short pages.
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-[100dvh] bg-[#F1EFE8] text-[#2C2C2A]">
+    <div className="flex min-h-[100dvh] flex-col bg-ground text-ink">
       <Navbar />
-      <main>{children}</main>
+      <main className="flex-1">{children}</main>
       <SiteFooter />
+      <MobileTabBar />
     </div>
   );
 }

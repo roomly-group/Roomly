@@ -1,4 +1,4 @@
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'outline' | 'amber';
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'outline' | 'amber' | 'destructive';
 
 export function Button({
   children,
@@ -7,18 +7,18 @@ export function Button({
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }) {
   const styles: Record<ButtonVariant, string> = {
-    primary: 'bg-[#0F6E56] text-[#E1F5EE] hover:bg-[#085041]',
-    secondary: 'bg-[#E1F5EE] text-[#085041] hover:bg-[#9FE1CB]',
-    ghost: 'text-[#2C2C2A] hover:bg-[#E1F5EE]',
-    outline:
-      'border border-[#b7d7ca] bg-transparent text-[#085041] hover:border-[#0F6E56] hover:bg-[#E1F5EE]',
-    amber: 'bg-[#EF9F27] text-[#2C2C2A] hover:bg-[#e6a53d]',
+    primary: 'bg-shutter text-mint-mist hover:bg-pine',
+    secondary: 'bg-mint-mist text-pine hover:bg-mint-wash',
+    ghost: 'text-ink hover:bg-mint-mist',
+    outline: 'border border-outline bg-transparent text-pine hover:border-shutter hover:bg-mint-mist',
+    amber: 'bg-sun text-ink hover:bg-sun-hover',
+    destructive: 'bg-terracotta text-paper hover:bg-terracotta/90',
   };
 
   return (
     <button
       {...props}
-      className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-extrabold transition-all duration-200 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50 ${styles[variant]} ${className}`}
+      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-control px-4 text-sm font-extrabold transition-[background-color,border-color,transform] duration-150 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50 ${styles[variant]} ${className}`}
     >
       {children}
     </button>

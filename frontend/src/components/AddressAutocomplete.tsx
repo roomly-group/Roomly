@@ -40,7 +40,7 @@ export default function AddressAutocomplete({ onPlaceSelect, onClear }: AddressA
 
   if (!apiKey) {
     return (
-      <p className="rounded-xl bg-[#f7ddd1] px-4 py-3 text-sm font-bold text-[#a74b32]">
+      <p className="rounded-sheet bg-terracotta-mist px-4 py-3 text-sm font-bold text-terracotta" role="alert">
         {t("address.noKey")}
       </p>
     );
@@ -91,7 +91,7 @@ export default function AddressAutocomplete({ onPlaceSelect, onClear }: AddressA
         />
       </GeoapifyContext>
       {status !== "idle" && (
-        <p className="mt-2 text-xs font-bold text-[#82978e]">
+        <p className="mt-2 text-[13px] font-bold text-sage" role="status">
           {status === "error" ? t("address.error") : t("address.noResults")}
         </p>
       )}

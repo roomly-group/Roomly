@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-18T19:57:31Z",
+  "generatedAt": "2026-10-19T00:00:00Z",
   "title": "Design System: Roomly",
   "extensions": {
     "colorMeta": {
@@ -9,14 +9,14 @@
         "displayName": "Deep Pine",
         "canonical": "#085041",
         "tonalRamp": [
-          "#074639",
-          "#0c7962",
-          "#11ac8b",
-          "#16dfb5",
-          "#46ecca",
-          "#7df2da",
-          "#b5f8ea",
-          "#e8fdf8"
+          "#000f0a",
+          "#012d23",
+          "#044e3f",
+          "#2f6e5e",
+          "#52907f",
+          "#75b4a1",
+          "#99d9c5",
+          "#beffeb"
         ]
       },
       "shutter-green": {
@@ -24,14 +24,14 @@
         "displayName": "Shutter Green",
         "canonical": "#0f6e56",
         "tonalRamp": [
-          "#094335",
-          "#10755b",
-          "#17a682",
-          "#1dd7a8",
-          "#4be7bf",
-          "#81eed2",
-          "#b7f5e6",
-          "#e9fcf7"
+          "#000f09",
+          "#012d21",
+          "#024e3c",
+          "#167259",
+          "#41947a",
+          "#66b89c",
+          "#8addc0",
+          "#c0fee7"
         ]
       },
       "mint-wash": {
@@ -39,14 +39,14 @@
         "displayName": "Mint Wash",
         "canonical": "#9fe1cb",
         "tonalRamp": [
-          "#123a2d",
-          "#20654e",
-          "#2d906f",
-          "#3abb90",
-          "#64ceab",
-          "#92ddc4",
-          "#c1ecdd",
-          "#ecf9f4"
+          "#000f0a",
+          "#002d22",
+          "#004e3d",
+          "#2d6f5c",
+          "#51917d",
+          "#74b4a0",
+          "#97d9c3",
+          "#bffee9"
         ]
       },
       "mint-mist": {
@@ -54,14 +54,14 @@
         "displayName": "Mint Mist",
         "canonical": "#e1f5ee",
         "tonalRamp": [
-          "#13392c",
-          "#21634c",
-          "#2f8e6d",
-          "#3db88d",
-          "#66cca8",
-          "#94dbc2",
-          "#c2ebdc",
-          "#ecf9f4"
+          "#020e0a",
+          "#192924",
+          "#364641",
+          "#546660",
+          "#758781",
+          "#97aaa3",
+          "#bbcec8",
+          "#e0f4ed"
         ]
       },
       "sun-amber": {
@@ -69,14 +69,14 @@
         "displayName": "Sun Amber",
         "canonical": "#ef9f27",
         "tonalRamp": [
-          "#472d06",
-          "#7b4e0a",
-          "#af6e0e",
-          "#e28f12",
-          "#f0aa42",
-          "#f4c47b",
-          "#f9ddb4",
-          "#fdf4e7"
+          "#140800",
+          "#362001",
+          "#5c3904",
+          "#85560a",
+          "#b17313",
+          "#e09107",
+          "#fdbb68",
+          "#ffebd5"
         ]
       },
       "terracotta": {
@@ -84,44 +84,59 @@
         "displayName": "Terracotta",
         "canonical": "#a74b32",
         "tonalRamp": [
-          "#3b1a12",
-          "#662e1f",
-          "#91412b",
-          "#bc5538",
-          "#d07a62",
-          "#dea291",
-          "#eccac0",
-          "#f9eeeb"
+          "#1c0200",
+          "#470e00",
+          "#771e01",
+          "#9c4128",
+          "#c26349",
+          "#e9866b",
+          "#fdb5a1",
+          "#fee9e3"
         ]
       },
-      "plaster-cream": {
-        "role": "neutral",
-        "displayName": "Plaster Cream",
-        "canonical": "#f1efe8",
+      "terracotta-mist": {
+        "role": "tertiary",
+        "displayName": "Terracotta Mist",
+        "canonical": "#f6e4dc",
         "tonalRamp": [
-          "#302b1d",
-          "#524b32",
-          "#756b47",
-          "#988b5d",
-          "#b2a780",
-          "#c9c1a6",
-          "#e0dccc",
-          "#f5f4ef"
+          "#130804",
+          "#2f221c",
+          "#4d3e38",
+          "#6d5e57",
+          "#8f7e77",
+          "#b2a19a",
+          "#d6c5bd",
+          "#fceae2"
+        ]
+      },
+      "map-paper": {
+        "role": "neutral",
+        "displayName": "Map Paper (ground)",
+        "canonical": "#f2f6f3",
+        "tonalRamp": [
+          "#090c0a",
+          "#232624",
+          "#404341",
+          "#5f6260",
+          "#808381",
+          "#a2a6a3",
+          "#c6cac7",
+          "#ecf0ed"
         ]
       },
       "card-paper": {
         "role": "neutral",
         "displayName": "Card Paper",
-        "canonical": "hsl(50 33% 97%)",
+        "canonical": "#fcfdfb",
         "tonalRamp": [
-          "#353018",
-          "#5b5329",
-          "#82763b",
-          "#a8994d",
-          "#bfb273",
-          "#d2c99d",
-          "#e5e0c7",
-          "#f7f5ed"
+          "#0b0b0a",
+          "#252524",
+          "#414241",
+          "#616160",
+          "#828381",
+          "#a4a5a3",
+          "#c8c9c7",
+          "#eeefed"
         ]
       },
       "ink": {
@@ -129,14 +144,14 @@
         "displayName": "Ink",
         "canonical": "#2c2c2a",
         "tonalRamp": [
-          "#272725",
-          "#444441",
-          "#61615c",
-          "#7d7d78",
-          "#9b9b97",
-          "#b9b9b6",
-          "#d7d7d5",
-          "#f3f3f2"
+          "#0b0b0a",
+          "#252523",
+          "#424240",
+          "#61615f",
+          "#828280",
+          "#a5a5a3",
+          "#c9c9c7",
+          "#efefec"
         ]
       },
       "sage-gray": {
@@ -144,129 +159,151 @@
         "displayName": "Sage Gray",
         "canonical": "#527067",
         "tonalRamp": [
-          "#202c29",
-          "#384d46",
-          "#506d64",
-          "#678d82",
-          "#89a99f",
-          "#adc3bc",
-          "#d0ddd9",
-          "#f0f4f3"
+          "#000f0a",
+          "#0e2b24",
+          "#2c4941",
+          "#4b6860",
+          "#6b8a81",
+          "#8dada3",
+          "#b1d2c7",
+          "#d6f7ed"
+        ]
+      },
+      "pine-deep-text": {
+        "role": "neutral",
+        "displayName": "Pine Text",
+        "canonical": "#265c4d",
+        "tonalRamp": [
+          "#000f0a",
+          "#002d22",
+          "#144d3e",
+          "#386d5d",
+          "#598f7e",
+          "#7cb2a1",
+          "#9fd7c5",
+          "#c4fdea"
+        ]
+      },
+      "line-mint": {
+        "role": "neutral",
+        "displayName": "Line Mint",
+        "canonical": "#e1ebe4",
+        "tonalRamp": [
+          "#070d09",
+          "#202722",
+          "#3c443f",
+          "#5b645e",
+          "#7c857f",
+          "#9ea8a1",
+          "#c2ccc5",
+          "#e7f1ea"
+        ]
+      },
+      "field-border": {
+        "role": "neutral",
+        "displayName": "Field Border",
+        "canonical": "#6f8b80",
+        "tonalRamp": [
+          "#000f09",
+          "#112b22",
+          "#2e483f",
+          "#4d685e",
+          "#6e8a7f",
+          "#90ada1",
+          "#b3d1c5",
+          "#d8f7ea"
+        ]
+      },
+      "outline-border": {
+        "role": "neutral",
+        "displayName": "Outline Border",
+        "canonical": "#b7d7ca",
+        "tonalRamp": [
+          "#000f09",
+          "#0f2b22",
+          "#2d493e",
+          "#4c695d",
+          "#6c8a7e",
+          "#8eada1",
+          "#b2d2c5",
+          "#d7f7ea"
         ]
       }
     },
     "typographyMeta": {
       "display": {
         "displayName": "Display",
-        "purpose": "Hero panels only, one per page"
+        "purpose": "The one page title on home and the waitlist; never inside cards."
       },
-      "headline": {
-        "displayName": "Headline",
-        "purpose": "Page intro headline (home, listing title, dashboard greeting)"
+      "title-lg": {
+        "displayName": "Title large",
+        "purpose": "Section titles in the section head; sentence case, no kicker."
       },
       "title": {
         "displayName": "Title",
-        "purpose": "Panel and card headings, host name, rating (when reviews exist)"
+        "purpose": "Listing titles, row titles, sheet headings."
+      },
+      "lede": {
+        "displayName": "Lede",
+        "purpose": "The one sentence under a page title."
       },
       "body": {
         "displayName": "Body",
-        "purpose": "Descriptions, amenity rows"
+        "purpose": "Reading text, max 65ch."
       },
       "body-sm": {
         "displayName": "Body small",
-        "purpose": "Card meta, reviews, footer links"
+        "purpose": "Meta and helper text."
       },
       "label": {
         "displayName": "Label",
-        "purpose": "Buttons, form labels, distance line, university names"
+        "purpose": "Buttons, form labels, column headers, legend tabs; sentence case."
       },
-      "eyebrow": {
-        "displayName": "Eyebrow",
-        "purpose": "Kicker above every intro and section"
+      "figure-lg": {
+        "displayName": "Figure large",
+        "purpose": "The km of the lg tratta on a listing page, the waitlist position."
       },
-      "section": {
-        "displayName": "Section",
-        "purpose": "Repeated section titles (\"Dove vuoi studiare?\", \"Cosa trovi\")"
+      "figure": {
+        "displayName": "Figure",
+        "purpose": "Prices and km in cards and rows, tabular."
       },
-      "distance-display": {
-        "displayName": "Distance Display",
-        "purpose": "The distance to the university on the listing page: the one loud number"
-      },
-      "card-title": {
-        "displayName": "Card Title",
-        "purpose": "Listing card titles in the grid"
-      },
-      "price-lg": {
-        "displayName": "Price Lg",
-        "purpose": "Price in the request card"
-      },
-      "price": {
-        "displayName": "Price",
-        "purpose": "Price on listing cards"
-      },
-      "nav-link": {
-        "displayName": "Nav Link",
-        "purpose": "Product tabs"
-      },
-      "search-label": {
-        "displayName": "Search Label",
-        "purpose": "Search segment labels"
-      },
-      "meta": {
-        "displayName": "Meta",
-        "purpose": "Category labels, availability lines, tab bar labels"
-      },
-      "badge": {
-        "displayName": "Badge",
-        "purpose": "Chips on photos, status pills"
-      },
-      "tag": {
-        "displayName": "Tag",
-        "purpose": "\"NUOVO\" tags"
+      "map-label": {
+        "displayName": "Map label",
+        "purpose": "Place names in map illustrations and tratta scale ticks only; uppercase, +0.08em."
       }
     },
     "shadows": [
       {
-        "name": "shadow-sm",
-        "value": "0 2px 7px hsl(166 81% 17% / 0.06)",
-        "purpose": "Rest: cards, empty states, panels at rest."
-      },
-      {
-        "name": "shadow-md",
-        "value": "0 10px 28px hsl(166 81% 17% / 0.09)",
-        "purpose": "Lift: card hover and raised menus."
-      },
-      {
-        "name": "shadow-lg",
-        "value": "0 20px 48px hsl(166 81% 17% / 0.13)",
-        "purpose": "Float: hero search bar, floating hero card, dialogs."
+        "name": "shadow-float",
+        "value": "0 18px 44px hsl(166 81% 17% / .14)",
+        "purpose": "Only for layers that physically cover the page: menus, popovers, dialogs, address suggestions, the phone tab bar and the sticky bottom request bar. Content and sheets carry no shadow."
       }
     ],
     "motion": [
       {
-        "name": "rise",
-        "value": "rise .45s ease-out both (translateY 12px to 0, fade in)",
-        "purpose": "Page and card entrance; staggered by .08s steps (delay-1..3)."
+        "name": "tratta-draw",
+        "value": "600ms cubic-bezier(.16, 1, .3, 1), 150ms delay, once",
+        "purpose": "The lg tratta's route draws from home to campus on first view."
       },
       {
-        "name": "floaty",
-        "value": "floaty 5s ease-in-out infinite (±7px, -2deg to 1deg)",
-        "purpose": "Single decorative floating card in hero panels, desktop only."
-      },
-      {
-        "name": "hover-lift",
-        "value": "translateY(-4px) over 300ms",
-        "purpose": "Card hover, paired with shadow-md."
+        "name": "page-enter",
+        "value": "rise 450ms ease-out (translateY 12px to 0, fade in), 80ms stagger",
+        "purpose": "Page content entrance."
       },
       {
         "name": "press",
-        "value": "scale(.98), 200ms",
-        "purpose": "Button active state."
+        "value": "translateY(1px), 150ms",
+        "purpose": "Button active state; hover darkens the fill."
       },
       {
-        "name": "shimmer",
-        "value": "shimmer 1.4s infinite",
-        "purpose": "Skeleton loading cards."
+        "name": "field-focus",
+        "value": "border-color and box-shadow, 200ms",
+        "purpose": "Input focus: Shutter Green stroke plus a 3px Mint Wash ring."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce",
+        "purpose": "Turns off every transition, the page entrance, the skeleton shimmer and the tratta draw."
       }
     ],
     "breakpoints": [
@@ -275,12 +312,16 @@
         "value": "640px"
       },
       {
-        "name": "md",
-        "value": "768px"
+        "name": "laptop",
+        "value": "56.25rem (900px)"
       },
       {
         "name": "lg",
         "value": "1024px"
+      },
+      {
+        "name": "desk",
+        "value": "73.75rem (1180px)"
       },
       {
         "name": "container",
@@ -290,155 +331,163 @@
   },
   "components": [
     {
+      "name": "Action Button",
+      "kind": "button",
+      "refersTo": "button-action",
+      "description": "Sun Amber with Ink text: the one action of a view (Cerca, Richiedi la stanza, Nuovo annuncio, Registrati).",
+      "html": "<button class=\"ds-btn-action\">Richiedi la stanza</button>",
+      "css": ".ds-btn-action { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: var(--radius-control); font-family: 'Nunito Sans', sans-serif; font-size: 14px; font-weight: 800; cursor: pointer; transition: background-color .15s, border-color .15s, transform .15s; min-height: 48px; padding: 0 24px; font-size: 15px; font-weight: 900; background: var(--color-sun); color: var(--color-ink); border: none; } .ds-btn-action:hover { background: var(--color-sun-hover); } .ds-btn-action:focus-visible { outline: 2px solid var(--color-shutter); outline-offset: 2px; } .ds-btn-action:active { transform: translateY(1px); } .ds-btn-action:disabled { opacity: .5; cursor: not-allowed; }"
+    },
+    {
       "name": "Primary Button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "Default action; Shutter Green that deepens to Deep Pine.",
-      "html": "<button class=\"ds-btn-primary\">Cerca stanze</button>",
-      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 8px; background: #0f6e56; color: #e1f5ee; border: none; border-radius: 12px; padding: 10px 16px; font-family: 'Nunito Sans', sans-serif; font-size: 14px; font-weight: 800; cursor: pointer; transition: all .2s; } .ds-btn-primary:hover { background: #085041; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px #9fe1cb66; } .ds-btn-primary:active { transform: scale(.98); }"
+      "description": "Shutter Green with Mint Mist text; hover deepens to Deep Pine.",
+      "html": "<button class=\"ds-btn-primary\">Accetta</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: var(--radius-control); font-family: 'Nunito Sans', sans-serif; font-size: 14px; font-weight: 800; cursor: pointer; transition: background-color .15s, border-color .15s, transform .15s; background: var(--color-shutter); color: var(--color-mint-mist); border: none; } .ds-btn-primary:hover { background: var(--color-pine); } .ds-btn-primary:focus-visible { outline: 2px solid var(--color-shutter); outline-offset: 2px; } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:disabled { opacity: .5; cursor: not-allowed; }"
     },
     {
       "name": "Secondary Button",
       "kind": "button",
       "refersTo": "button-secondary",
-      "description": "Quiet companion action on a Mint Mist fill.",
-      "html": "<button class=\"ds-btn-secondary\">Salva</button>",
-      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; gap: 8px; background: #e1f5ee; color: #085041; border: none; border-radius: 12px; padding: 10px 16px; font-family: 'Nunito Sans', sans-serif; font-size: 14px; font-weight: 800; cursor: pointer; transition: all .2s; } .ds-btn-secondary:hover { background: #9fe1cb; } .ds-btn-secondary:focus-visible { outline: none; box-shadow: 0 0 0 3px #9fe1cb66; } .ds-btn-secondary:active { transform: scale(.98); }"
+      "description": "Transparent with an Outline Border stroke and Deep Pine text: Annulla, Rifiuta, Riprova.",
+      "html": "<button class=\"ds-btn-secondary\">Annulla</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: var(--radius-control); font-family: 'Nunito Sans', sans-serif; font-size: 14px; font-weight: 800; cursor: pointer; transition: background-color .15s, border-color .15s, transform .15s; background: transparent; color: var(--color-pine); border: 1px solid var(--color-outline); } .ds-btn-secondary:hover { border-color: var(--color-shutter); background: var(--color-mint-mist); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--color-shutter); outline-offset: 2px; } .ds-btn-secondary:active { transform: translateY(1px); } .ds-btn-secondary:disabled { opacity: .5; cursor: not-allowed; }"
     },
     {
-      "name": "Amber Button",
+      "name": "Destructive Button",
       "kind": "button",
-      "refersTo": "button-amber",
-      "description": "The single sun-spot action of a view.",
-      "html": "<button class=\"ds-btn-amber\">Cerca</button>",
-      "css": ".ds-btn-amber { display: inline-flex; align-items: center; gap: 8px; background: #ef9f27; color: #2c2c2a; border: none; border-radius: 12px; height: 48px; padding: 0 16px; font-family: 'Nunito Sans', sans-serif; font-size: 14px; font-weight: 800; cursor: pointer; transition: all .2s; } .ds-btn-amber:hover { background: #e6a53d; } .ds-btn-amber:focus-visible { outline: none; box-shadow: 0 0 0 3px #ef9f2766; } .ds-btn-amber:active { transform: scale(.98); }"
-    },
-    {
-      "name": "Outline Button",
-      "kind": "button",
-      "refersTo": "button-outline",
-      "description": "Secondary choice with a mint stroke.",
-      "html": "<button class=\"ds-btn-outline\">Annulla</button>",
-      "css": ".ds-btn-outline { display: inline-flex; align-items: center; gap: 8px; background: transparent; color: #085041; border: 1px solid #b7d7ca; border-radius: 12px; padding: 10px 16px; font-family: 'Nunito Sans', sans-serif; font-size: 14px; font-weight: 800; cursor: pointer; transition: all .2s; } .ds-btn-outline:hover { border-color: #0f6e56; background: #e1f5ee; } .ds-btn-outline:focus-visible { outline: none; box-shadow: 0 0 0 3px #9fe1cb66; } .ds-btn-outline:active { transform: scale(.98); }"
+      "refersTo": "button-destructive",
+      "description": "Terracotta with Card Paper text, only for delete and decline confirmations.",
+      "html": "<button class=\"ds-btn-destructive\">Elimina annuncio</button>",
+      "css": ".ds-btn-destructive { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: var(--radius-control); font-family: 'Nunito Sans', sans-serif; font-size: 14px; font-weight: 800; cursor: pointer; transition: background-color .15s, border-color .15s, transform .15s; background: var(--color-terracotta); color: var(--color-paper); border: none; } .ds-btn-destructive:hover { background: color-mix(in srgb, var(--color-terracotta) 90%, transparent); } .ds-btn-destructive:focus-visible { outline: 2px solid var(--color-shutter); outline-offset: 2px; } .ds-btn-destructive:active { transform: translateY(1px); } .ds-btn-destructive:disabled { opacity: .5; cursor: not-allowed; }"
     },
     {
       "name": "Text Input",
       "kind": "input",
       "refersTo": "input",
-      "description": "Plaster fill, mint stroke, green focus with a soft mint ring.",
-      "html": "<input class=\"ds-input\" placeholder=\"La tua email\" />",
-      "css": ".ds-input { width: 100%; max-width: 320px; background: #f1efe8; color: #2c2c2a; border: 1px solid #c8ddd2; border-radius: 12px; padding: 12px 14px; font-family: 'Nunito Sans', sans-serif; font-size: 14px; font-weight: 700; outline: none; transition: border-color .2s, box-shadow .2s; } .ds-input::placeholder { color: #82978e; } .ds-input:focus-visible, .ds-input:focus { border-color: #0f6e56; box-shadow: 0 0 0 3px #9fe1cb66; }"
-    },
-    {
-      "name": "Navigation",
-      "kind": "nav",
-      "refersTo": "nav-link-active",
-      "description": "Sticky plaster header links; active link is a Mint Mist pill.",
-      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-link ds-nav-active\" href=\"#\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/></svg>Home</a><a class=\"ds-nav-link\" href=\"#\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/></svg>Cerca</a><a class=\"ds-nav-link\" href=\"#\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"/></svg>Messaggi</a></nav>",
-      "css": ".ds-nav { display: flex; gap: 4px; padding: 12px 20px; background: rgba(241,239,232,.95); border-bottom: 1px solid #dbe8e0; font-family: 'Nunito Sans', sans-serif; } .ds-nav-link { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 12px; font-size: 14px; font-weight: 800; color: #527067; text-decoration: none; transition: background-color .2s, color .2s; } .ds-nav-link:hover { background: #e7eee8; } .ds-nav-link:focus-visible { outline: none; box-shadow: 0 0 0 3px #9fe1cb66; } .ds-nav-active, .ds-nav-active:hover { background: #e1f5ee; color: #085041; }"
-    },
-    {
-      "name": "Status Pill",
-      "kind": "chip",
-      "refersTo": "pill",
-      "description": "Mint pill with a live/pending dot.",
-      "html": "<span class=\"ds-pill\"><span class=\"ds-pill-dot\"></span>Disponibile ora</span>",
-      "css": ".ds-pill { display: inline-flex; align-items: center; gap: 6px; background: #e1f5ee; color: #085041; border-radius: 9999px; padding: 6px 12px; font-family: 'Nunito Sans', sans-serif; font-size: 12px; font-weight: 900; } .ds-pill-dot { width: 6px; height: 6px; border-radius: 9999px; background: #0f6e56; }"
+      "description": "48px card-paper field, Field Border stroke, 8px corners, label above; Shutter Green focus with a 3px Mint Wash ring; Terracotta stroke when invalid.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Email</span><input class=\"ds-input\" type=\"email\" placeholder=\"nome@esempio.it\" /></label>",
+      "css": ".ds-field { display: grid; gap: 8px; max-width: 360px; font-family: 'Nunito Sans', sans-serif; } .ds-field-label { font-size: 13px; font-weight: 800; line-height: 1; color: var(--color-pine); } .ds-input { height: 48px; width: 100%; padding: 0 14px; border: 1px solid var(--color-field); border-radius: var(--radius-control); background: var(--color-paper); color: var(--color-ink); font-family: 'Nunito Sans', sans-serif; font-size: 16px; outline: none; transition: border-color .2s, box-shadow .2s; } .ds-input::placeholder { color: var(--color-sage); } .ds-input:focus, .ds-input:focus-visible { border-color: var(--color-shutter); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-mint-wash) 40%, transparent); } .ds-input[aria-invalid=true] { border-color: var(--color-terracotta); } .ds-input:disabled { opacity: .5; cursor: not-allowed; }"
     },
     {
       "name": "Listing Card",
       "kind": "card",
-      "refersTo": "card",
-      "description": "Photo-led room card: availability chip, save heart, meta, title, price row.",
-      "html": "<article class=\"ds-card\"><div class=\"ds-card-photo\"><span class=\"ds-card-chip\">Disponibile ora</span><button class=\"ds-card-heart\" aria-label=\"Salva\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z\"/></svg></button></div><div class=\"ds-card-body\"><p class=\"ds-card-meta\">Città Studi · 0.8 km</p><h3 class=\"ds-card-title\">Stanza singola luminosa</h3><div class=\"ds-card-row\"><p class=\"ds-card-price\">€ 520<span>/mese</span></p><span class=\"ds-card-link\">Vedi stanza →</span></div></div></article>",
-      "css": ".ds-card { width: 300px; overflow: hidden; border-radius: 16px; background: #faf9f4; border: 1px solid #0850411f; box-shadow: 0 2px 7px hsl(166 81% 17% / 0.06); font-family: 'Nunito Sans', sans-serif; transition: transform .3s, box-shadow .3s; } .ds-card:hover { transform: translateY(-4px); box-shadow: 0 10px 28px hsl(166 81% 17% / 0.09); } .ds-card-photo { position: relative; height: 192px; display: flex; align-items: flex-end; padding: 16px; background: linear-gradient(135deg, #a6dfca, #dff3df, #f1efe8); } .ds-card-chip { border-radius: 8px; background: rgba(241,239,232,.85); color: #085041; padding: 4px 10px; font-size: 12px; font-weight: 900; } .ds-card-heart { position: absolute; top: 16px; right: 16px; border: none; border-radius: 9999px; padding: 10px; display: flex; background: rgba(241,239,232,.75); color: #085041; cursor: pointer; transition: background .2s; } .ds-card-heart:hover { background: #f1efe8; } .ds-card-heart:focus-visible { outline: none; box-shadow: 0 0 0 3px #9fe1cb66; } .ds-card-body { padding: 16px; } .ds-card-meta { margin: 0 0 4px; font-size: 12px; font-weight: 800; color: #527067; } .ds-card-title { margin: 0 0 8px; font-size: 18px; font-weight: 900; color: #085041; } .ds-card-row { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e1ebe4; padding-top: 12px; } .ds-card-price { margin: 0; font-size: 18px; font-weight: 900; color: #0f6e56; } .ds-card-price span { font-size: 12px; font-weight: 700; color: #527067; } .ds-card-link { font-size: 14px; font-weight: 900; color: #085041; } .ds-card:hover .ds-card-link { color: #ef9f27; }"
+      "refersTo": "listing-photo",
+      "description": "Frameless on map paper: 4:3 photo (or the persiana) with the sheet corner, title and price on one baseline, the small tratta, then type swatch and availability. Hover underlines the title; nothing lifts.",
+      "html": "<a class=\"ds-card\" href=\"#\"><div class=\"ds-card-photo\"><svg viewBox=\"0 0 100 100\" preserveAspectRatio=\"none\" aria-hidden=\"true\" class=\"ds-card-shutter\"><rect width=\"100\" height=\"100\" fill=\"var(--color-pine)\"/><rect x=\"3\" y=\"3\" width=\"46\" height=\"94\" fill=\"var(--color-shutter)\"/><rect x=\"51\" y=\"3\" width=\"46\" height=\"94\" fill=\"var(--color-shutter)\"/><rect x=\"6\" y=\"6\" width=\"40\" height=\"5.8\" fill=\"var(--color-shutter-hover)\"/><rect x=\"6\" y=\"6\" width=\"40\" height=\"0.8\" fill=\"var(--color-mint-wash)\" opacity=\"0.35\"/><rect x=\"6\" y=\"14\" width=\"40\" height=\"5.8\" fill=\"var(--color-shutter-hover)\"/><rect x=\"6\" y=\"14\" width=\"40\" height=\"0.8\" fill=\"var(--color-mint-wash)\" opacity=\"0.35\"/><rect x=\"6\" y=\"22\" width=\"40\" height=\"5.8\" fill=\"var(--color-shutter-hover)\"/><rect x=\"6\" y=\"22\" width=\"40\" height=\"0.8\" fill=\"var(--color-mint-wash)\" opacity=\"0.35\"/><rect x=\"6\" y=\"30\" width=\"40\" height=\"5.8\" fill=\"var(--color-shutter-hover)\"/><rect x=\"6\" y=\"30\" width=\"40\" height=\"0.8\" fill=\"var(--color-mint-wash)\" opacity=\"0.35\"/><rect x=\"6\" y=\"38\" width=\"40\" height=\"5.8\" fill=\"var(--color-shutter-hover)\"/><rect x=\"6\" y=\"38\" width=\"40\" height=\"0.8\" fill=\"var(--color-mint-wash)\" opacity=\"0.35\"/><rect x=\"6\" y=\"46\" width=\"40\" height=\"5.8\" fill=\"var(--color-shutter-hover)\"/><rect x=\"6\" y=\"46\" width=\"40\" height=\"0.8\" fill=\"var(--color-mint-wash)\" opacity=\"0.35\"/><rect x=\"6\" y=\"54\" width=\"40\" height=\"5.8\" fill=\"var(--color-shutter-hover)\"/><rect x=\"6\" y=\"54\" width=\"40\" height=\"0.8\" fill=\"var(--color-mint-wash)\" opacity=\"0.35\"/><rect x=\"6\" y=\"62\" width=\"40\" height=\"5.8\" fill=\"var(--color-shutter-hover)\"/><rect x=\"6\" y=\"62\" width=\"40\" height=\"0.8\" fill=\"var(--color-mint-wash)\" opacity=\"0.35\"/><rect x=\"6\" y=\"70\" width=\"40\" height=\"5.8\" fill=\"var(--color-shutter-hover)\"/><rect x=\"6\" y=\"70\" width=\"40\" height=\"0.8\" fill=\"var(--color-mint-wash)\" opacity=\"0.35\"/><rect x=\"6\" y=\"78\" width=\"40\" height=\"5.8\" fill=\"var(--color-shutter-hover)\"/><rect x=\"6\" y=\"78\" width=\"40\" height=\"0.8\" fill=\"var(--color-mint-wash)\" opacity=\"0.35\"/><rect x=\"6\" y=\"86\" width=\"40\" height=\"5.8\" fill=\"var(--color-shutter-hover)\"/><rect x=\"6\" y=\"86\" width=\"40\" height=\"0.8\" fill=\"var(--color-mint-wash)\" opacity=\"0.35\"/><rect x=\"54\" y=\"6\" width=\"40\" height=\"5.8\" fill=\"var(--color-shutter-hover)\"/><rect x=\"54\" y=\"6\" width=\"40\" height=\"0.8\" fill=\"var(--color-mint-wash)\" opacity=\"0.35\"/><rect x=\"54\" y=\"14\" width=\"40\" height=\"5.8\" fill=\"var(--color-shutter-hover)\"/><rect x=\"54\" y=\"14\" width=\"40\" height=\"0.8\" fill=\"var(--color-mint-wash)\" opacity=\"0.35\"/><rect x=\"54\" y=\"22\" width=\"40\" height=\"5.8\" fill=\"var(--color-shutter-hover)\"/><rect x=\"54\" y=\"22\" width=\"40\" height=\"0.8\" fill=\"var(--color-mint-wash)\" opacity=\"0.35\"/><rect x=\"54\" y=\"30\" width=\"40\" height=\"5.8\" fill=\"var(--color-shutter-hover)\"/><rect x=\"54\" y=\"30\" width=\"40\" height=\"0.8\" fill=\"var(--color-mint-wash)\" opacity=\"0.35\"/><rect x=\"54\" y=\"38\" width=\"40\" height=\"5.8\" fill=\"var(--color-shutter-hover)\"/><rect x=\"54\" y=\"38\" width=\"40\" height=\"0.8\" fill=\"var(--color-mint-wash)\" opacity=\"0.35\"/><rect x=\"54\" y=\"46\" width=\"40\" height=\"5.8\" fill=\"var(--color-shutter-hover)\"/><rect x=\"54\" y=\"46\" width=\"40\" height=\"0.8\" fill=\"var(--color-mint-wash)\" opacity=\"0.35\"/><rect x=\"54\" y=\"54\" width=\"40\" height=\"5.8\" fill=\"var(--color-shutter-hover)\"/><rect x=\"54\" y=\"54\" width=\"40\" height=\"0.8\" fill=\"var(--color-mint-wash)\" opacity=\"0.35\"/><rect x=\"54\" y=\"62\" width=\"40\" height=\"5.8\" fill=\"var(--color-shutter-hover)\"/><rect x=\"54\" y=\"62\" width=\"40\" height=\"0.8\" fill=\"var(--color-mint-wash)\" opacity=\"0.35\"/><rect x=\"54\" y=\"70\" width=\"40\" height=\"5.8\" fill=\"var(--color-shutter-hover)\"/><rect x=\"54\" y=\"70\" width=\"40\" height=\"0.8\" fill=\"var(--color-mint-wash)\" opacity=\"0.35\"/><rect x=\"54\" y=\"78\" width=\"40\" height=\"5.8\" fill=\"var(--color-shutter-hover)\"/><rect x=\"54\" y=\"78\" width=\"40\" height=\"0.8\" fill=\"var(--color-mint-wash)\" opacity=\"0.35\"/><rect x=\"54\" y=\"86\" width=\"40\" height=\"5.8\" fill=\"var(--color-shutter-hover)\"/><rect x=\"54\" y=\"86\" width=\"40\" height=\"0.8\" fill=\"var(--color-mint-wash)\" opacity=\"0.35\"/></svg><span class=\"ds-card-chip\">Ancora senza foto</span></div><div class=\"ds-card-head\"><h3 class=\"ds-card-title\">Stanza singola in via Celoria</h3><p class=\"ds-card-price\">480 €<span>/mese</span></p></div><p class=\"ds-tratta-sm\"><svg width=\"64\" height=\"12\" viewBox=\"0 0 64 12\" aria-hidden=\"true\"><line x1=\"4\" y1=\"6\" x2=\"60\" y2=\"6\" stroke=\"var(--color-line)\" stroke-width=\"2\"/><line x1=\"4\" y1=\"6\" x2=\"13.0\" y2=\"6\" stroke=\"var(--color-shutter)\" stroke-width=\"2\"/><circle cx=\"4\" cy=\"6\" r=\"3\" fill=\"var(--color-paper)\" stroke=\"var(--color-shutter)\" stroke-width=\"1.5\"/><rect x=\"10.0\" y=\"3\" width=\"6\" height=\"6\" fill=\"var(--color-pine)\"/></svg><span class=\"ds-tratta-km\">0,8 km</span><span class=\"ds-tratta-uni\">Università degli Studi di Milano</span></p><p class=\"ds-card-meta\"><span class=\"ds-swatch\" aria-hidden=\"true\"></span>Stanza <span aria-hidden=\"true\">·</span> <span class=\"ds-card-avail\">Disponibile ora</span></p></a>",
+      "css": ".ds-card { display: block; width: 300px; color: inherit; text-decoration: none; border-radius: var(--radius-sheet); font-family: 'Nunito Sans', sans-serif; } .ds-card:focus-visible { outline: 2px solid var(--color-shutter); outline-offset: 2px; } .ds-card-photo { position: relative; aspect-ratio: 4 / 3; overflow: hidden; border-radius: var(--radius-sheet); background: var(--color-line); } .ds-card-shutter { position: absolute; inset: 0; width: 100%; height: 100%; transition: filter .2s; } .ds-card:hover .ds-card-shutter { filter: brightness(.95); } .ds-card-chip { position: absolute; left: 12px; bottom: 12px; padding: 6px 10px; border-radius: var(--radius-sheet); background: var(--color-chip-veil); color: var(--color-pine); font-size: 12px; font-weight: 800; } .ds-card-head { margin-top: 12px; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; } .ds-card-title { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 17px; font-weight: 800; letter-spacing: -0.01em; color: var(--color-pine); text-decoration-color: var(--color-shutter); text-decoration-thickness: 2px; text-underline-offset: 4px; } .ds-card:hover .ds-card-title { text-decoration-line: underline; } .ds-card-price { margin: 0; flex-shrink: 0; font-size: 17px; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--color-pine); } .ds-card-price span { font-size: 12px; font-weight: 700; color: var(--color-sage); } .ds-tratta-sm { margin: 6px 0 0; display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 14px; } .ds-tratta-sm svg { flex-shrink: 0; } .ds-tratta-km { flex-shrink: 0; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--color-pine); } .ds-tratta-uni { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; color: var(--color-sage); } .ds-card-meta { margin: 6px 0 0; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--color-sage); } .ds-swatch { display: inline-block; width: 10px; height: 10px; background: var(--color-shutter); } .ds-card-avail { color: var(--color-shutter); }"
     },
     {
-      "name": "Page Intro",
+      "name": "Request Status",
+      "kind": "chip",
+      "refersTo": "status-pending",
+      "description": "A request state written like a legend entry: an 8px square swatch and the state's name. No pill, no fill.",
+      "html": "<span class=\"ds-status-row\"><span class=\"ds-status\"><span class=\"ds-status-sw ds-s-pending\" aria-hidden=\"true\"></span>In attesa</span><span class=\"ds-status\"><span class=\"ds-status-sw ds-s-accepted\" aria-hidden=\"true\"></span>Accettata</span><span class=\"ds-status ds-t-declined\"><span class=\"ds-status-sw ds-s-declined\" aria-hidden=\"true\"></span>Rifiutata</span><span class=\"ds-status ds-t-cancelled\"><span class=\"ds-status-sw ds-s-cancelled\" aria-hidden=\"true\"></span>Annullata</span></span>",
+      "css": ".ds-status-row { display: flex; flex-wrap: wrap; gap: 20px; font-family: 'Nunito Sans', sans-serif; } .ds-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; color: var(--color-ink); } .ds-status-sw { width: 8px; height: 8px; flex-shrink: 0; } .ds-s-pending { background: var(--color-sun); } .ds-s-accepted { background: var(--color-shutter); } .ds-s-declined { background: var(--color-terracotta); } .ds-s-cancelled { background: var(--color-outline); } .ds-t-declined { color: var(--color-terracotta); } .ds-t-cancelled { color: var(--color-sage); }"
+    },
+    {
+      "name": "Legend",
+      "kind": "nav",
+      "refersTo": "legend-tab-active",
+      "description": "Property types as legend tabs: 10px square swatch, label and real count; the active tab has a 3px Deep Pine underline; a type with no rooms is inert at 60% Sage.",
+      "html": "<div class=\"ds-legend\" role=\"group\" aria-label=\"Tipologia\"><button class=\"ds-legend-tab ds-legend-active\" aria-pressed=\"true\">Tutte <span class=\"ds-legend-n\">12</span></button><button class=\"ds-legend-tab\" aria-pressed=\"false\"><span class=\"ds-legend-sw ds-sw-stanza\" aria-hidden=\"true\"></span>Stanze <span class=\"ds-legend-n\">9</span></button><button class=\"ds-legend-tab\" aria-pressed=\"false\"><span class=\"ds-legend-sw ds-sw-app\" aria-hidden=\"true\"></span>Appartamenti <span class=\"ds-legend-n\">3</span></button><button class=\"ds-legend-tab\" aria-pressed=\"false\" disabled><span class=\"ds-legend-sw ds-sw-res\" aria-hidden=\"true\"></span>Residenze <span class=\"ds-legend-n\">0</span></button></div>",
+      "css": ".ds-legend { display: flex; gap: 28px; border-bottom: 1px solid var(--color-line); font-family: 'Nunito Sans', sans-serif; } .ds-legend-tab { display: flex; align-items: center; gap: 8px; min-height: 48px; margin-bottom: -1px; padding: 0; background: none; border: none; border-bottom: 3px solid transparent; font: inherit; font-size: 13px; font-weight: 800; color: var(--color-sage); cursor: pointer; transition: color .15s; } .ds-legend-tab:hover { color: var(--color-pine); } .ds-legend-tab:focus-visible { outline: 2px solid var(--color-shutter); outline-offset: 2px; } .ds-legend-active { border-bottom-color: var(--color-pine); color: var(--color-pine); } .ds-legend-tab:disabled { color: color-mix(in srgb, var(--color-sage) 60%, transparent); cursor: default; } .ds-legend-tab:disabled .ds-legend-sw { opacity: .4; } .ds-legend-sw { width: 10px; height: 10px; } .ds-sw-stanza { background: var(--color-shutter); } .ds-sw-app { background: var(--color-pine); } .ds-sw-res { background: var(--color-mint-wash); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-pine) 50%, transparent); } .ds-legend-n { font-weight: 900; font-variant-numeric: tabular-nums; color: var(--color-sage); }"
+    },
+    {
+      "name": "Section Head",
       "kind": "custom",
-      "refersTo": "typography.headline",
-      "description": "Eyebrow, 900-weight headline, sage description: the opening of every page.",
-      "html": "<div class=\"ds-intro\"><p class=\"ds-eyebrow\">I tuoi messaggi</p><h1 class=\"ds-headline\">Parla direttamente con i proprietari.</h1><p class=\"ds-desc\">Richieste, risposte e accordi in un unico posto.</p></div>",
-      "css": ".ds-intro { font-family: 'Nunito Sans', sans-serif; max-width: 640px; } .ds-eyebrow { margin: 0 0 12px; color: #0f6e56; font-size: 11px; font-weight: 900; letter-spacing: .15em; text-transform: uppercase; } .ds-headline { margin: 0; color: #085041; font-size: 44px; font-weight: 900; letter-spacing: -0.045em; line-height: .98; } .ds-desc { margin: 12px 0 0; color: #527067; font-size: 15px; line-height: 1.6; }"
+      "refersTo": "typography.title-lg",
+      "description": "Title-lg on the left, a Line Mint hairline running to the container edge, an optional text link at the end of the line. No kicker.",
+      "html": "<div class=\"ds-section-head\"><h2 class=\"ds-section-title\">Stanze vicino al Politecnico</h2><span class=\"ds-section-rule\" aria-hidden=\"true\"></span><a class=\"ds-link\" href=\"#\">Vedi tutte</a></div>",
+      "css": ".ds-section-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-family: 'Nunito Sans', sans-serif; } .ds-section-title { margin: 0; min-width: 0; font-size: clamp(1.5rem, 2.6vw, 1.875rem); font-weight: 900; line-height: 1.05; letter-spacing: -0.035em; color: var(--color-pine); } .ds-section-rule { flex: 1; min-width: 24px; height: 1px; background: var(--color-line); } .ds-link { font-size: 13px; font-weight: 800; color: var(--color-shutter); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; } .ds-link:hover { text-decoration-thickness: 2px; } .ds-link:focus-visible { outline: 2px solid var(--color-shutter); outline-offset: 2px; }"
+    },
+    {
+      "name": "La tratta (lg)",
+      "kind": "custom",
+      "refersTo": "tratta-figure",
+      "description": "The signature: distance to the university drawn to scale on a 0–5 km track (home ring, Shutter Green route, Deep Pine campus square) with the figure-lg km and map-label scale ticks. The route draws once on first view.",
+      "html": "<figure class=\"ds-tratta-lg\"><figcaption class=\"ds-tratta-cap\"><span class=\"ds-tratta-fig\">0,8 km</span><span class=\"ds-tratta-from\">da Politecnico di Milano</span></figcaption><svg viewBox=\"0 0 560 44\" class=\"ds-tratta-svg\" role=\"img\" aria-label=\"0,8 km — Politecnico di Milano\"><line x1=\"12\" y1=\"14\" x2=\"548\" y2=\"14\" stroke=\"var(--color-line)\" stroke-width=\"3\"/><line x1=\"12.0\" y1=\"20\" x2=\"12.0\" y2=\"26\" stroke=\"var(--color-outline)\" stroke-width=\"1.5\"/><text x=\"12.0\" y=\"40\" text-anchor=\"start\" fill=\"var(--color-sage)\" style=\"font: 800 11px 'Nunito Sans', sans-serif; letter-spacing: .08em\">0</text><line x1=\"119.2\" y1=\"20\" x2=\"119.2\" y2=\"26\" stroke=\"var(--color-outline)\" stroke-width=\"1.5\"/><text x=\"119.2\" y=\"40\" text-anchor=\"middle\" fill=\"var(--color-sage)\" style=\"font: 800 11px 'Nunito Sans', sans-serif; letter-spacing: .08em\">1</text><line x1=\"226.4\" y1=\"20\" x2=\"226.4\" y2=\"26\" stroke=\"var(--color-outline)\" stroke-width=\"1.5\"/><text x=\"226.4\" y=\"40\" text-anchor=\"middle\" fill=\"var(--color-sage)\" style=\"font: 800 11px 'Nunito Sans', sans-serif; letter-spacing: .08em\">2</text><line x1=\"333.6\" y1=\"20\" x2=\"333.6\" y2=\"26\" stroke=\"var(--color-outline)\" stroke-width=\"1.5\"/><text x=\"333.6\" y=\"40\" text-anchor=\"middle\" fill=\"var(--color-sage)\" style=\"font: 800 11px 'Nunito Sans', sans-serif; letter-spacing: .08em\">3</text><line x1=\"440.8\" y1=\"20\" x2=\"440.8\" y2=\"26\" stroke=\"var(--color-outline)\" stroke-width=\"1.5\"/><text x=\"440.8\" y=\"40\" text-anchor=\"middle\" fill=\"var(--color-sage)\" style=\"font: 800 11px 'Nunito Sans', sans-serif; letter-spacing: .08em\">4</text><line x1=\"548.0\" y1=\"20\" x2=\"548.0\" y2=\"26\" stroke=\"var(--color-outline)\" stroke-width=\"1.5\"/><text x=\"548.0\" y=\"40\" text-anchor=\"end\" fill=\"var(--color-sage)\" style=\"font: 800 11px 'Nunito Sans', sans-serif; letter-spacing: .08em\">5 KM</text><line class=\"ds-tratta-route\" x1=\"12\" y1=\"14\" x2=\"97.8\" y2=\"14\" stroke=\"var(--color-shutter)\" stroke-width=\"3\" style=\"--len: 85.8\"/><circle cx=\"12\" cy=\"14\" r=\"7\" fill=\"var(--color-ground)\" stroke=\"var(--color-shutter)\" stroke-width=\"3\"/><rect x=\"90.8\" y=\"7\" width=\"14\" height=\"14\" fill=\"var(--color-pine)\"/></svg><p class=\"ds-tratta-note\">Distanza in linea d’aria.</p></figure>",
+      "css": ".ds-tratta-lg { margin: 0; max-width: 560px; font-family: 'Nunito Sans', sans-serif; } .ds-tratta-cap { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; } .ds-tratta-fig { font-size: clamp(3rem, 7vw, 4.5rem); font-weight: 900; line-height: 1; letter-spacing: -0.05em; font-variant-numeric: tabular-nums; color: var(--color-pine); } .ds-tratta-from { font-size: 17px; font-weight: 800; color: var(--color-pine); } .ds-tratta-svg { display: block; width: 100%; margin-top: 20px; } .ds-tratta-route { stroke-dasharray: var(--len); animation: ds-tratta-draw .6s cubic-bezier(.16, 1, .3, 1) both .15s; } @keyframes ds-tratta-draw { from { stroke-dashoffset: var(--len); } to { stroke-dashoffset: 0; } } @media (prefers-reduced-motion: reduce) { .ds-tratta-route { animation: none; } } .ds-tratta-note { margin: 8px 0 0; font-size: 14px; color: var(--color-sage); }"
     }
   ],
   "narrative": {
-    "northStar": "The Green Shutter",
-    "overview": "An Italian student flat on a sunny morning: green shutters, plaster walls, light on a tidy desk. The structure is a photo-first marketplace: search at the top, a strip of quick filters, a dense grid of listings, and a listing page with a sticky request rail. The identity is entirely Roomly's.\n\nThe marketplace structure brings the pill search bar ending in one round orb, the icon category strip, frameless photo-first cards four to a row, the 1+4 photo mosaic, a sticky request card that becomes a bottom bar on phones, a university link grid and a light three-column footer. The one oversized number on the listing page is the **distance to the student's university**, not a rating: the university is the centre of the map, and the product has no reviews yet.\n\nRoomly keeps Nunito Sans at 900 for headings, the pine/mint/cream palette, one amber spark per view, pine-tinted layered shadows, 12/16/32px rounding, colour-block panels, and the eyebrow → headline → description intro.",
+    "northStar": "La pianta (the pocket city map)",
+    "overview": "Roomly is the map a student unfolds the week before term: the university is marked, the streets are real, and every room on it sits at a measured distance from the lecture halls. The interface borrows four things from that map and nothing else: its paper and park colours, its dense and tabular way of setting figures, its legend, and one signature move — **la tratta**, the route segment that draws each distance to scale. Navigation, forms and controls stay the standard web ones; the map never dresses the screen as a map.\n\nThe shell is committed: a pine band at the top and at the bottom of every page, pale map paper in between. Content sits flat on the paper. Sheets (forms, the request rail, dialogs) are card paper edged by a 1px hairline; nothing casts a soft shadow except things that float over the page (menus, dialogs, the phone's bottom bar). Corners are crisp: 4px for sheets and photos, 8px for controls.\n\nType is one family used at its extremes. Nunito Sans 900 for the one page title and for figures (km, euro, counts), 800 for titles and labels, 400 for reading text. There are no kickers: a heading carries its own weight and is never preceded by a small uppercase label.\n\nThe world was dealt by an impeccable concept roll (seed:144ee22b94cce21c, assigned candidate 6 of 7) and built unattended; the direction contract lives in `.impeccable/surfaces/frontend-src-pages-home-tsx.md`.",
     "keyCharacteristics": [
-      "Plaster Cream page, Card Paper surfaces, Deep Pine voice, Shutter Green actions, one Sun Amber moment per view.",
-      "Pill search bar (Università · Budget mensile, plus Ingresso once listings carry dates) ending in an amber orb on search screens; the orb turns Shutter Green in compact headers where another action owns the amber.",
-      "Listing cards are frameless in grids: a 16px-rounded photo plus four lines of meta. Card Paper surfaces are kept for distance, trust, host, request and empty-state cards.",
-      "Distance to the university is a first-class field on every card and the loudest number on the listing page.",
-      "Prices are monthly and formatted for the reader's language; dates are entry date + duration, never check-in/check-out.",
-      "Nothing on screen is invented: ratings, badges, counts and metrics appear only when real data backs them."
+      "Pine band header and footer, map-paper page, card-paper sheets with hairlines, no soft shadows on content.",
+      "La tratta: distance to the university drawn as a scale-true segment (home dot → line → campus square) on a fixed 0–5 km scale.",
+      "A map legend instead of an icon strip: property types as square swatches with real counts.",
+      "Figures are the loudest type: tabular, 900, aligned on a shared baseline with their titles.",
+      "One amber action per view; sun amber means \"do this\", never decoration.",
+      "Copy is concrete Italian addressed to \"tu\": it names places, numbers and actions, never slogans."
     ],
     "rules": [
       {
         "name": "The Truth Rule",
-        "body": "Every number, badge and claim comes from real data. No placeholder ratings (\"★ 0.0\"), sample listings, \"students are saving\" headlines, health pings dressed as status, or hardcoded percentages. When the data does not exist yet, the component shows its honest empty state or is not rendered. This carries PRODUCT.md's commitment: no testimonials, counts, reviews or partners may be fabricated.",
+        "body": "Every number, badge and claim comes from real data. No placeholder ratings, sample listings, invented counts, fallback numbers or hardcoded percentages. Missing data shows an honest empty state or is not rendered. Illustrations on the public waitlist that show the mechanism are labelled \"Esempio\".",
+        "section": "overview"
+      },
+      {
+        "name": "The No-Kicker Rule",
+        "body": "No small uppercase label above a heading, anywhere. Section context lives in the heading's own words. Uppercase letterspaced type is reserved for place names inside map illustrations and scale ticks (`map-label`).",
+        "section": "overview"
+      },
+      {
+        "name": "The Flat Paper Rule",
+        "body": "Content never floats. Grouping comes from hairlines, alignment and the paper/sheet tonal step. A soft shadow is allowed only on elements that physically sit above the page: menus, popovers, dialogs, the sticky bottom request bar.",
         "section": "overview"
       },
       {
         "name": "The One Sun Rule",
-        "body": "One amber call to action per screen. Home and search: the search orb. Listing page: \"Richiedi la stanza\". Owner dashboard: \"Nuovo annuncio\". Everywhere else the orb is Shutter Green. Stars and pending dots are the only repeats. The amber owners panel is a panel, not a button: its button is Shutter Green. Decorative amber (circles, stat numbers, icons) is not allowed.",
+        "body": "One amber action per view. Amber never decorates: no amber icons, dots, numbers or rings except the pending-request dot.",
         "section": "colors"
       },
       {
         "name": "The No-Grey Rule",
-        "body": "No cool greys, no pure black, no pure white: footers, dropdowns and menus are Card Paper, never `#fff`. Even the modal scrim is pine.",
+        "body": "No cool greys, no pure black, no pure white. Photo lightboxes use Ink at 95%.",
         "section": "colors"
       },
       {
         "name": "The Token Rule",
-        "body": "A new hex in a component is a bug. Components reference tokens through the theme variables in `frontend/src/index.css` (`bg-primary`, `text-muted-foreground`…), not arbitrary `bg-[#…]` values.",
+        "body": "Components use the theme utilities generated from the `@theme` block in `frontend/src/index.css` (`bg-pine`, `text-sage`, `border-line`, `rounded-sheet`…). A raw hex in a component is a bug.",
         "section": "colors"
       },
       {
-        "name": "The Readable Prompt Rule",
-        "body": "Text that carries meaning (search segment prompts, hints, helper text) uses Sage Gray. Sage Placeholder is only for example text inside an input that already has a visible label. Amber Ink is never used for text on Sun Amber; body copy on amber is Ink.",
-        "section": "colors"
-      },
-      {
-        "name": "The Eyebrow-Then-Headline Rule",
-        "body": "Every page intro and major section: eyebrow, then a 900 heading, then an optional Sage description.",
+        "name": "The Baseline Pair Rule",
+        "body": "A title and its figure share one baseline: listing title left, price right; row title left, count right. Figures align right in every list.",
         "section": "typography"
       },
       {
         "name": "The Weight Floor Rule",
-        "body": "Interactive text never below 700; only body copy at 400.",
+        "body": "Interactive text never below 800; reading text stays at 400.",
         "section": "typography"
       },
       {
-        "name": "The One Loud Number Rule",
-        "body": "On the listing page, only the distance uses `distance-display`. Prices stay at `price-lg`; a rating, when real reviews exist, sits at `title` inside the trust card.",
-        "section": "typography"
-      },
-      {
-        "name": "The Locale Rule",
-        "body": "Prices and distances are formatted with `Intl` in the reader's language: \"420 €/mese\" and \"1,2 km\" in Italian, \"€420/month\" and \"1.2 km\" in English. Never hardcode the symbol position or the decimal mark.",
-        "section": "typography"
+        "name": "The Float Is Physical Rule",
+        "body": "If an element does not cover something else, it does not get a shadow.",
+        "section": "elevation"
       }
     ],
     "dos": [
-      "**Do** take every colour, radius and shadow from the tokens above, through the theme variables.",
-      "**Do** let photo, distance to the university and monthly price lead every listing.",
-      "**Do** keep exactly one amber action per view and switch the orb to green elsewhere.",
-      "**Do** use `section` for repeated section titles and keep `headline` for the page intro.",
-      "**Do** keep listing cards frameless in grids and use Card Paper for content cards.",
-      "**Do** show an honest empty state (\"Ancora nessuna recensione\", \"Nessuna richiesta in attesa\") when data is missing.",
-      "**Do** give every interactive element a visible focus state and a 44px+ touch target.",
-      "**Do** format prices and distances with the reader's locale."
+      "**Do** let distance and price lead every listing, drawn as the tratta and set as tabular figures.",
+      "**Do** keep one amber action per view and nothing else amber.",
+      "**Do** group with hairlines, alignment and the paper/sheet step; keep shadows for floating layers.",
+      "**Do** write headings that say what the section is, in sentence case, without a kicker.",
+      "**Do** set every figure tabular and right-align figures in lists.",
+      "**Do** keep every control a standard, recognisable web control with a visible label and focus state.",
+      "**Do** show honest empty states and hide data that does not exist."
     ],
     "donts": [
-      "**Don't** carry over the source marketplace's accent colour, wordmark, custom typeface, laurel ornaments, illustrated 3D tab icons or sub-brand colours.",
-      "**Don't** use nightly prices, check-in/check-out or guest counts: Roomly is monthly, entry date + duration.",
-      "**Don't** show a rating, review count, \"Preferita dagli studenti\", response time, view count, earnings or percentage that isn't computed from real data.",
-      "**Don't** present contract management, lifestyle matching or a Roomly service fee as live until PRODUCT.md confirms them.",
-      "**Don't** render stars in Ink; Roomly stars are amber.",
-      "**Don't** set text over photos, except chips on the Chip Veil.",
-      "**Don't** use grey or black shadows, pure white surfaces or blue links.",
-      "**Don't** set headings below 800 or drop the negative tracking on 900 headings."
+      "**Don't** put a small uppercase label above any heading.",
+      "**Don't** mark selection or alerts with a coloured stripe on one side of a row or panel; tint the row or rule the top edge instead.",
+      "**Don't** use rows of identical cards with an icon tile, a title and two lines of text.",
+      "**Don't** use pastel gradient panels, concentric rings, blobs, floating tilted sample cards or decorative icons.",
+      "**Don't** give content cards soft shadows or 16–32px corners.",
+      "**Don't** centre page heads or build symmetric hero blocks.",
+      "**Don't** write slogans or filler (\"il modo più piacevole\", \"un buon punto di partenza\", \"fai valere ogni stanza\").",
+      "**Don't** show ratings, saves, view counts, earnings or percentages that are not computed from real data.",
+      "**Don't** costume the screen as a paper map: no fold creases, compass roses, grid coordinates or map paper texture on working screens."
     ]
   }
 }
