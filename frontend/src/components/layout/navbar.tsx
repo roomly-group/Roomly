@@ -17,7 +17,7 @@ import { supabase } from '@/lib/supabase';
 import { getRoleInfo } from '@/lib/auth-role';
 import { peekLastKnownRole, peekRoleCache } from '@/lib/role-cache';
 import { useAccount } from '@/lib/account-cache';
-import { CompactSearchPill, SearchPill } from '@/components/shared/search-pill';
+import { SearchPill } from '@/components/shared/search-pill';
 import { APP_ROUTES, SHARED_TEST_IDS } from '@/lib/constants';
 
 // ===================== CONFIGURATION =====================
@@ -210,7 +210,6 @@ export function Navbar() {
           </nav>
 
           <div className="flex items-center gap-2">
-            {!owner && !browse && <CompactSearchPill />}
             {showSwitch && (
               <Link
                 href={switchHref}
