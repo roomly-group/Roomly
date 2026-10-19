@@ -28,7 +28,7 @@ export function WaitlistConfirmedPage() {
       </header>
 
       <main className="mx-auto w-full max-w-[1120px] flex-1 px-5 pb-16 lg:px-8">
-        <section className="relative overflow-hidden rounded-2xl bg-mint-wash px-6 py-12 sm:px-12 sm:py-16">
+        <section className="relative overflow-hidden rounded-[2rem] bg-mint-wash px-6 py-12 sm:px-12 sm:py-16">
 
           <div className="relative grid items-center gap-10 md:grid-cols-[1.4fr_1fr]">
             <div className="page-enter">
