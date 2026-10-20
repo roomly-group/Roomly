@@ -107,7 +107,7 @@ export function Home() {
             </div>
           </div>
           <div data-scroll-tilt className="hidden justify-center lg:flex">
-            <div className="rotate-[-7deg]">
+            <div className="rotate-[7deg]">
               <div className="floaty w-[360px] rounded-2xl border border-pine/10 bg-paper p-3 shadow-float">
                 <div className="relative">
                   <img
