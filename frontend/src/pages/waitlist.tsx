@@ -14,11 +14,10 @@ import {
   Wallet,
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
-import { useFormat } from '@/hooks/use-format';
 import { SiteFooter } from '@/components/layout/site-footer';
 import { Navbar } from '@/components/layout/navbar';
+import { HeroCards } from '@/components/shared/hero-cards';
 import { ScrollWords } from '@/components/shared/scroll-words';
-import { ListingPhotoPlaceholder } from '@/components/shared/listing-card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { APP_ROUTES, SHARED_TEST_IDS } from '@/lib/constants';
 import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
@@ -48,34 +47,6 @@ const FAQ_KEYS = [1, 2, 3, 4, 5] as const;
 const SECTION_TITLE_CLASS = 'display-heading text-[clamp(2rem,4.4vw,2.75rem)] text-pine';
 
 /** The mechanism in one glance: a labelled example card with distance to the university leading. */
-function ExampleCard() {
-  const { t } = useLanguage();
-  const format = useFormat();
-  return (
-    <div className="floaty relative w-[300px] rotate-[-3deg] rounded-2xl border border-pine/10 bg-paper p-3 shadow-float">
-      <div className="relative">
-        <ListingPhotoPlaceholder id={1} showLabel={false} className="aspect-[20/15] rounded-xl" />
-        <span className="absolute left-3 top-3 rounded-lg bg-pine px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-mint-mist">
-          {t('waitlist.exampleLabel')}
-        </span>
-      </div>
-      <div className="space-y-[3px] px-1 pb-1 pt-3">
-        <p className="text-base font-extrabold text-pine">{t('waitlist.exampleTitle')}</p>
-        <p className="flex items-center gap-1.5 text-sm font-extrabold text-pine">
-          <GraduationCap size={15} className="text-shutter" aria-hidden />
-          {t('waitlist.exampleDistance').replace('{km}', format.km(EXAMPLE_DISTANCE_KM))}
-        </p>
-        <p className="flex items-center gap-1.5 text-xs font-extrabold text-sage">
-          <span className="h-1.5 w-1.5 rounded-full bg-shutter" aria-hidden /> {t('common.availableNow')}
-        </p>
-        <p className="pt-1 text-sm text-sage">
-          <span className="text-base font-black tabular-nums text-shutter">{format.price(EXAMPLE_PRICE_EUR)}</span>
-          {t('common.perMonth')}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 export function WaitlistPage() {
   const { t } = useLanguage();
@@ -175,7 +146,7 @@ export function WaitlistPage() {
 
             <div className="hidden justify-center lg:flex" aria-hidden>
               <div data-scroll-tilt>
-                <ExampleCard />
+                <HeroCards />
               </div>
             </div>
           </div>
