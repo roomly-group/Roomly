@@ -93,7 +93,8 @@ export function useAppNav() {
   const isStatic = STATIC_PATHS.includes(location);
   const isApp = !isWaitlistConfirmed && !isGuest && !isStatic;
   const owner = location.startsWith(APP_ROUTES.OWNER_DASHBOARD);
-  const browse = isApp && !owner && (location === APP_ROUTES.HOME || location === APP_ROUTES.SEARCH);
+  // Home carries the search bar in its hero; the search page keeps it in the header.
+  const browse = isApp && !owner && location === APP_ROUTES.SEARCH;
 
   const allLinks = owner
     ? [

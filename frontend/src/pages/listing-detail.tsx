@@ -69,7 +69,7 @@ const SECTION_TITLE_CLASS = 'text-[22px] font-black leading-[1.1] tracking-[-0.0
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="border-t border-line pt-8">
+    <section data-reveal className="border-t border-line pt-8">
       <h2 className={SECTION_TITLE_CLASS}>{title}</h2>
       <div className="mt-5">{children}</div>
     </section>

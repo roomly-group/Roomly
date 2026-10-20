@@ -169,7 +169,7 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
           </aside>
 
           <div className="space-y-5">
-            <section className="surface rounded-2xl p-5 sm:p-7">
+            <section data-reveal className="surface rounded-2xl p-5 sm:p-7">
               <div className="mb-5 flex items-center justify-between">
                 <div>
                   <h2 className="mt-1 text-xl font-black text-[#085041]">{t('profile.usefulBits')}</h2>

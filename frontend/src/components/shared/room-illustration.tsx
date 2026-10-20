@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 /** Roomly's room scene: a window with open green shutters, a desk and a plant, in brand colours. Decorative. */
 export function RoomIllustration({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 400 300" className={cn('block h-auto w-full', className)} aria-hidden>
+    <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" className={cn('block h-auto w-full', className)} aria-hidden>
       <rect width="400" height="300" fill="var(--color-mint-mist)" />
       <rect y="232" width="400" height="68" fill="var(--color-mint-wash)" opacity="0.55" />
       <path d="M170 150 L230 150 L290 300 L150 300 Z" fill="var(--color-paper)" opacity="0.45" />

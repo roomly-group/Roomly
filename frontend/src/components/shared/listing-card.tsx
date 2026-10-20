@@ -3,7 +3,8 @@ import { Link, useSearch } from 'wouter';
 import type { Listing } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
 import { useFormat } from '@/hooks/use-format';
-import { APP_ROUTES, gradients } from '@/lib/constants';
+import { APP_ROUTES } from '@/lib/constants';
+import { RoomIllustration } from '@/components/shared/room-illustration';
 import { cn } from '@/lib/utils';
 
 // ===================== CONFIGURATION =====================
@@ -13,7 +14,7 @@ const LISTING_CARD_TEST_IDS = {
   CARD_LISTING_PREFIX: 'card-listing-',
 } as const;
 
-/** Shutter-slat pastel fill for a room without photos; the same listing id always gets the same tint. */
+/** Room illustration shown for a listing without photos. */
 export function ListingPhotoPlaceholder({
   id,
   className,
@@ -25,8 +26,8 @@ export function ListingPhotoPlaceholder({
 }) {
   const { t } = useLanguage();
   return (
-    <div className={cn('relative overflow-hidden bg-gradient-to-br', gradients[id % gradients.length], className)}>
-      <div aria-hidden className="shutter-slats absolute inset-0" />
+    <div className={cn('relative overflow-hidden bg-mint-mist', className)} data-placeholder-id={id}>
+      <RoomIllustration className="absolute inset-0 !h-full w-full" />
       {showLabel && (
         <span className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-lg bg-chip-veil px-2.5 py-1.5 text-xs font-black text-pine">
           <ImageOff size={13} aria-hidden /> {t('common.noPhotos')}

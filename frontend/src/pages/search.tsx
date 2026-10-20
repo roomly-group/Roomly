@@ -114,8 +114,10 @@ export function SearchPage() {
               aria-busy={isFetching}
               data-testid={SEARCH_TEST_IDS.GRID_RESULTS}
             >
-              {results.map((listing) => (
-                <ListingCard listing={listing} key={listing.id} />
+              {results.map((listing, index) => (
+                <div key={listing.id} data-reveal style={{ '--reveal-delay': `${(index % 4) * 80}ms` } as React.CSSProperties}>
+                  <ListingCard listing={listing} />
+                </div>
               ))}
             </div>
           ) : (

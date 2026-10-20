@@ -9,7 +9,7 @@ const REVEAL_ROOT_MARGIN = '0px 0px -8% 0px' as const;
 
 /**
  * Page motion for the whole app, mounted once:
- * - `[data-reveal]` elements fade up the first time they enter the viewport
+ * - `[data-reveal]` elements fade up when they enter the viewport and fade out when they leave it
  *   (stagger with `style={{ '--reveal-delay': '120ms' }}`);
  * - `[data-scroll-tilt]` elements straighten as the page scrolls (0 → 1 in `--scroll-tilt`).
  * New elements (route changes) are picked up through a MutationObserver.
@@ -19,18 +19,21 @@ export function useScrollMotion() {
   useEffect(() => {
     const reveal = new IntersectionObserver(
       (entries) => {
+        // Enter: show. Leave (either edge): hide again, so the motion plays every time.
         for (const entry of entries) {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('is-visible');
-            reveal.unobserve(entry.target);
-          }
+          entry.target.classList.toggle('is-visible', entry.isIntersecting);
+          // Left through the top edge: exit upwards instead of back down.
+          entry.target.classList.toggle('is-above', !entry.isIntersecting && entry.boundingClientRect.top < 0);
         }
       },
       { threshold: REVEAL_THRESHOLD, rootMargin: REVEAL_ROOT_MARGIN },
     );
 
     const scan = () => {
-      document.querySelectorAll('[data-reveal]:not(.is-visible)').forEach((el) => reveal.observe(el));
+      document.querySelectorAll('[data-reveal]:not([data-reveal-bound])').forEach((el) => {
+        el.setAttribute('data-reveal-bound', '');
+        reveal.observe(el);
+      });
     };
 
     let frame = 0;

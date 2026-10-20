@@ -388,7 +388,7 @@ export function OwnerDashboard() {
         />
 
         <div className="flex flex-wrap items-start gap-x-12 gap-y-10">
-          <section className="min-w-0 flex-[999_1_520px]" aria-labelledby="dashboard-requests">
+          <section data-reveal className="min-w-0 flex-[999_1_520px]" aria-labelledby="dashboard-requests">
             <div className="mb-5 flex items-center justify-between gap-4">
               <h2 id="dashboard-requests" className={cn(SECTION_TITLE_CLASS, 'flex items-center gap-2.5')}>
                 {t('dashboard.queueTitle')}
@@ -434,7 +434,7 @@ export function OwnerDashboard() {
             )}
           </section>
 
-          <section className="w-full laptop:w-[380px]" aria-labelledby="dashboard-listings">
+          <section data-reveal style={{ '--reveal-delay': '120ms' } as React.CSSProperties} className="w-full laptop:w-[380px]" aria-labelledby="dashboard-listings">
             <div className="mb-3 flex items-baseline justify-between gap-4">
               <h2 id="dashboard-listings" className={SECTION_TITLE_CLASS}>
                 {t('dashboard.yourListings')}
