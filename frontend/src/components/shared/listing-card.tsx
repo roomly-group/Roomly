@@ -67,7 +67,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
       className="group block rounded-2xl"
       data-testid={`${LISTING_CARD_TEST_IDS.CARD_LISTING_PREFIX}${listing.id}`}
     >
-      <div className="relative aspect-[20/19] overflow-hidden rounded-2xl bg-line transition-[transform,box-shadow] duration-300 ease-out group-hover:-translate-y-1 group-hover:shadow-lift">
+      <div className="relative aspect-[4/3] overflow-hidden rounded-[20px] sm:aspect-[20/19] sm:rounded-2xl bg-line transition-[transform,box-shadow] duration-300 ease-out group-hover:-translate-y-1 group-hover:shadow-lift">
         {listing.coverPhotoUrl ? (
           <img
             src={listing.coverPhotoUrl}
