@@ -78,9 +78,11 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function FactRow({ icon: Icon, children }: { icon: typeof BedDouble; children: React.ReactNode }) {
   return (
-    <li className="flex items-center gap-3 py-3 text-[15px] text-ink">
-      <Icon size={20} strokeWidth={1.9} className="shrink-0 text-shutter" aria-hidden />
-      <span>{children}</span>
+    <li className="flex min-h-[64px] items-center gap-3 rounded-xl border border-pine/10 bg-paper px-4 py-3 text-sm font-bold text-ink">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-mint-mist text-shutter" aria-hidden>
+        <Icon size={18} strokeWidth={1.9} />
+      </span>
+      <span className="min-w-0">{children}</span>
     </li>
   );
 }
@@ -547,30 +549,25 @@ export function ListingDetail() {
         <div className="mt-10 flex flex-wrap items-start gap-x-16 gap-y-10">
           <div className="min-w-0 flex-[999_1_520px] space-y-10">
             <div
-              className="flex items-center gap-5 rounded-2xl border border-pine/10 bg-paper px-6 py-5 shadow-rest sm:px-7"
+              className="inline-flex max-w-full items-center gap-3 rounded-full border border-pine/10 bg-paper py-2 pl-2 pr-5 shadow-rest"
               data-testid={DETAIL_TEST_IDS.CARD_DISTANCE}
             >
-              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-[20px] bg-mint-mist text-shutter" aria-hidden>
-                <GraduationCap size={28} strokeWidth={1.8} />
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-mint-mist text-shutter" aria-hidden>
+                <GraduationCap size={19} strokeWidth={1.9} />
               </span>
               {distanceKm !== null ? (
-                <p className="min-w-0">
-                  <span className="block text-[clamp(2.75rem,7vw,4rem)] font-black leading-none tracking-[-0.05em] tabular-nums text-pine">
-                    {format.km(distanceKm)} km
-                  </span>
-                  <span className="mt-1 block text-sm font-extrabold text-pine">
-                    {t('listingDetail.distanceFrom').replace('{university}', distanceUniversity)}
-                  </span>
+                <p className="min-w-0 truncate text-sm font-bold text-sage">
+                  <span className="mr-1.5 text-xl font-black tabular-nums text-pine">{format.km(distanceKm)} km</span>
+                  {t('listingDetail.distanceFrom').replace('{university}', distanceUniversity)}
                 </p>
               ) : (
-                <p className="min-w-0">
-                  <span className="block text-sm font-bold text-sage">{t('listingDetail.near')}</span>
-                  <span className="mt-1 block text-lg font-black leading-snug text-pine">{listing.zone}</span>
+                <p className="min-w-0 truncate text-sm font-bold text-sage">
+                  {t('listingDetail.near')} <span className="font-black text-pine">{listing.zone}</span>
                 </p>
               )}
             </div>
 
-            <ul className="grid gap-x-8 sm:grid-cols-2">
+            <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {typeLine && <FactRow icon={Building2}>{typeLine}</FactRow>}
               <FactRow icon={LISTING_FEATURE_GROUP_ICONS[LISTING_FURNITURE_GROUP]}>
                 {listing.furnished ? t('common.furnished') : t('common.unfurnished')}
@@ -591,7 +588,7 @@ export function ListingDetail() {
 
             {featureItems.length > 0 && (
               <Section title={t('listingDetail.whatYouGet')}>
-                <ul className="grid gap-x-8 sm:grid-cols-2">
+                <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {featureItems.map((item) => (
                     <FactRow key={item.key} icon={item.icon}>
                       {item.label}
@@ -602,7 +599,7 @@ export function ListingDetail() {
             )}
 
             <Section title={t('listingDetail.houseRules')}>
-              <ul className="grid gap-x-8 sm:grid-cols-2">
+              <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 <FactRow icon={LISTING_PETS_ICON}>
                   {t(listing.petsAllowed ? 'newListing.petsAllowed' : 'listingDetail.petsNotAllowed')}
                 </FactRow>
@@ -612,25 +609,11 @@ export function ListingDetail() {
               </ul>
             </Section>
 
-            <Section title={t('listingDetail.ownerLabel')}>
-              <div className="flex items-center gap-4 rounded-2xl border border-pine/10 bg-paper p-5 shadow-rest">
-                <Avatar name={listing.owner} size="lg" />
-                <div className="min-w-0">
-                  <p className="truncate text-lg font-black text-pine">{listing.owner}</p>
-                  <p className="mt-0.5 flex items-center gap-1.5 text-sm font-bold text-sage">
-                    <CircleCheck size={14} className="text-shutter" aria-hidden /> {t('listingDetail.identityChecked')}
-                  </p>
-                  <p className="mt-0.5 text-sm text-sage">{t('listingDetail.noReviews')}</p>
-                </div>
-              </div>
-              <p className="mt-4 flex items-start gap-2 text-sm leading-6 text-sage">
-                <ShieldCheck size={16} className="mt-1 shrink-0 text-shutter" aria-hidden /> {t('listingDetail.keepConversation')}
-              </p>
-            </Section>
           </div>
 
+          <div className="w-full space-y-4 laptop:sticky laptop:top-[104px] laptop:w-[340px]">
           <aside
-            className="w-full rounded-2xl border border-pine/10 bg-paper p-6 shadow-lift laptop:sticky laptop:top-[104px] laptop:w-[340px]"
+            className="rounded-2xl border border-pine/10 bg-paper p-6 shadow-lift"
             data-testid={DETAIL_TEST_IDS.CARD_REQUEST}
           >
             <p className="flex items-baseline gap-1">
@@ -660,6 +643,21 @@ export function ListingDetail() {
               </div>
             </dl>
           </aside>
+          <section aria-label={t('listingDetail.ownerLabel')}>
+            <div className="flex items-center gap-4 rounded-2xl border border-pine/10 bg-paper p-5">
+                <Avatar name={listing.owner} size="lg" />
+                <div className="min-w-0">
+                  <p className="truncate text-lg font-black text-pine">{listing.owner}</p>
+                  <p className="mt-0.5 flex items-center gap-1.5 text-sm font-bold text-sage">
+                    <CircleCheck size={14} className="text-shutter" aria-hidden /> {t('listingDetail.identityChecked')}
+                  </p>
+                </div>
+              </div>
+              <p className="mt-4 flex items-start gap-2 text-sm leading-6 text-sage">
+                <ShieldCheck size={16} className="mt-1 shrink-0 text-shutter" aria-hidden /> {t('listingDetail.keepConversation')}
+              </p>
+          </section>
+          </div>
         </div>
       </div>
 
