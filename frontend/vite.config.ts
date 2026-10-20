@@ -36,6 +36,20 @@ export default defineConfig({
     emptyOutDir: true,
     sourcemap: true,
     chunkSizeWarningLimit: CHUNK_SIZE_WARNING_LIMIT_KB,
+    rollupOptions: {
+      output: {
+        // Long-lived vendor chunks: they change rarely, so browsers keep them cached across deploys.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+          if (/[\/](react|react-dom|scheduler|wouter)[\/]/.test(id)) return 'vendor-react';
+          if (id.includes('@supabase')) return 'vendor-supabase';
+          if (id.includes('@radix-ui')) return 'vendor-radix';
+          if (id.includes('@tanstack')) return 'vendor-query';
+          if (id.includes('lucide-react')) return 'vendor-icons';
+          return undefined;
+        },
+      },
+    },
   },
   server: {
     port,

@@ -1,24 +1,27 @@
+import { lazy, Suspense } from 'react';
 import { Route, Switch, useLocation } from 'wouter';
 import { ErrorBoundary } from '@/components/error-boundary';
-import NotFound from '@/pages/not-found';
-import { Home } from '@/pages/home';
-import { LoginPage } from '@/pages/login';
-import { RegisterPage } from '@/pages/register';
-import { SearchPage } from '@/pages/search';
-import { ListingDetail } from '@/pages/listing-detail';
-import { StudentMessagesRoute, OwnerMessagesRoute } from '@/pages/messages';
-import { StudentProfileRoute, OwnerProfileRoute } from '@/pages/profile';
-import { UserPreferencesPage } from '@/pages/user-preferences';
-import { OwnerDashboard } from '@/pages/owner-dashboard';
-import { NewListingPage } from '@/pages/new-listing';
-import { EditListingPage } from '@/pages/edit-listing';
-import { WaitlistPage } from '@/pages/waitlist';
-import { WaitlistConfirmedPage } from '@/pages/waitlist-confirmed';
-import { ChiSiamoPage } from '@/pages/chi-siamo';
-import { ContattiPage } from '@/pages/contatti';
-import { PrivacyPage } from '@/pages/privacy';
-import { TerminiPage } from '@/pages/termini';
-import { CookiePage } from '@/pages/cookie';
+const NotFound = lazy(() => import('@/pages/not-found'));
+const Home = lazy(() => import('@/pages/home').then((m) => ({ default: m.Home })));
+const LoginPage = lazy(() => import('@/pages/login').then((m) => ({ default: m.LoginPage })));
+const RegisterPage = lazy(() => import('@/pages/register').then((m) => ({ default: m.RegisterPage })));
+const SearchPage = lazy(() => import('@/pages/search').then((m) => ({ default: m.SearchPage })));
+const ListingDetail = lazy(() => import('@/pages/listing-detail').then((m) => ({ default: m.ListingDetail })));
+const StudentMessagesRoute = lazy(() => import('@/pages/messages').then((m) => ({ default: m.StudentMessagesRoute })));
+const OwnerMessagesRoute = lazy(() => import('@/pages/messages').then((m) => ({ default: m.OwnerMessagesRoute })));
+const StudentProfileRoute = lazy(() => import('@/pages/profile').then((m) => ({ default: m.StudentProfileRoute })));
+const OwnerProfileRoute = lazy(() => import('@/pages/profile').then((m) => ({ default: m.OwnerProfileRoute })));
+const UserPreferencesPage = lazy(() => import('@/pages/user-preferences').then((m) => ({ default: m.UserPreferencesPage })));
+const OwnerDashboard = lazy(() => import('@/pages/owner-dashboard').then((m) => ({ default: m.OwnerDashboard })));
+const NewListingPage = lazy(() => import('@/pages/new-listing').then((m) => ({ default: m.NewListingPage })));
+const EditListingPage = lazy(() => import('@/pages/edit-listing').then((m) => ({ default: m.EditListingPage })));
+const WaitlistPage = lazy(() => import('@/pages/waitlist').then((m) => ({ default: m.WaitlistPage })));
+const WaitlistConfirmedPage = lazy(() => import('@/pages/waitlist-confirmed').then((m) => ({ default: m.WaitlistConfirmedPage })));
+const ChiSiamoPage = lazy(() => import('@/pages/chi-siamo').then((m) => ({ default: m.ChiSiamoPage })));
+const ContattiPage = lazy(() => import('@/pages/contatti').then((m) => ({ default: m.ContattiPage })));
+const PrivacyPage = lazy(() => import('@/pages/privacy').then((m) => ({ default: m.PrivacyPage })));
+const TerminiPage = lazy(() => import('@/pages/termini').then((m) => ({ default: m.TerminiPage })));
+const CookiePage = lazy(() => import('@/pages/cookie').then((m) => ({ default: m.CookiePage })));
 import { RequireAuth } from '@/components/RequireAuth';
 import { RequireAdmin } from '@/components/RequireAdmin';
 import { RequireOwner } from '@/components/RequireOwner';
@@ -29,6 +32,8 @@ export function Router() {
 
   return (
     <ErrorBoundary resetKey={location}>
+      {/* Each page is its own chunk: the first visit downloads only the page it opens. */}
+      <Suspense fallback={<div className="min-h-screen bg-cream" />}>
       <Switch>
         {/* The app now opens on the login page instead of Home. */}
         <Route path={APP_ROUTES.ROOT} component={WaitlistPage} />
@@ -113,6 +118,7 @@ export function Router() {
         <Route path={APP_ROUTES.COOKIES} component={CookiePage} />
         <Route component={NotFound} />
       </Switch>
+      </Suspense>
     </ErrorBoundary>
   );
 }

@@ -3,6 +3,7 @@ import { ArrowRight, GraduationCap, KeyRound, MessageCircle, Search, ShieldCheck
 import { Link, useLocation } from 'wouter';
 import { getListListingsQueryKey, useListListings } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
+import { useFormat } from '@/hooks/use-format';
 import { AppShell } from '@/components/layout/app-shell';
 import { supabase } from '@/lib/supabase';
 import { RoomIllustration } from '@/components/shared/room-illustration';
@@ -39,7 +40,13 @@ export function Home() {
   const { data, isLoading, isError, refetch } = useListListings(undefined, {
     query: { queryKey: getListListingsQueryKey() },
   });
+  const format = useFormat();
   const listings = useMemo(() => data ?? [], [data]);
+  // The hero shows a real listing: a random one among those with a cover photo.
+  const heroListing = useMemo(() => {
+    const withPhoto = listings.filter((listing) => listing.coverPhotoUrl);
+    return withPhoto.length ? withPhoto[Math.floor(Math.random() * withPhoto.length)] : undefined;
+  }, [listings]);
   const [isOwner, setIsOwner] = useState(false);
 
   // Universities that really have rooms, with real counts: a room's zone is its closest university.
@@ -99,19 +106,31 @@ export function Home() {
             </div>
           </div>
           <div data-scroll-tilt className="hidden justify-center lg:flex">
-            <div className="floaty w-full max-w-[400px] rounded-2xl border border-pine/10 bg-paper p-3 shadow-float">
-              <div className="relative">
-                <RoomIllustration className="aspect-[4/3] rounded-xl" />
-                <span className="absolute left-3 top-3 rounded-full bg-pine px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-mint-mist">
-                  {t('waitlist.exampleLabel')}
-                </span>
-              </div>
-              <div className="px-2 pb-1 pt-3">
-                <p className="text-[15px] font-black text-pine">{t('waitlist.exampleTitle')}</p>
-                <p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-shutter">
-                  <GraduationCap size={15} aria-hidden /> {t('waitlist.exampleDistance').replace('{km}', '0,8')}
-                </p>
-              </div>
+            <div className="rotate-[-7deg]">
+              {heroListing ? (
+                <Link
+                  href={`${APP_ROUTES.LISTINGS}/${heroListing.id}`}
+                  className="floaty block w-[360px] rounded-2xl border border-pine/10 bg-paper p-3 shadow-float"
+                >
+                  <img src={heroListing.coverPhotoUrl} alt="" crossOrigin="anonymous" className="aspect-[4/3] w-full rounded-xl object-cover" />
+                  <div className="px-2 pb-1 pt-3">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="truncate text-[15px] font-black text-pine">{heroListing.title}</p>
+                      <p className="shrink-0 text-[15px] font-black tabular-nums text-shutter">
+                        {format.price(heroListing.price)}
+                        <span className="text-xs font-bold text-sage">{t('common.perMonth')}</span>
+                      </p>
+                    </div>
+                    <p className="mt-1 flex items-center gap-1.5 truncate text-sm font-bold text-sage">
+                      <GraduationCap size={15} className="shrink-0 text-shutter" aria-hidden /> {heroListing.zone}
+                    </p>
+                  </div>
+                </Link>
+              ) : (
+                <div className="floaty w-[360px] rounded-2xl border border-pine/10 bg-paper p-3 shadow-float">
+                  <RoomIllustration className="aspect-[4/3] rounded-xl" />
+                </div>
+              )}
             </div>
           </div>
         </section>
