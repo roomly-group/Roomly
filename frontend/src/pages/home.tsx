@@ -133,7 +133,7 @@ export function Home() {
           ) : listings.length ? (
             <div className={LISTING_GRID_CLASS}>
               {listings.slice(0, FEATURED_LISTING_COUNT).map((listing, index) => (
-                <div key={listing.id} data-reveal style={{ '--reveal-delay': `${index * 90}ms` } as React.CSSProperties} className="rounded-2xl border border-pine/10 bg-paper p-3 shadow-[var(--shadow-sm)] transition-shadow hover:shadow-float">
+                <div key={listing.id} data-reveal style={{ '--reveal-delay': `${index * 90}ms` } as React.CSSProperties}>
                   <ListingCard listing={listing} />
                 </div>
               ))}
