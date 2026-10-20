@@ -19,8 +19,9 @@ export function AuthShell({
 }) {
   const { t } = useLanguage();
   const facts = [
-    { title: t('home.trustBoxTitle'), text: t('home.trustBoxText') },
-    { title: t('home.trustTitle'), text: t('home.trustText') },
+    { title: t('waitlist.step1Title'), text: t('waitlist.step1Text') },
+    { title: t('waitlist.step2Title'), text: t('waitlist.step2Text') },
+    { title: t('waitlist.step3Title'), text: t('waitlist.step3Text') },
   ];
 
   return (
@@ -42,11 +43,14 @@ export function AuthShell({
         </div>
       </div>
 
-      <aside className="hidden flex-col justify-end bg-pine p-12 text-mint-mist lg:flex">
+      <aside className="hidden flex-col justify-center bg-pine p-12 text-mint-mist lg:flex">
         <p className="max-w-sm text-[2rem] font-black leading-tight tracking-[-0.03em]">{t('home.title1')} {t('home.title2')}</p>
         <dl className="mt-10 space-y-6 border-t border-mint-mist/15 pt-8">
-          {facts.map((fact) => (
-            <div key={fact.title}>
+          {facts.map((fact, index) => (
+            <div key={fact.title} className="grid grid-cols-[2.25rem_1fr] gap-x-3">
+              <span className="row-span-2 grid h-9 w-9 place-items-center rounded-full bg-mint-mist text-sm font-black text-pine" aria-hidden>
+                {index + 1}
+              </span>
               <dt className="font-extrabold">{fact.title}</dt>
               <dd className="mt-1 max-w-sm text-sm leading-6 text-mint-wash">{fact.text}</dd>
             </div>

@@ -17,6 +17,7 @@ import { useLanguage } from '@/lib/i18n';
 import { useFormat } from '@/hooks/use-format';
 import { SiteFooter } from '@/components/layout/site-footer';
 import { Navbar } from '@/components/layout/navbar';
+import { ScrollWords } from '@/components/shared/scroll-words';
 import { ListingPhotoPlaceholder } from '@/components/shared/listing-card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { APP_ROUTES, SHARED_TEST_IDS } from '@/lib/constants';
@@ -173,13 +174,15 @@ export function WaitlistPage() {
             </div>
 
             <div className="hidden justify-center lg:flex" aria-hidden>
-              <ExampleCard />
+              <div data-scroll-tilt>
+                <ExampleCard />
+              </div>
             </div>
           </div>
         </section>
 
         {/* How it works: a real sequence, so the numbers carry information. */}
-        <section className="mt-20" aria-labelledby="waitlist-how">
+        <section data-reveal className="mt-20" aria-labelledby="waitlist-how">
           <h2 id="waitlist-how" className={SECTION_TITLE_CLASS}>
             {t('waitlist.howItWorksTitle')}
           </h2>
@@ -204,7 +207,7 @@ export function WaitlistPage() {
         </section>
 
         {/* Pine band: the two promises the product actually keeps. */}
-        <section className="on-dark relative mt-20 overflow-hidden rounded-[2rem] bg-pine px-6 py-12 text-mint-mist sm:px-10 lg:px-16 lg:py-16">
+        <section data-reveal className="on-dark relative mt-20 overflow-hidden rounded-[2rem] bg-pine px-6 py-12 text-mint-mist sm:px-10 lg:px-16 lg:py-16">
           <div className="relative grid gap-12 lg:grid-cols-[1.1fr_1fr]">
             <div>
               <h2 className="display-heading mt-3 max-w-lg text-[clamp(2rem,4.4vw,2.75rem)] text-mint-mist">
@@ -243,12 +246,12 @@ export function WaitlistPage() {
         </section>
 
         {/* Why Roomly, and what students away from home look for. */}
-        <section className="mt-20 grid gap-12 lg:grid-cols-[1fr_1.3fr]" aria-labelledby="waitlist-why">
+        <section data-reveal className="mt-20 grid gap-12 lg:grid-cols-[1fr_1.3fr]" aria-labelledby="waitlist-why">
           <div>
             <h2 id="waitlist-why" className={SECTION_TITLE_CLASS}>
               {t('waitlist.whyRoomlyTitle')}
             </h2>
-            <p className="mt-4 max-w-md text-[15px] leading-7 text-sage">{t('waitlist.whyRoomlyDescription')}</p>
+            <ScrollWords text={t('waitlist.whyRoomlyDescription')} className="mt-5 max-w-md text-[19px] font-bold leading-8 text-pine" />
 
             <h3 className="mt-10 text-lg font-black text-pine">{t('waitlist.previewTitle')}</h3>
             <ul className="mt-4 space-y-3">
@@ -269,7 +272,7 @@ export function WaitlistPage() {
             {reasons.map((reason) => {
               const Icon = reason.icon;
               return (
-                <li key={reason.title} className="flex gap-4 py-6">
+                <li key={reason.title} data-reveal className="flex gap-4 py-6">
                   <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-mint-mist text-shutter" aria-hidden>
                     <Icon size={20} />
                   </span>
@@ -283,7 +286,7 @@ export function WaitlistPage() {
           </ul>
         </section>
 
-        <section id="faq" className="mt-20 scroll-mt-8" aria-labelledby="waitlist-faq">
+        <section data-reveal id="faq" className="mt-20 scroll-mt-8" aria-labelledby="waitlist-faq">
           <div className="mx-auto max-w-3xl">
             <h2 id="waitlist-faq" className={SECTION_TITLE_CLASS}>
               {t('waitlist.faqTitle')}
@@ -304,7 +307,7 @@ export function WaitlistPage() {
         </section>
 
         {/* Close: back to the one action. */}
-        <section className="relative mt-20 overflow-hidden rounded-[2rem] bg-mint-wash px-6 py-14 text-center sm:px-10">
+        <section data-reveal className="relative mt-20 overflow-hidden rounded-[2rem] bg-mint-wash px-6 py-14 text-center sm:px-10">
           <div className="relative">
             <KeyRound size={28} className="mx-auto text-shutter" aria-hidden />
             <h2 className="display-heading mx-auto mt-4 max-w-xl text-[clamp(2rem,4.4vw,2.75rem)] text-pine">{t('waitlist.finalTitle')}</h2>

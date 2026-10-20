@@ -97,7 +97,7 @@ export function Home() {
           <CategoryStrip value="" onChange={(type) => update({ type })} />
         </div>
 
-        <section className="mt-10" aria-labelledby="home-available">
+        <section data-reveal className="mt-10" aria-labelledby="home-available">
           <div className="mb-6 flex items-end justify-between gap-4">
             <div>
               <h2 id="home-available" className={SECTION_TITLE_CLASS}>
@@ -137,7 +137,7 @@ export function Home() {
         </section>
 
         {universities.length > 0 && (
-          <section className="mt-16" aria-labelledby="home-universities">
+          <section data-reveal className="mt-16" aria-labelledby="home-universities">
             <h2 id="home-universities" className={SECTION_TITLE_CLASS}>
               {t('home.universitiesTitle')}
             </h2>
@@ -162,7 +162,7 @@ export function Home() {
           </section>
         )}
 
-        <section className="mt-20 grid gap-8 border-t border-line pt-10 lg:grid-cols-3">
+        <section data-reveal className="mt-20 grid gap-8 border-t border-line pt-10 lg:grid-cols-3">
           <div>
             <h2 className="text-lg font-black text-pine">{t('home.trustBoxTitle')}</h2>
             <p className="mt-2 max-w-sm text-[15px] leading-6 text-sage">{t('home.trustBoxText')}</p>

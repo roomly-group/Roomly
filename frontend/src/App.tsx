@@ -1,3 +1,4 @@
+import { useScrollMotion } from '@/hooks/use-scroll-motion';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Router as WouterRouter } from 'wouter';
 import { Toaster } from '@/components/ui/toaster';
@@ -17,6 +18,7 @@ const queryClient = new QueryClient({
 });
 
 function App() {
+  useScrollMotion();
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

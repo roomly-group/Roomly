@@ -193,7 +193,29 @@
 .form-input::placeholder { color: var(--color-sage); }
 .form-input:focus { border-color: var(--color-shutter); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-mint-wash) 40%, transparent); }
 
+
+/* Scroll motion (see hooks/use-scroll-motion.ts) */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+[data-reveal].is-visible { opacity: 1; transform: none; }
+[data-scroll-tilt] {
+  transform: perspective(1200px) rotateX(calc((1 - var(--scroll-tilt, 1)) * 14deg)) rotate(calc((1 - var(--scroll-tilt, 1)) * -4deg)) translateY(calc((1 - var(--scroll-tilt, 1)) * 40px));
+  transform-origin: 50% 100%;
+  will-change: transform;
+}
+.scroll-word {
+  opacity: clamp(0.16, calc((var(--scroll-words, 1) - var(--word-start)) * 5 + 0.16), 1);
+  transition: opacity .15s linear;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  [data-reveal] { opacity: 1; transform: none; transition: none; }
+  [data-scroll-tilt] { transform: none; }
+  .scroll-word { opacity: 1; }
   .page-enter, .floaty, .skeleton { animation: none; }
   *, *::before, *::after { transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }

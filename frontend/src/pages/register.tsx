@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { clearRoleCache } from '@/lib/role-cache';
 import { clearAccountCache } from '@/lib/account-cache';
 import { Link, useLocation } from 'wouter';
-import { Sparkles, Mail, Lock, User, EyeOff, Eye, Calendar } from 'lucide-react';
+import { Sparkles, Mail, Lock, User, EyeOff, Eye } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { LanguagePicker } from '@/components/language-selector';
 import { Button } from '@/components/shared/button';
@@ -175,6 +175,7 @@ export function RegisterPage() {
       }
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4" data-testid={REGISTER_TEST_IDS.FORM_REGISTER}>
+            <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="register-nome">{t('auth.firstNameLabel')}</Label>
               <div className="relative">
@@ -209,6 +210,7 @@ export function RegisterPage() {
                   data-testid={REGISTER_TEST_IDS.INPUT_LAST_NAME}
                 />
               </div>
+            </div>
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -257,6 +259,7 @@ export function RegisterPage() {
                   )}
                 </button>
               </div>
+              <p className="text-xs leading-5 text-sage">{t('auth.passwordPattern')}</p>
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -292,7 +295,6 @@ export function RegisterPage() {
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="register-data-nascita">{t('auth.dateOfBirthLabel')}</Label>
               <div className="relative">
-                <Calendar size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#527067]" />
                 <Input
                   id="register-data-nascita"
                   type="date"
@@ -301,7 +303,7 @@ export function RegisterPage() {
                   placeholder={t('auth.dateOfBirthPlaceholder')}
                   value={dataNascita}
                   onChange={(event) => setDataNascita(event.target.value)}
-                  className="pl-9 pr-10"
+                  className="[&::-webkit-calendar-picker-indicator]:ml-auto [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                   data-testid={REGISTER_TEST_IDS.INPUT_BIRTH_DATE}
                 />
               </div>
