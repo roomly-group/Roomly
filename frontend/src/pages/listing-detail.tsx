@@ -651,6 +651,7 @@ export function ListingDetail() {
                   <p className="mt-0.5 flex items-center gap-1.5 text-sm font-bold text-sage">
                     <CircleCheck size={14} className="text-shutter" aria-hidden /> {t('listingDetail.identityChecked')}
                   </p>
+                  <p className="mt-0.5 text-sm text-sage">{t('listingDetail.noReviews')}</p>
                 </div>
               </div>
               <p className="mt-4 flex items-start gap-2 text-sm leading-6 text-sage">
