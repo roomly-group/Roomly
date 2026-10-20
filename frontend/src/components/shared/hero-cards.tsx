@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { GraduationCap } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { useFormat } from '@/hooks/use-format';
@@ -23,38 +22,21 @@ const HERO_ROOMS: { photo: string; title: TranslationKey; price: number; km: num
     km: 1.2,
   },
 ];
-/** How long a card stays in front before the other one comes forward (ms). */
-const SWAP_INTERVAL_MS = 3800 as const;
 
-/** Two floating room cards, tilted opposite ways, that swap front and back on a timer. */
+/** Two tilted room cards floating gently in place (CSS: .hero-drift-a/b). */
 export function HeroCards() {
   const { t } = useLanguage();
   const format = useFormat();
-  const [front, setFront] = useState(0);
-
-  useEffect(() => {
-    const id = window.setInterval(() => setFront((current) => (current + 1) % HERO_ROOMS.length), SWAP_INTERVAL_MS);
-    return () => window.clearInterval(id);
-  }, []);
 
   return (
     <div className="relative h-[400px] w-[440px]" aria-hidden>
       {HERO_ROOMS.map((room, index) => {
-        const isFront = index === front;
         return (
           <div
             key={room.title}
-            className={cn(
-              'absolute w-[320px] transition-all duration-700 ease-[cubic-bezier(.16,1,.3,1)]',
-              index === 0 ? 'left-0 top-6' : 'right-0 top-16',
-              isFront ? 'z-20 scale-100 opacity-100' : 'z-10 scale-[0.92] opacity-80',
-              index === 0 ? 'rotate-[-6deg]' : 'rotate-[7deg]',
-            )}
+            className={cn('absolute w-[320px]', index === 0 ? 'hero-drift-a left-0 top-6' : 'hero-drift-b right-0 top-16')}
           >
-            <div
-              className="floaty rounded-2xl border border-pine/10 bg-paper p-3 shadow-float"
-              style={{ animationDelay: `${index * -2.5}s` }}
-            >
+            <div className="rounded-2xl border border-pine/10 bg-paper p-3 shadow-float">
               <img src={room.photo} alt="" loading="eager" className="aspect-[4/3] w-full rounded-xl bg-mint-mist object-cover" />
               <div className="px-2 pb-1 pt-3">
                 <div className="flex items-baseline justify-between gap-3">

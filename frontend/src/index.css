@@ -213,7 +213,21 @@
   transition: opacity .15s linear;
 }
 
+
+/* Home hero: two tilted cards floating gently, each on its own rhythm (components/shared/hero-cards.tsx). */
+@keyframes hero-drift-a {
+  0%, 100% { transform: translate(0, 0) rotate(-6deg); }
+  50%      { transform: translate(-4px, -10px) rotate(-4.5deg); }
+}
+@keyframes hero-drift-b {
+  0%, 100% { transform: translate(0, 0) rotate(7deg); }
+  50%      { transform: translate(5px, -12px) rotate(5.5deg); }
+}
+.hero-drift-a { animation: hero-drift-a 6s ease-in-out infinite; transform: rotate(-6deg); }
+.hero-drift-b { animation: hero-drift-b 7s ease-in-out infinite -2s; transform: rotate(7deg); z-index: 1; }
+
 @media (prefers-reduced-motion: reduce) {
+  .hero-drift-a, .hero-drift-b { animation: none; }
   [data-reveal] { opacity: 1; transform: none; transition: none; }
   [data-scroll-tilt] { transform: none; }
   .scroll-word { opacity: 1; }
