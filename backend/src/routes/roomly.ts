@@ -57,7 +57,7 @@ type RoomRow = {
   latitudine?: number | null;
   longitudine?: number | null;
   stanze_foto?: Array<{ url?: string | null; copertina?: boolean | null; ordine?: number | null }> | null;
-  universita?: { nome?: string | null } | null;
+  universita?: { nome?: string | null; latitudine?: number | null; longitudine?: number | null } | null;
   utenti?: { nome_utente?: string | null; nome?: string | null; cognome?: string | null } | null;
 } & Partial<RoomFeatureColumns>; // tipologia_proprieta, taglio_appartamento, mobili_inclusi, spese_incluse, elettrodomestici, arredi, servizi...
 
@@ -154,6 +154,10 @@ const mapRoomRowToListing = async (
     ...(distanceKm !== undefined ? { distanceKm } : {}),
   };
 };
+
+/** Decimals kept on a room's public coordinates: 3 ≈ 100 m, enough for a map without the exact door. */
+const PUBLIC_COORDINATE_DECIMALS = 3 as const;
+const roundCoordinate = (value: number) => Number(Number(value).toFixed(PUBLIC_COORDINATE_DECIMALS));
 
 const ROOM_SELECT = `
   id,
@@ -302,7 +306,9 @@ router.get(API_ROUTE_PATHS.LISTING_BY_ID, async (req: Request, res: Response) =>
         ${ROOM_FEATURE_COLUMNS},
         universita_id,
         proprietario_id,
-        universita:universita_id(nome),
+        latitudine,
+        longitudine,
+        universita:universita_id(nome, latitudine, longitudine),
         utenti:proprietario_id(nome_utente, nome, cognome),
         stanze_foto(url, copertina, ordine)
       `)
@@ -323,7 +329,20 @@ router.get(API_ROUTE_PATHS.LISTING_BY_ID, async (req: Request, res: Response) =>
       return res.status(404).json({ error: "Listing not found" });
     }
 
-    const listing: Listing = await mapRoomRowToListing(data as RoomRow, undefined, true);
+    const row = data as RoomRow;
+    const listing: Listing = await mapRoomRowToListing(row, undefined, true);
+    // Map on the listing page: the room's position rounded to ~100 m (never the exact
+    // address on a public page) and the coordinates of its university.
+    if (row.latitudine != null && row.longitudine != null) {
+      listing.location = { latitude: roundCoordinate(row.latitudine), longitude: roundCoordinate(row.longitudine) };
+    }
+    if (row.universita?.nome && row.universita.latitudine != null && row.universita.longitudine != null) {
+      listing.university = {
+        name: row.universita.nome,
+        latitude: row.universita.latitudine,
+        longitude: row.universita.longitudine,
+      };
+    }
 
     return res.json(GetListingResponse.parse(listing));
   } catch (error) {

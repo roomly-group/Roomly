@@ -82,7 +82,7 @@ const privacy: Record<Lang, LegalDoc> = {
       {
         title: '6. Cosa vedono gli altri utenti',
         paragraphs: [
-          'Gli annunci sono visibili agli utenti registrati, inclusi nome del proprietario, zona e fotografie. Quando invii una richiesta, il proprietario vede il tuo nome e i messaggi che gli scrivi. L’indirizzo esatto dell’immobile è usato per calcolare la distanza dalle università.',
+          'Gli annunci sono visibili agli utenti registrati, inclusi nome del proprietario, zona e fotografie. Quando invii una richiesta, il proprietario vede il tuo nome e i messaggi che gli scrivi. L’indirizzo esatto dell’immobile è usato per calcolare la distanza dalle università; sulla mappa pubblica dell’annuncio la posizione è mostrata solo in modo approssimato (circa 100 metri).',
           'Non vendiamo i tuoi dati personali e non li usiamo per pubblicità profilata.',
         ],
       },
@@ -172,7 +172,7 @@ const privacy: Record<Lang, LegalDoc> = {
       {
         title: '6. What other users see',
         paragraphs: [
-          'Listings are visible to registered users, including the owner’s name, area and photos. When you send a request, the owner sees your name and your messages. The exact property address is used to calculate the distance to universities.',
+          'Listings are visible to registered users, including the owner’s name, area and photos. When you send a request, the owner sees your name and your messages. The exact property address is used to calculate the distance to universities; the listing map only shows an approximate position (about 100 metres).',
           'We do not sell your personal data and do not use it for targeted advertising.',
         ],
       },
@@ -399,6 +399,7 @@ const cookies: Record<Lang, LegalDoc> = {
         paragraphs: [
           'Non usiamo cookie di profilazione, pubblicitari o di statistica di terze parti. Per questo, secondo le linee guida del Garante, non è necessario il tuo consenso e non mostriamo un banner cookie.',
           'Alcune immagini dimostrative sono caricate da Unsplash: per mostrarle il loro server riceve l’indirizzo IP del tuo dispositivo, senza impostare cookie di profilazione.',
+          'La mappa nella pagina dell’annuncio carica le tessere da CARTO (dati OpenStreetMap) e cerca i luoghi vicini tramite il servizio Overpass di OpenStreetMap: entrambi ricevono l’indirizzo IP del tuo dispositivo e la zona dell’annuncio, senza impostare cookie di profilazione.',
         ],
       },
       {
@@ -439,6 +440,7 @@ const cookies: Record<Lang, LegalDoc> = {
         paragraphs: [
           'We do not use profiling, advertising or third-party analytics cookies. Under the Authority’s guidelines your consent is therefore not required and we do not show a cookie banner.',
           'Some sample images are loaded from Unsplash: their server receives your device’s IP address to display them, without setting profiling cookies.',
+          'The map on the listing page loads its tiles from CARTO (OpenStreetMap data) and looks up nearby places through the OpenStreetMap Overpass service: both receive your device’s IP address and the listing’s area, without setting profiling cookies.',
         ],
       },
       {

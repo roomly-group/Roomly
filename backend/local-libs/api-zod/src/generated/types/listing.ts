@@ -8,6 +8,17 @@
 
 import type { ListingFeatureGroups } from './listingFeatureGroups';
 
+export interface ListingLocation {
+  latitude: number;
+  longitude: number;
+}
+
+export interface ListingUniversity {
+  name: string;
+  latitude: number;
+  longitude: number;
+}
+
 export interface Listing {
   id: number;
   /** ID del proprietario (solo nel dettaglio annuncio). */
@@ -36,4 +47,8 @@ export interface Listing {
   available: boolean;
   /** Distanza in km dall'università cercata (solo nella ricerca per università). */
   distanceKm?: number;
+  /** Posizione approssimata della stanza (3 decimali, circa 100 m), solo nel dettaglio annuncio. */
+  location?: ListingLocation;
+  /** Università associata alla stanza con le sue coordinate, solo nel dettaglio annuncio. */
+  university?: ListingUniversity;
 }

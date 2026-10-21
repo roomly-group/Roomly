@@ -136,7 +136,9 @@ export const GetListingResponse = zod.object({
   "smokersAllowed": zod.boolean(),
   "features": ListingFeatureGroupsSchema,
   "description": zod.string(),
-  "available": zod.boolean()
+  "available": zod.boolean(),
+  "location": zod.object({ "latitude": zod.number(), "longitude": zod.number() }).optional(),
+  "university": zod.object({ "name": zod.string(), "latitude": zod.number(), "longitude": zod.number() }).optional()
 })
 
 

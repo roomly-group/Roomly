@@ -12,7 +12,7 @@
     "audit:fix": "npm audit fix"
   },
   "overrides": {
-  "postcss-selector-parser": "^7.1.6"
+    "postcss-selector-parser": "^7.1.6"
   },
   "dependencies": {
     "@geoapify/geocoder-autocomplete": "^3.1.0",
@@ -59,6 +59,7 @@
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.23.24",
     "input-otp": "^1.4.2",
+    "leaflet": "^1.9.4",
     "lucide-react": "^0.545.0",
     "next-themes": "^0.4.6",
     "react": "19.1.0",
@@ -78,6 +79,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@types/leaflet": "^1.9.12",
     "@types/node": "^25.3.3",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",

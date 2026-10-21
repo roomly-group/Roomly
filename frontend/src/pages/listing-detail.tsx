@@ -28,6 +28,7 @@ import {
 } from '@workspace/api-client-react';
 import type { Listing } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
+import { ListingMap } from '@/components/shared/listing-map';
 import { useFormat } from '@/hooks/use-format';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -583,6 +584,12 @@ export function ListingDetail() {
             {listing.description && (
               <Section title={t('listingDetail.aboutRoom')}>
                 <p className="max-w-2xl whitespace-pre-line text-[15px] leading-7 text-ink">{listing.description}</p>
+              </Section>
+            )}
+
+            {listing.location && (
+              <Section title={t('listingDetail.mapTitle')}>
+                <ListingMap location={listing.location} university={listing.university} />
               </Section>
             )}
 
