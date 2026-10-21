@@ -5,6 +5,7 @@ import { getListListingsQueryKey, useListListings } from '@workspace/api-client-
 import { useLanguage } from '@/lib/i18n';
 import { useFormat } from '@/hooks/use-format';
 import { BROWSE_FLAG_KEYS, useBrowseParams } from '@/hooks/use-browse-params';
+import { SearchPill } from '@/components/shared/search-pill';
 import { AppShell } from '@/components/layout/app-shell';
 import { Button } from '@/components/shared/button';
 import { ListingCard } from '@/components/shared/listing-card';
@@ -97,6 +98,9 @@ export function SearchPage() {
           <p className="mt-3 min-h-6 text-[15px] font-bold text-sage" aria-live="polite" data-testid={SEARCH_TEST_IDS.TEXT_RESULTS}>
             {isLoading ? <span className="skeleton inline-block h-4 w-56 rounded align-middle" /> : resultLine}
           </p>
+          <div className="mt-6 max-w-3xl">
+            <SearchPill />
+          </div>
         </div>
 
         <div className="mt-6">

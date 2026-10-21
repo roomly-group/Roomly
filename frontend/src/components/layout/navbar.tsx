@@ -17,7 +17,6 @@ import { supabase } from '@/lib/supabase';
 import { getRoleInfo } from '@/lib/auth-role';
 import { peekLastKnownRole, peekRoleCache } from '@/lib/role-cache';
 import { useAccount } from '@/lib/account-cache';
-import { SearchPill } from '@/components/shared/search-pill';
 import { APP_ROUTES, SHARED_TEST_IDS } from '@/lib/constants';
 
 // ===================== CONFIGURATION =====================
@@ -93,8 +92,6 @@ export function useAppNav() {
   const isStatic = STATIC_PATHS.includes(location);
   const isApp = !isWaitlistConfirmed && !isGuest && !isStatic;
   const owner = location.startsWith(APP_ROUTES.OWNER_DASHBOARD);
-  // Home carries the search bar in its hero; the search page keeps it in the header.
-  const browse = isApp && !owner && location === APP_ROUTES.SEARCH;
 
   const allLinks = owner
     ? [
@@ -133,7 +130,6 @@ export function useAppNav() {
     isStatic,
     isWaitlistConfirmed,
     owner,
-    browse,
     links,
     isActive,
     showSwitch: isOwner,
@@ -158,7 +154,7 @@ export function Navbar() {
   // Waitlist position comes from the shared /api/me cache (same value as /api/waitlist/me).
   const { account, loading: positionLoading } = useAccount();
   const position = account?.posizione ?? null;
-  const { isApp, isStatic, isWaitlistConfirmed, owner, browse, links, isActive, showSwitch, switchHref, switchLabel } =
+  const { isApp, isStatic, isWaitlistConfirmed, owner, links, isActive, showSwitch, switchHref, switchLabel } =
     useAppNav();
 
   const logo = (
@@ -183,12 +179,7 @@ export function Navbar() {
   if (isApp) {
     return (
       <header className="sticky top-0 z-30 border-b border-line bg-cream/95 backdrop-blur">
-        {/* On phones the browse pages keep only the search pill up here: the tab bar carries navigation. */}
-        <div
-          className={`mx-auto h-16 max-w-[1320px] items-center justify-between gap-6 px-5 lg:px-8 ${
-            browse ? 'hidden sm:flex' : 'flex'
-          }`}
-        >
+        <div className="mx-auto flex h-16 max-w-[1320px] items-center justify-between gap-6 px-5 lg:px-8">
           {logo}
 
           <nav aria-label={t('nav.primary')} className="mr-auto hidden items-center lg:flex">
@@ -278,11 +269,6 @@ export function Navbar() {
           </div>
         )}
 
-        {browse && (
-          <div className="mx-auto max-w-[1320px] px-5 py-3 sm:pb-5 sm:pt-0 lg:px-8">
-            <SearchPill />
-          </div>
-        )}
       </header>
     );
   }
