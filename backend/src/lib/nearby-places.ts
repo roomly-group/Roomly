@@ -51,12 +51,49 @@ function categoryOf(tags: Record<string, string>): NearbyPlace["category"] | nul
   return null;
 }
 
-/** The nearest place of each category within 1 km of a point, from OpenStreetMap. */
+/** Geoapify Places categories for each of our categories. */
+const GEOAPIFY_CATEGORIES: Record<NearbyPlace["category"], string> = {
+  transport: "public_transport.bus,public_transport.subway,public_transport.train,public_transport.tram",
+  supermarket: "commercial.supermarket,commercial.convenience",
+  pharmacy: "healthcare.pharmacy,commercial.health_and_beauty.pharmacy",
+  cafe: "catering.cafe,catering.bar",
+  gym: "sport.fitness",
+  library: "education.library",
+};
+
+/** The nearest place of each category from Geoapify Places (one request per category). */
+async function fetchFromGeoapify(apiKey: string, latitude: number, longitude: number): Promise<NearbyPlace[]> {
+  const places: NearbyPlace[] = [];
+  for (const category of CATEGORIES) {
+    const url =
+      `https://api.geoapify.com/v2/places?categories=${GEOAPIFY_CATEGORIES[category.key]}` +
+      `&filter=circle:${longitude},${latitude},${NEARBY_RADIUS_M}&bias=proximity:${longitude},${latitude}&limit=1&apiKey=${apiKey}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Geoapify responded ${response.status}`);
+    const json = (await response.json()) as {
+      features: { properties: { name?: string; street?: string; lat: number; lon: number } }[];
+    };
+    const place = json.features[0]?.properties;
+    if (!place) continue;
+    places.push({
+      category: category.key,
+      name: place.name ?? place.street ?? "",
+      latitude: place.lat,
+      longitude: place.lon,
+      meters: Math.round(metersBetween(latitude, longitude, place.lat, place.lon)),
+    });
+  }
+  return places;
+}
+
+/** The nearest place of each category within 1 km of a point: Geoapify when configured, else OpenStreetMap. */
 export async function fetchNearbyPlaces(exactLatitude: number, exactLongitude: number): Promise<NearbyPlace[]> {
   // Distances are measured from the rounded (~100 m) position the listing shows, so the
   // metres to several known places cannot be used to work out the exact address.
   const latitude = Number(exactLatitude.toFixed(3));
   const longitude = Number(exactLongitude.toFixed(3));
+  const geoapifyKey = process.env.GEOAPIFY_API_KEY;
+  if (geoapifyKey) return fetchFromGeoapify(geoapifyKey, latitude, longitude);
   const around = `(around:${NEARBY_RADIUS_M},${latitude},${longitude})`;
   const body = CATEGORIES.flatMap((category) => category.filters.map((filter) => `${filter}${around};`)).join("");
   const query = `[out:json][timeout:60];(${body});out center 300;`;
