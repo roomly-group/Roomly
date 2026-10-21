@@ -33,7 +33,11 @@ function matches(listing: Listing, type: string, flags: FilterFlags) {
     (!flags.furnished || listing.furnished) &&
     (!flags.bills || (listing.features?.spese_incluse?.length ?? 0) > 0) &&
     (!flags.pets || listing.petsAllowed) &&
-    (!flags.smokers || listing.smokersAllowed)
+    (!flags.smokers || listing.smokersAllowed) &&
+    flags.features.every((key) => {
+      const [group, option] = key.split('.') as [keyof NonNullable<Listing['features']>, string];
+      return listing.features?.[group]?.includes(option) ?? false;
+    })
   );
 }
 
@@ -57,10 +61,11 @@ export function SearchPage() {
   });
 
   const flags = useMemo<FilterFlags>(
-    () => ({ furnished: params.furnished, bills: params.bills, pets: params.pets, smokers: params.smokers }),
-    [params.furnished, params.bills, params.pets, params.smokers],
+    () => ({ furnished: params.furnished, bills: params.bills, pets: params.pets, smokers: params.smokers, features: params.features }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [params.furnished, params.bills, params.pets, params.smokers, params.features.join(',')],
   );
-  const activeFilterCount = BROWSE_FLAG_KEYS.filter((key) => flags[key]).length;
+  const activeFilterCount = BROWSE_FLAG_KEYS.filter((key) => flags[key]).length + flags.features.length;
   const results = useMemo(() => (data ?? []).filter((listing) => matches(listing, params.type, flags)), [data, params.type, flags]);
   const countFor = useCallback(
     (draft: FilterFlags) => (data ?? []).filter((listing) => matches(listing, params.type, draft)).length,
@@ -80,7 +85,7 @@ export function SearchPage() {
     .join(' · ');
 
   const clearAll = () =>
-    update({ zone: '', maxPrice: '', type: '', furnished: false, bills: false, pets: false, smokers: false });
+    update({ zone: '', maxPrice: '', type: '', furnished: false, bills: false, pets: false, smokers: false, features: [] });
 
   return (
     <AppShell>

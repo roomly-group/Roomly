@@ -12,6 +12,8 @@ export type BrowseParams = {
   bills: boolean;
   pets: boolean;
   smokers: boolean;
+  /** Listing features the room must have, as "group.option" (e.g. "elettrodomestici.lavatrice"). */
+  features: string[];
 };
 
 export const BROWSE_FLAG_KEYS = ['furnished', 'bills', 'pets', 'smokers'] as const;
@@ -33,6 +35,7 @@ export function parseBrowseParams(search: string): BrowseParams {
     bills: query.get('bills') === 'true',
     pets: query.get('pets') === 'true',
     smokers: query.get('smokers') === 'true',
+    features: (query.get('f') ?? '').split(',').filter(Boolean),
   };
 }
 
@@ -42,6 +45,7 @@ export function browseHref(params: BrowseParams) {
   if (params.maxPrice) query.set('maxPrice', params.maxPrice);
   if (params.type) query.set('type', params.type);
   for (const key of BROWSE_FLAG_KEYS) if (params[key]) query.set(key, 'true');
+  if (params.features.length) query.set('f', params.features.join(','));
   const qs = query.toString();
   return `${APP_ROUTES.SEARCH}${qs ? `?${qs}` : ''}`;
 }

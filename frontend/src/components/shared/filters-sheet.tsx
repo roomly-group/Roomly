@@ -4,9 +4,10 @@ import { Armchair, Cigarette, PawPrint, ReceiptText, X } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { Switch } from '@/components/ui/switch';
 import type { BrowseFlag } from '@/hooks/use-browse-params';
+import { LISTING_FEATURE_GROUP_KEYS, LISTING_FEATURE_GROUP_OPTIONS } from '@/lib/constants';
 
 type TranslationKey = Parameters<ReturnType<typeof useLanguage>['t']>[0];
-export type FilterFlags = Record<BrowseFlag, boolean>;
+export type FilterFlags = Record<BrowseFlag, boolean> & { features: string[] };
 
 // ===================== CONFIGURATION =====================
 
@@ -22,9 +23,10 @@ const FILTERS_SHEET_TEST_IDS = {
   SWITCH_PREFIX: 'switch-filter-',
   BUTTON_CLEAR: 'button-filters-clear',
   BUTTON_APPLY: 'button-filters-apply',
+  FEATURE_PREFIX: 'chip-filter-',
 } as const;
 
-const NO_FILTERS: FilterFlags = { furnished: false, bills: false, pets: false, smokers: false };
+const NO_FILTERS: FilterFlags = { furnished: false, bills: false, pets: false, smokers: false, features: [] };
 
 /**
  * Filters as a bottom sheet on phones and a centred dialog from 640px.
@@ -61,7 +63,7 @@ export function FiltersSheet({
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-scrim data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
           aria-describedby={undefined}
-          className="fixed inset-x-0 bottom-0 z-50 flex max-h-[90dvh] flex-col rounded-t-[20px] bg-paper pb-[env(safe-area-inset-bottom)] shadow-float data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom-6 sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:w-full sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:pb-0 sm:data-[state=open]:slide-in-from-bottom-2"
+          className="fixed inset-x-0 bottom-0 z-50 flex max-h-[90dvh] flex-col rounded-t-[20px] bg-paper pb-[env(safe-area-inset-bottom)] shadow-float data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom-6 sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:pb-0 sm:data-[state=open]:slide-in-from-bottom-2"
         >
           <div className="flex items-center justify-between border-b border-line px-6 py-4">
             <DialogPrimitive.Title className="text-lg font-black tracking-[-0.03em] text-pine">{t('filters.title')}</DialogPrimitive.Title>
@@ -73,7 +75,8 @@ export function FiltersSheet({
             </DialogPrimitive.Close>
           </div>
 
-          <ul className="overflow-y-auto px-6 py-2">
+          <div className="overflow-y-auto">
+          <ul className="px-6 py-2">
             {FILTER_ROWS.map((row) => {
               const Icon = row.icon;
               const id = `filter-${row.key}`;
@@ -96,6 +99,40 @@ export function FiltersSheet({
               );
             })}
           </ul>
+
+          {LISTING_FEATURE_GROUP_KEYS.map((group) => (
+            <fieldset key={group} className="border-t border-line px-6 py-4">
+              <legend className="float-left mb-3 w-full text-sm font-black text-pine">
+                {t(`newListing.group.${group}` as TranslationKey)}
+              </legend>
+              <div className="clear-both flex flex-wrap gap-2">
+                {LISTING_FEATURE_GROUP_OPTIONS[group].map((option) => {
+                  const key = `${group}.${option}`;
+                  const on = draft.features.includes(key);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() =>
+                        setDraft((current) => ({
+                          ...current,
+                          features: on ? current.features.filter((item) => item !== key) : [...current.features, key],
+                        }))
+                      }
+                      className={`min-h-10 rounded-full border px-3.5 text-sm font-bold transition-colors ${
+                        on ? 'border-shutter bg-shutter text-mint-mist' : 'border-line bg-paper text-ink hover:border-shutter'
+                      }`}
+                      data-testid={`${FILTERS_SHEET_TEST_IDS.FEATURE_PREFIX}${key}`}
+                    >
+                      {t(`newListing.feature.${option}` as TranslationKey)}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+          ))}
+          </div>
 
           <div className="flex items-center justify-between gap-3 border-t border-line px-6 py-4">
             <button

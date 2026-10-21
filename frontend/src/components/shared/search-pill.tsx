@@ -125,10 +125,12 @@ export function SearchPill() {
         className="flex min-h-14 w-full items-center gap-3 rounded-full border border-pine/10 bg-paper py-2 pl-5 pr-2 text-left shadow-lift sm:hidden"
         data-testid={SEARCH_PILL_TEST_IDS.BUTTON_OPEN_MOBILE}
       >
-        <Search size={19} strokeWidth={2.4} className="shrink-0 text-pine" aria-hidden />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-black text-pine">{params.zone || t('searchBar.mobilePrompt')}</span>
           <span className="block truncate text-xs font-bold text-sage">{summary}</span>
+        </span>
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-sun text-ink" aria-hidden>
+          <Search size={18} strokeWidth={2.6} />
         </span>
       </button>
 
