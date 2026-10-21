@@ -589,7 +589,7 @@ export function ListingDetail() {
 
             {listing.location && (
               <Section title={t('listingDetail.mapTitle')}>
-                <ListingMap location={listing.location} university={listing.university} />
+                <ListingMap location={listing.location} university={listing.university} nearbyPlaces={listing.nearbyPlaces} />
               </Section>
             )}
 

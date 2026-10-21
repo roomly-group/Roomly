@@ -1,6 +1,7 @@
 import { raw, Router, type IRouter, type Request, type Response } from "express";
 import { randomUUID } from "node:crypto";
 import { requireAuth } from "../middleware/auth";
+import { readNearbyPlaces, refreshNearbyPlaces } from "../lib/nearby-places.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import {
   SEARCH_RADIUS_KM,
@@ -336,6 +337,8 @@ router.get(API_ROUTE_PATHS.LISTING_BY_ID, async (req: Request, res: Response) =>
     if (row.latitudine != null && row.longitudine != null) {
       listing.location = { latitude: roundCoordinate(row.latitudine), longitude: roundCoordinate(row.longitudine) };
     }
+    const nearbyPlaces = await readNearbyPlaces(row.id, row.latitudine, row.longitudine);
+    if (nearbyPlaces) listing.nearbyPlaces = nearbyPlaces;
     if (row.universita?.nome && row.universita.latitudine != null && row.universita.longitudine != null) {
       listing.university = {
         name: row.universita.nome,
@@ -462,6 +465,8 @@ router.post(API_ROUTE_PATHS.LISTINGS, requireAuth, async (req: Request, res: Res
     if (!newListing) {
       throw new Error("Failed to create listing");
     }
+    // Nearby places are looked up in the background and stored on the room.
+    if (hasCoords) refreshNearbyPlaces(newListing.id, input.latitude!, input.longitude!);
 
     const createdFeatures = roomColumnsToListingFeatures(featureColumns);
     // We need to map the created listing to the Listing type for response
@@ -984,6 +989,10 @@ router.put(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
     if (updateError) {
       console.error("Error updating listing:", updateError);
       return res.status(500).json({ error: "Internal server error" });
+    }
+    // The room moved: its nearby places are recomputed in the background.
+    if (updateData.latitudine !== undefined && updateData.longitudine !== undefined) {
+      refreshNearbyPlaces(id, updateData.latitudine, updateData.longitudine);
     }
 
     return res.json({ id });

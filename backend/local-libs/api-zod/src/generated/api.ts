@@ -138,7 +138,8 @@ export const GetListingResponse = zod.object({
   "description": zod.string(),
   "available": zod.boolean(),
   "location": zod.object({ "latitude": zod.number(), "longitude": zod.number() }).optional(),
-  "university": zod.object({ "name": zod.string(), "latitude": zod.number(), "longitude": zod.number() }).optional()
+  "university": zod.object({ "name": zod.string(), "latitude": zod.number(), "longitude": zod.number() }).optional(),
+  "nearbyPlaces": zod.array(zod.object({ "category": zod.enum(["transport", "supermarket", "pharmacy", "cafe", "gym", "library"]), "name": zod.string(), "latitude": zod.number(), "longitude": zod.number(), "meters": zod.number() })).optional()
 })
 
 

@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Bus, Coffee, Dumbbell, GraduationCap, Library, Pill, ShoppingCart, type LucideIcon } from 'lucide-react';
-import type { ListingLocation, ListingUniversity } from '@workspace/api-client-react';
+import type { ListingLocation, ListingNearbyPlace, ListingUniversity } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
 import { useFormat } from '@/hooks/use-format';
 import 'leaflet/dist/leaflet.css';
@@ -9,29 +9,26 @@ type TranslationKey = Parameters<ReturnType<typeof useLanguage>['t']>[0];
 
 // ===================== CONFIGURATION =====================
 
-/** Light basemap that matches the site palette (CARTO Positron on OpenStreetMap data). */
-const TILE_URL = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png' as const;
-const TILE_ATTRIBUTION = '&copy; OpenStreetMap contributors &copy; CARTO' as const;
-/** Public Overpass endpoint used to find places around the room. */
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter' as const;
-/** Radius searched for nearby places (m). */
-const NEARBY_RADIUS_M = 1000 as const;
+/** CARTO basemap key (VITE_CARTO_API_KEY); without it the map falls back to the standard OpenStreetMap tiles. */
+const CARTO_KEY = import.meta.env.VITE_CARTO_API_KEY ?? '';
+const TILE_URL = CARTO_KEY
+  ? `https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=${CARTO_KEY}`
+  : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const TILE_ATTRIBUTION = CARTO_KEY ? '&copy; OpenStreetMap contributors &copy; CARTO' : '&copy; OpenStreetMap contributors';
 /** Radius drawn around the room: its coordinates are rounded to ~100 m (m). */
 const APPROX_RADIUS_M = 120 as const;
 /** Average walking speed used for "min a piedi" (m per minute). */
 const WALK_M_PER_MIN = 80 as const;
 
-/** Place categories: OpenStreetMap filters, label and icon. */
-const CATEGORIES: { key: string; label: TranslationKey; icon: LucideIcon; filters: string[] }[] = [
-  { key: 'transport', label: 'poi.transport', icon: Bus, filters: ['node["highway"="bus_stop"]', 'node["railway"~"station|subway_entrance|tram_stop"]'] },
-  { key: 'supermarket', label: 'poi.supermarket', icon: ShoppingCart, filters: ['nwr["shop"~"supermarket|convenience"]'] },
-  { key: 'pharmacy', label: 'poi.pharmacy', icon: Pill, filters: ['nwr["amenity"="pharmacy"]'] },
-  { key: 'cafe', label: 'poi.cafe', icon: Coffee, filters: ['nwr["amenity"~"cafe|bar"]'] },
-  { key: 'gym', label: 'poi.gym', icon: Dumbbell, filters: ['nwr["leisure"="fitness_centre"]'] },
-  { key: 'library', label: 'poi.library', icon: Library, filters: ['nwr["amenity"="library"]'] },
+/** Place categories computed by the backend: label and icon. */
+const CATEGORIES: { key: string; label: TranslationKey; icon: LucideIcon }[] = [
+  { key: 'transport', label: 'poi.transport', icon: Bus },
+  { key: 'supermarket', label: 'poi.supermarket', icon: ShoppingCart },
+  { key: 'pharmacy', label: 'poi.pharmacy', icon: Pill },
+  { key: 'cafe', label: 'poi.cafe', icon: Coffee },
+  { key: 'gym', label: 'poi.gym', icon: Dumbbell },
+  { key: 'library', label: 'poi.library', icon: Library },
 ];
-
-type Place = { category: string; name: string; lat: number; lon: number; meters: number };
 
 /** Straight-line distance between two points (m). */
 function metersBetween(aLat: number, aLon: number, bLat: number, bLon: number) {
@@ -40,46 +37,6 @@ function metersBetween(aLat: number, aLon: number, bLat: number, bLon: number) {
   const dLon = toRad(bLon - aLon);
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLon / 2) ** 2;
   return 6371000 * 2 * Math.asin(Math.sqrt(h));
-}
-
-/** The nearest place of each category around the room, from OpenStreetMap. */
-async function fetchNearby(lat: number, lon: number, signal: AbortSignal): Promise<Place[]> {
-  const around = `(around:${NEARBY_RADIUS_M},${lat},${lon})`;
-  const body = CATEGORIES.flatMap((c) => c.filters.map((f) => `${f}${around};`)).join('');
-  const query = `[out:json][timeout:15];(${body});out center 200;`;
-  const response = await fetch(OVERPASS_URL, {
-    method: 'POST',
-    // Overpass rejects a body without the form content type (406); this type needs no CORS preflight.
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `data=${encodeURIComponent(query)}`,
-    signal,
-  });
-  if (!response.ok) throw new Error(`Overpass ${response.status}`);
-  const json = (await response.json()) as {
-    elements: { lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> }[];
-  };
-  const nearest = new Map<string, Place>();
-  for (const el of json.elements) {
-    const pLat = el.lat ?? el.center?.lat;
-    const pLon = el.lon ?? el.center?.lon;
-    const tags = el.tags ?? {};
-    if (pLat === undefined || pLon === undefined) continue;
-    const category =
-      tags.highway === 'bus_stop' || tags.railway ? 'transport'
-      : tags.shop ? 'supermarket'
-      : tags.amenity === 'pharmacy' ? 'pharmacy'
-      : tags.amenity === 'cafe' || tags.amenity === 'bar' ? 'cafe'
-      : tags.leisure === 'fitness_centre' ? 'gym'
-      : tags.amenity === 'library' ? 'library'
-      : null;
-    if (!category) continue;
-    const meters = metersBetween(lat, lon, pLat, pLon);
-    const current = nearest.get(category);
-    if (!current || meters < current.meters) {
-      nearest.set(category, { category, name: tags.name ?? '', lat: pLat, lon: pLon, meters });
-    }
-  }
-  return CATEGORIES.map((c) => nearest.get(c.key)).filter((p): p is Place => Boolean(p));
 }
 
 /** A round map marker with a Lucide-like glyph drawn in SVG. */
@@ -94,22 +51,20 @@ const DOT_PATH = '<circle cx="12" cy="12" r="4" fill="currentColor"/>';
  * Listing map: the room (approximate), its university, the straight line
  * between them and the nearest everyday places around the room.
  */
-export function ListingMap({ location, university }: { location: ListingLocation; university?: ListingUniversity }) {
+export function ListingMap({
+  location,
+  university,
+  nearbyPlaces,
+}: {
+  location: ListingLocation;
+  university?: ListingUniversity;
+  /** Computed by the backend when the owner publishes; undefined while not computed yet. */
+  nearbyPlaces?: ListingNearbyPlace[];
+}) {
   const { t } = useLanguage();
   const format = useFormat();
   const mapRef = useRef<HTMLDivElement>(null);
-  const [places, setPlaces] = useState<Place[] | null>(null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setPlaces(null);
-    fetchNearby(location.latitude, location.longitude, controller.signal)
-      .then(setPlaces)
-      .catch(() => {
-        if (!controller.signal.aborted) setPlaces([]);
-      });
-    return () => controller.abort();
-  }, [location.latitude, location.longitude]);
+  const places = nearbyPlaces;
 
   useEffect(() => {
     let disposed = false;
@@ -129,8 +84,8 @@ export function ListingMap({ location, university }: { location: ListingLocation
         bounds.extend(uni);
       }
       for (const place of places ?? []) {
-        L.marker([place.lat, place.lon], { icon: L.divIcon({ html: pinHtml('#0f6e56', DOT_PATH, 22), className: '', iconSize: [22, 22], iconAnchor: [11, 11] }), title: place.name || t(CATEGORIES.find((c) => c.key === place.category)!.label) }).addTo(map);
-        bounds.extend([place.lat, place.lon]);
+        L.marker([place.latitude, place.longitude], { icon: L.divIcon({ html: pinHtml('#0f6e56', DOT_PATH, 22), className: '', iconSize: [22, 22], iconAnchor: [11, 11] }), title: place.name || t(CATEGORIES.find((c) => c.key === place.category)!.label) }).addTo(map);
+        bounds.extend([place.latitude, place.longitude]);
       }
       map.fitBounds(bounds.pad(0.25), { maxZoom: 16 });
     });
@@ -156,12 +111,8 @@ export function ListingMap({ location, university }: { location: ListingLocation
       <p className="mt-2 text-xs text-sage">{t('listingDetail.mapApprox')}</p>
 
       <h3 className="mt-6 text-base font-black text-pine">{t('listingDetail.mapNearby')}</h3>
-      {places === null ? (
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {[1, 2, 3].map((n) => (
-            <div key={n} className="skeleton h-[64px] rounded-xl" />
-          ))}
-        </div>
+      {places === undefined ? (
+        <p className="mt-2 text-sm text-sage">{t('listingDetail.mapPlacesPending')}</p>
       ) : places.length ? (
         <ul className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {places.map((place) => {

@@ -13,6 +13,15 @@ export interface ListingLocation {
   longitude: number;
 }
 
+export interface ListingNearbyPlace {
+  category: 'transport' | 'supermarket' | 'pharmacy' | 'cafe' | 'gym' | 'library';
+  name: string;
+  latitude: number;
+  longitude: number;
+  /** Distanza in linea d'aria dalla posizione approssimata della stanza (m). */
+  meters: number;
+}
+
 export interface ListingUniversity {
   name: string;
   latitude: number;
@@ -51,4 +60,6 @@ export interface Listing {
   location?: ListingLocation;
   /** Università associata alla stanza con le sue coordinate, solo nel dettaglio annuncio. */
   university?: ListingUniversity;
+  /** Luoghi più vicini alla stanza, calcolati alla pubblicazione, solo nel dettaglio annuncio. */
+  nearbyPlaces?: ListingNearbyPlace[];
 }
