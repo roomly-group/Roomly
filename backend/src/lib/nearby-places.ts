@@ -93,8 +93,36 @@ export async function fetchNearbyPlaces(exactLatitude: number, exactLongitude: n
   }
 }
 
-/** Rooms whose places are being computed right now, so one slow lookup is not started twice. */
+/** Rooms whose places are queued or being computed, so one lookup is not started twice. */
 const inFlight = new Set<number>();
+/** Lookups run one at a time: Overpass refuses parallel requests from the same IP. */
+let queue: Promise<void> = Promise.resolve();
+/** Attempts per room and the wait before retrying (ms). */
+const OVERPASS_ATTEMPTS = 3 as const;
+const OVERPASS_RETRY_DELAY_MS = 15_000 as const;
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function computeAndStore(roomId: number, latitude: number, longitude: number) {
+  for (let attempt = 1; attempt <= OVERPASS_ATTEMPTS; attempt += 1) {
+    try {
+      const places = await fetchNearbyPlaces(latitude, longitude);
+      const { error } = await supabaseAdmin
+        .from("stanze")
+        .update({ luoghi_vicini: places, luoghi_vicini_aggiornati: new Date().toISOString() })
+        .eq("id", roomId);
+      if (error) console.warn(`Could not store nearby places for room ${roomId}:`, error.message);
+      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (attempt === OVERPASS_ATTEMPTS) {
+        console.warn(`Could not compute nearby places for room ${roomId}:`, message);
+        return;
+      }
+      await wait(OVERPASS_RETRY_DELAY_MS * attempt);
+    }
+  }
+}
 
 /**
  * Computes and stores the places near a room. Runs in the background after a
@@ -104,20 +132,9 @@ const inFlight = new Set<number>();
 export function refreshNearbyPlaces(roomId: number, latitude: number, longitude: number): void {
   if (inFlight.has(roomId)) return;
   inFlight.add(roomId);
-  void (async () => {
-    try {
-      const places = await fetchNearbyPlaces(latitude, longitude);
-      const { error } = await supabaseAdmin
-        .from("stanze")
-        .update({ luoghi_vicini: places, luoghi_vicini_aggiornati: new Date().toISOString() })
-        .eq("id", roomId);
-      if (error) console.warn(`Could not store nearby places for room ${roomId}:`, error.message);
-    } catch (error) {
-      console.warn(`Could not compute nearby places for room ${roomId}:`, error instanceof Error ? error.message : error);
-    } finally {
-      inFlight.delete(roomId);
-    }
-  })();
+  queue = queue
+    .then(() => computeAndStore(roomId, latitude, longitude))
+    .finally(() => inFlight.delete(roomId));
 }
 
 /**
