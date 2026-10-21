@@ -101,9 +101,8 @@ export function Home() {
               <SearchPill />
             </div>
           </div>
-          {/* Phones and tablets: the same floating cards, scaled to fit. */}
-          <div data-scroll-tilt className="flex h-[300px] justify-center overflow-visible sm:h-[360px] lg:h-auto">
-            <div className="origin-top scale-[0.72] sm:scale-90 lg:scale-100">
+          <div data-scroll-tilt className="hidden justify-center lg:flex">
+            <div>
               <HeroCards />
             </div>
           </div>
