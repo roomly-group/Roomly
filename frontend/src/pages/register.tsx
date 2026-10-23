@@ -14,6 +14,7 @@ import { supabase } from '@/lib/supabase';
 import { postAuthRoute } from '@/lib/auth-role';
 import { APP_ROUTES, PASSWORD_FIELD_PLACEHOLDER, SHARED_TEST_IDS } from '@/lib/constants';
 import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
+import { trackEvent } from '@/lib/analytics';
 import roomlyMark from '@assets/logo_no_background.png';
 
 // ===================== CONFIGURATION =====================
@@ -121,6 +122,9 @@ export function RegisterPage() {
         setTurnstileKey((key) => key + 1);
         throw new Error(body.error ?? t('auth.registerError'));
       }
+
+      // Waitlist sign-up completed: GA4 key event (sent only if the visitor accepted analytics).
+      trackEvent('generate_lead', { method: 'waitlist' });
 
       if (body.user) {
         // Email confirmation disabled in the Supabase dashboard: user data

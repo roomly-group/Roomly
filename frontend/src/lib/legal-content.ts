@@ -20,6 +20,7 @@ const PROCESSORS_IT = [
   'Railway Corp. (hosting del server applicativo)',
   'Cloudflare Inc. (verifica anti-bot Turnstile)',
   'Geoapify GmbH (completamento automatico degli indirizzi negli annunci)',
+  'Google Ireland Ltd. (statistiche di visita con Google Analytics 4, solo con il tuo consenso)',
 ];
 const PROCESSORS_EN = [
   'Supabase Inc. (authentication and database)',
@@ -27,12 +28,13 @@ const PROCESSORS_EN = [
   'Railway Corp. (application server hosting)',
   'Cloudflare Inc. (Turnstile anti-bot check)',
   'Geoapify GmbH (address autocomplete in listings)',
+  'Google Ireland Ltd. (visit statistics with Google Analytics 4, only with your consent)',
 ];
 
 const privacy: Record<Lang, LegalDoc> = {
   it: {
     title: 'Informativa sulla privacy',
-    updated: 'Ultimo aggiornamento: 20 ottobre 2026',
+    updated: 'Ultimo aggiornamento: 23 ottobre 2026',
     intro:
       'Questa informativa spiega quali dati personali tratta Roomly, perché, su quale base giuridica e quali diritti hai, ai sensi degli artt. 13 e 14 del Regolamento (UE) 2016/679 ("GDPR") e del D.Lgs. 196/2003 come modificato dal D.Lgs. 101/2018.',
     sections: [
@@ -53,6 +55,7 @@ const privacy: Record<Lang, LegalDoc> = {
           'Richieste e messaggi scambiati tra studenti e proprietari tramite la chat di Roomly.',
           'Dati tecnici: indirizzo IP, tipo di browser e dati di sessione necessari a mantenere l’accesso e a proteggere il servizio da abusi.',
           'Lingua preferita e posizione in lista d’attesa.',
+          'Dati statistici di navigazione, solo se accetti i cookie statistici: pagine visitate sul sito pubblico, tipo di dispositivo e browser, provenienza approssimativa e un identificativo casuale del browser. Google Analytics 4 non registra né conserva gli indirizzi IP degli utenti.',
         ],
       },
       {
@@ -64,6 +67,7 @@ const privacy: Record<Lang, LegalDoc> = {
           'Sicurezza del servizio, prevenzione di frodi, spam e accessi automatizzati: legittimo interesse del titolare (art. 6.1.f).',
           'Adempiere a obblighi di legge e rispondere a richieste delle autorità: obbligo legale (art. 6.1.c).',
           'Inviarti comunicazioni sull’apertura del servizio quando ti iscrivi alla lista d’attesa: esecuzione della tua richiesta; puoi chiedere di non ricevere più comunicazioni in qualsiasi momento.',
+          'Misurare in forma aggregata le visite al sito pubblico e le iscrizioni alla lista d’attesa con Google Analytics 4: consenso (art. 6.1.a GDPR), che puoi negare o revocare in qualsiasi momento dalla pagina Cookie policy senza conseguenze sull’uso di Roomly.',
         ],
       },
       {
@@ -99,6 +103,7 @@ const privacy: Record<Lang, LegalDoc> = {
           'Dati dell’account, annunci, richieste e messaggi: finché l’account è attivo; dopo la cancellazione vengono eliminati entro 30 giorni, salvo quanto necessario per obblighi di legge o per la difesa di un diritto.',
           'Dati della lista d’attesa: fino all’apertura del servizio o finché non chiedi la cancellazione.',
           'Dati tecnici e di sicurezza: per il tempo strettamente necessario, in genere non oltre 12 mesi.',
+          'Dati statistici di Google Analytics: 14 mesi, poi cancellati automaticamente.',
         ],
       },
       {
@@ -126,7 +131,7 @@ const privacy: Record<Lang, LegalDoc> = {
   },
   en: {
     title: 'Privacy Policy',
-    updated: 'Last updated: 20 October 2026',
+    updated: 'Last updated: 23 October 2026',
     intro:
       'This notice explains which personal data Roomly processes, why, on what legal basis and which rights you have, under Articles 13 and 14 of Regulation (EU) 2016/679 ("GDPR") and Italian Legislative Decree 196/2003 as amended. The Italian version prevails.',
     sections: [
@@ -147,6 +152,7 @@ const privacy: Record<Lang, LegalDoc> = {
           'Requests and messages exchanged between students and owners in the Roomly chat.',
           'Technical data: IP address, browser type and session data needed to keep you signed in and protect the service from abuse.',
           'Preferred language and waitlist position.',
+          'Browsing statistics, only if you accept statistics cookies: pages visited on the public site, device and browser type, approximate origin and a random browser identifier. Google Analytics 4 does not log or store users’ IP addresses.',
         ],
       },
       {
@@ -158,6 +164,7 @@ const privacy: Record<Lang, LegalDoc> = {
           'Security, preventing fraud, spam and automated access: our legitimate interest (Art. 6(1)(f)).',
           'Complying with legal obligations and requests from authorities: legal obligation (Art. 6(1)(c)).',
           'Telling you when the service opens if you join the waitlist: fulfilling your request; you can opt out at any time.',
+          'Measuring visits to the public site and waitlist sign-ups in aggregate with Google Analytics 4: consent (Art. 6(1)(a) GDPR), which you can refuse or withdraw at any time from the Cookie Policy page without affecting your use of Roomly.',
         ],
       },
       {
@@ -189,6 +196,7 @@ const privacy: Record<Lang, LegalDoc> = {
           'Account data, listings, requests and messages: while the account is active; deleted within 30 days of account deletion, except what the law requires or what is needed to defend a legal claim.',
           'Waitlist data: until the service opens or until you ask us to delete it.',
           'Technical and security data: only as long as strictly necessary, usually no more than 12 months.',
+          'Google Analytics statistics: 14 months, then deleted automatically.',
         ],
       },
       {
@@ -376,7 +384,7 @@ const terms: Record<Lang, LegalDoc> = {
 const cookies: Record<Lang, LegalDoc> = {
   it: {
     title: 'Cookie policy',
-    updated: 'Ultimo aggiornamento: 20 ottobre 2026',
+    updated: 'Ultimo aggiornamento: 23 ottobre 2026',
     intro:
       'Questa pagina spiega quali cookie e strumenti simili usa Roomly, ai sensi dell’art. 122 del D.Lgs. 196/2003, della Direttiva 2002/58/CE (ePrivacy) e delle Linee guida del Garante privacy del 10 giugno 2021.',
     sections: [
@@ -386,38 +394,52 @@ const cookies: Record<Lang, LegalDoc> = {
       },
       {
         title: '2. Cookie tecnici che usiamo',
-        paragraphs: ['Roomly usa solo cookie e strumenti tecnici, necessari a far funzionare il servizio che hai richiesto:'],
+        paragraphs: ['Questi cookie e strumenti tecnici sono necessari a far funzionare il servizio che hai richiesto e non richiedono il tuo consenso:'],
         list: [
           'sb-token: mantiene l’accesso al tuo account. Prima parte, HttpOnly, durata 7 giorni.',
           'sb-refresh-token: rinnova l’accesso senza chiederti di nuovo la password. Prima parte, HttpOnly, durata 30 giorni.',
           'Local storage (roomly.account, roomly.lastKnownRole, roomly-language): ricorda lingua e ruolo per caricare le pagine più velocemente. Resta finché non esci o cancelli i dati del browser.',
           'Cloudflare Turnstile: durante accesso e registrazione verifica che tu non sia un bot; può impostare cookie tecnici di sicurezza.',
+          'Local storage (roomly-analytics-consent): ricorda se hai accettato o rifiutato i cookie statistici, per non chiedertelo a ogni visita.',
         ],
       },
       {
-        title: '3. Niente profilazione né statistiche di terze parti',
+        title: '3. Cookie statistici (solo con il tuo consenso)',
         paragraphs: [
-          'Non usiamo cookie di profilazione, pubblicitari o di statistica di terze parti. Per questo, secondo le linee guida del Garante, non è necessario il tuo consenso e non mostriamo un banner cookie.',
+          'Sulle pagine pubbliche del sito (lista d’attesa, chi siamo, contatti, registrazione e pagine legali) usiamo Google Analytics 4, fornito da Google Ireland Ltd., per contare le visite e le iscrizioni alla lista d’attesa in forma aggregata. Non lo usiamo nelle pagine dell’app riservate agli utenti registrati.',
+          'Google Analytics si attiva solo se clicchi “Accetta” nel banner; se rifiuti o non scegli non viene caricato. Le funzioni pubblicitarie e Google Signals sono disattivate e Google Analytics 4 non registra né conserva gli indirizzi IP degli utenti. I dati possono essere trasferiti negli Stati Uniti sulla base dell’EU-U.S. Data Privacy Framework.',
+          `Titolare del trattamento è ${COMPANY_IT} (contatti: ${EMAIL}); Google Ireland Ltd. agisce come responsabile del trattamento. La base giuridica è il tuo consenso (art. 6.1.a GDPR), che puoi revocare in qualsiasi momento dalla voce “Gestisci cookie” in fondo a ogni pagina, senza conseguenze sull’uso di Roomly. I dati statistici sono conservati per 14 mesi e poi cancellati automaticamente.`,
+          'Informativa privacy di Google: https://policies.google.com/privacy',
+        ],
+        list: [
+          '_ga: distingue i browser in modo anonimo per contare i visitatori. Prima parte (impostato da Google Analytics sul dominio di Roomly), durata 2 anni.',
+          '_ga_<ID>: mantiene lo stato della sessione di visita. Prima parte (impostato da Google Analytics sul dominio di Roomly), durata 2 anni.',
+        ],
+      },
+      {
+        title: '4. Niente profilazione',
+        paragraphs: [
+          'Non usiamo cookie di profilazione o pubblicitari.',
           'Alcune immagini dimostrative sono caricate da Unsplash: per mostrarle il loro server riceve l’indirizzo IP del tuo dispositivo, senza impostare cookie di profilazione.',
           'La mappa nella pagina dell’annuncio carica le tessere da CARTO (dati OpenStreetMap) e cerca i luoghi vicini tramite il servizio Overpass di OpenStreetMap: entrambi ricevono l’indirizzo IP del tuo dispositivo e la zona dell’annuncio, senza impostare cookie di profilazione.',
         ],
       },
       {
-        title: '4. Come gestirli',
+        title: '5. Come gestirli',
         paragraphs: [
-          'Puoi cancellare o bloccare i cookie dalle impostazioni del browser. Se blocchi i cookie tecnici non potrai accedere al tuo account.',
-          'Se in futuro introdurremo cookie non tecnici, aggiorneremo questa pagina e ti chiederemo prima il consenso, con la possibilità di rifiutare con la stessa facilità.',
+          'Puoi cambiare in qualsiasi momento la tua scelta sui cookie statistici con i pulsanti in alto in questa pagina, raggiungibile da “Gestisci cookie” in fondo a ogni pagina: se revochi il consenso, Google Analytics viene disattivato e i suoi cookie cancellati.',
+          'Puoi anche cancellare o bloccare i cookie dalle impostazioni del browser. Se blocchi i cookie tecnici non potrai accedere al tuo account.',
         ],
       },
       {
-        title: '5. Contatti',
+        title: '6. Contatti',
         paragraphs: [`Per domande su questa pagina scrivi a ${EMAIL}. Le informazioni sul trattamento dei dati sono nell’informativa sulla privacy.`],
       },
     ],
   },
   en: {
     title: 'Cookie Policy',
-    updated: 'Last updated: 20 October 2026',
+    updated: 'Last updated: 23 October 2026',
     intro:
       'This page explains which cookies and similar tools Roomly uses, under Article 122 of Italian Legislative Decree 196/2003, Directive 2002/58/EC (ePrivacy) and the Italian Data Protection Authority’s guidelines of 10 June 2021. The Italian version prevails.',
     sections: [
@@ -427,31 +449,45 @@ const cookies: Record<Lang, LegalDoc> = {
       },
       {
         title: '2. Technical cookies we use',
-        paragraphs: ['Roomly only uses technical cookies and tools needed to run the service you asked for:'],
+        paragraphs: ['These technical cookies and tools are needed to run the service you asked for and do not require your consent:'],
         list: [
           'sb-token: keeps you signed in. First-party, HttpOnly, lasts 7 days.',
           'sb-refresh-token: renews your session without asking for your password again. First-party, HttpOnly, lasts 30 days.',
           'Local storage (roomly.account, roomly.lastKnownRole, roomly-language): remembers your language and role so pages load faster. Kept until you sign out or clear browser data.',
           'Cloudflare Turnstile: checks you are not a bot during sign-in and sign-up; it may set technical security cookies.',
+          'Local storage (roomly-analytics-consent): remembers whether you accepted or rejected statistics cookies, so we do not ask on every visit.',
         ],
       },
       {
-        title: '3. No profiling or third-party analytics',
+        title: '3. Statistics cookies (only with your consent)',
         paragraphs: [
-          'We do not use profiling, advertising or third-party analytics cookies. Under the Authority’s guidelines your consent is therefore not required and we do not show a cookie banner.',
+          'On the public pages of the site (waitlist, about, contact, sign-up and legal pages) we use Google Analytics 4, provided by Google Ireland Ltd., to count visits and waitlist sign-ups in aggregate. We do not use it in the app pages reserved for registered users.',
+          'Google Analytics only starts if you click “Accept” in the banner; if you reject or do not choose, it is not loaded. Advertising features and Google Signals are switched off and Google Analytics 4 does not log or store users’ IP addresses. Data may be transferred to the United States under the EU-U.S. Data Privacy Framework.',
+          `The controller is ${COMPANY_EN} (contact: ${EMAIL}); Google Ireland Ltd. acts as processor. The legal basis is your consent (Art. 6(1)(a) GDPR), which you can withdraw at any time from “Manage cookies” at the bottom of every page, without affecting your use of Roomly. Statistics are kept for 14 months and then deleted automatically.`,
+          'Google’s privacy policy: https://policies.google.com/privacy',
+        ],
+        list: [
+          '_ga: tells browsers apart anonymously to count visitors. First-party (set by Google Analytics on Roomly’s domain), lasts 2 years.',
+          '_ga_<ID>: keeps the state of the visit session. First-party (set by Google Analytics on Roomly’s domain), lasts 2 years.',
+        ],
+      },
+      {
+        title: '4. No profiling',
+        paragraphs: [
+          'We do not use profiling or advertising cookies.',
           'Some sample images are loaded from Unsplash: their server receives your device’s IP address to display them, without setting profiling cookies.',
           'The map on the listing page loads its tiles from CARTO (OpenStreetMap data) and looks up nearby places through the OpenStreetMap Overpass service: both receive your device’s IP address and the listing’s area, without setting profiling cookies.',
         ],
       },
       {
-        title: '4. Managing cookies',
+        title: '5. Managing cookies',
         paragraphs: [
-          'You can delete or block cookies in your browser settings. If you block technical cookies you will not be able to sign in.',
-          'If we ever introduce non-technical cookies, we will update this page and ask for your consent first, with refusing as easy as accepting.',
+          'You can change your choice on statistics cookies at any time with the buttons at the top of this page, reachable from “Manage cookies” at the bottom of every page: if you withdraw consent, Google Analytics is switched off and its cookies are deleted.',
+          'You can also delete or block cookies in your browser settings. If you block technical cookies you will not be able to sign in.',
         ],
       },
       {
-        title: '5. Contact',
+        title: '6. Contact',
         paragraphs: [`For questions about this page write to ${EMAIL}. Information on how we process data is in the privacy policy.`],
       },
     ],
