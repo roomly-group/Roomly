@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AuthShell } from '@/components/layout/auth-shell';
 import { TurnstileWidget } from '@/components/shared/turnstile';
+import { BirthDatePicker } from '@/components/shared/birth-date-picker';
 import { supabase } from '@/lib/supabase';
 import { postAuthRoute } from '@/lib/auth-role';
 import { APP_ROUTES, PASSWORD_FIELD_PLACEHOLDER, SHARED_TEST_IDS } from '@/lib/constants';
@@ -110,7 +111,10 @@ export function RegisterPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nome, cognome, email, password, dataNascita, captchaToken }),
       });
-      const body = await response.json();
+      // An empty or non-JSON reply (backend down, proxy error) must surface as a
+      // normal error message, not a JSON.parse crash.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const body: any = await response.json().catch(() => ({}));
 
       if (!response.ok) {
         // The token is single-use and short-lived; if the request failed for
@@ -294,19 +298,12 @@ export function RegisterPage() {
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="register-data-nascita">{t('auth.dateOfBirthLabel')}</Label>
-              <div className="relative">
-                <Input
-                  id="register-data-nascita"
-                  type="date"
-                  autoComplete="bday"
-                  required
-                  placeholder={t('auth.dateOfBirthPlaceholder')}
-                  value={dataNascita}
-                  onChange={(event) => setDataNascita(event.target.value)}
-                  className="[&::-webkit-calendar-picker-indicator]:ml-auto [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                  data-testid={REGISTER_TEST_IDS.INPUT_BIRTH_DATE}
-                />
-              </div>
+              <BirthDatePicker
+                id="register-data-nascita"
+                value={dataNascita}
+                onChange={setDataNascita}
+                testId={REGISTER_TEST_IDS.INPUT_BIRTH_DATE}
+              />
             </div>
 
             <div>
