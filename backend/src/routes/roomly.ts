@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import { requireAuth } from "../middleware/auth";
 import { readNearbyPlaces, refreshNearbyPlaces } from "../lib/nearby-places.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
+import { isValidImage, uploadImageType } from "../lib/image.js";
+import { signedProfilePhotoUrl } from "../lib/profile-photo.js";
 import {
   SEARCH_RADIUS_KM,
   boundingBox,
@@ -59,31 +61,10 @@ type RoomRow = {
   longitudine?: number | null;
   stanze_foto?: Array<{ url?: string | null; copertina?: boolean | null; ordine?: number | null }> | null;
   universita?: { nome?: string | null; latitudine?: number | null; longitudine?: number | null } | null;
-  utenti?: { nome_utente?: string | null; nome?: string | null; cognome?: string | null } | null;
+  utenti?: { nome_utente?: string | null; nome?: string | null; cognome?: string | null; foto_profilo?: string | null } | null;
 } & Partial<RoomFeatureColumns>; // tipologia_proprieta, taglio_appartamento, mobili_inclusi, spese_incluse, elettrodomestici, arredi, servizi...
 
 const router: IRouter = Router();
-
-const isValidRoomPhoto = (file: Buffer, contentType: string): boolean => {
-  if (contentType === "image/png") {
-    if (!file.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) return false;
-    let offset = 8;
-    while (offset + 12 <= file.length) {
-      const chunkLength = file.readUInt32BE(offset);
-      const chunkEnd = offset + 12 + chunkLength;
-      if (chunkEnd > file.length) return false;
-      const chunkType = file.toString("ascii", offset + 4, offset + 8);
-      if (chunkType === "IEND") return chunkLength === 0 && chunkEnd === file.length;
-      offset = chunkEnd;
-    }
-    return false;
-  }
-
-  return contentType === "image/jpeg" &&
-    file.length >= 4 &&
-    file[0] === 0xff && file[1] === 0xd8 && file[2] === 0xff &&
-    file[file.length - 2] === 0xff && file[file.length - 1] === 0xd9;
-};
 
 const getRoomPhotoPath = (storedUrl: string): string | null => {
   const markers = [
@@ -136,6 +117,8 @@ const mapRoomRowToListing = async (
   const coverPhotoUrl = includeGallery
     ? signedPhotoUrls[coverIndex]
     : coverPhoto?.url ? await createRoomPhotoSignedUrl(coverPhoto.url) : null;
+  // The owner's profile photo, only on the listing page (cards don't show the owner).
+  const ownerPhotoUrl = includeGallery ? await signedProfilePhotoUrl(row.utenti?.foto_profilo) : null;
 
   return {
     id: row.id,
@@ -144,6 +127,7 @@ const mapRoomRowToListing = async (
     zone: row.universita?.nome ?? "",
     price: Number(row.prezzo ?? 0),
     owner: ownerName,
+    ...(ownerPhotoUrl ? { ownerPhotoUrl } : {}),
     rating: 0,
     photos: photos.length,
     ...(coverPhotoUrl ? { coverPhotoUrl } : {}),
@@ -173,7 +157,7 @@ const ROOM_SELECT = `
   latitudine,
   longitudine,
   universita:universita_id(nome),
-  utenti:proprietario_id(nome_utente, nome, cognome),
+  utenti:proprietario_id(nome_utente, nome, cognome, foto_profilo),
   stanze_foto(url, copertina, ordine)
 `;
 
@@ -310,7 +294,7 @@ router.get(API_ROUTE_PATHS.LISTING_BY_ID, async (req: Request, res: Response) =>
         latitudine,
         longitudine,
         universita:universita_id(nome, latitudine, longitudine),
-        utenti:proprietario_id(nome_utente, nome, cognome),
+        utenti:proprietario_id(nome_utente, nome, cognome, foto_profilo),
         stanze_foto(url, copertina, ordine)
       `)
       .eq("id", id)
@@ -504,15 +488,15 @@ router.post(
         return res.status(400).json({ error: "Invalid listing ID" });
       }
 
-      const contentType = req.header("content-type")?.split(";")[0].trim().toLowerCase();
-      if (contentType !== "image/png" && contentType !== "image/jpeg") {
+      const contentType = uploadImageType(req.header("content-type"));
+      if (!contentType) {
         return res.status(400).json({ error: "Only PNG and JPEG images are allowed" });
       }
 
       if (!Buffer.isBuffer(req.body) || req.body.length === 0 || req.body.length > ROOM_PHOTO_MAX_SIZE_BYTES) {
         return res.status(400).json({ error: "Image must be between 1 byte and 8 MB" });
       }
-      if (!isValidRoomPhoto(req.body, contentType)) {
+      if (!isValidImage(req.body, contentType)) {
         return res.status(400).json({ error: "Invalid image file" });
       }
 
@@ -698,7 +682,7 @@ router.get(API_ROUTE_PATHS.OWNER_LISTINGS, requireAuth, async (req: Request, res
         universita_id,
         proprietario_id,
         universita:universita_id(nome),
-        utenti:proprietario_id(nome_utente, nome, cognome),
+        utenti:proprietario_id(nome_utente, nome, cognome, foto_profilo),
         stanze_foto(url, copertina, ordine)
       `);
 

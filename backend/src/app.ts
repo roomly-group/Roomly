@@ -5,16 +5,11 @@ import pinoHttp from "pino-http";
 import cookieParser from "cookie-parser";
 import router from "./routes/index.js";
 import { logger } from "./lib/logger.js";
+import { isAllowedOrigin } from "./lib/origins.js";
 import { API_BASE_PATH } from "@workspace/api-zod";
 
 // ===================== CONFIGURATION =====================
 
-/** Production origin permitted by backend CORS. */
-const PRODUCTION_CORS_ORIGIN = "https://www.roomly.group" as const;
-/** Local development origin permitted by backend CORS. */
-const LOCALHOST_CORS_ORIGIN = "http://localhost:5173" as const;
-/** Loopback development origin permitted by backend CORS. */
-const LOOPBACK_CORS_ORIGIN = "http://127.0.0.1:5173" as const;
 /** Turnstile origin used by the Content Security Policy. */
 const TURNSTILE_CSP_ORIGIN = "https://challenges.cloudflare.com" as const;
 /** Geoapify origin used by the Content Security Policy. */
@@ -62,16 +57,10 @@ app.use(
     },
   }),
 );
-// Determine allowed origins based on environment
-const isProduction = process.env.NODE_ENV === "production";
-const allowedOrigins: readonly string[] = isProduction
-  ? [PRODUCTION_CORS_ORIGIN]
-  : [LOCALHOST_CORS_ORIGIN, LOOPBACK_CORS_ORIGIN];
-
-// Apply CORS middleware with restricted origins
+// Apply CORS middleware with restricted origins (see lib/origins.ts)
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || isAllowedOrigin(origin)) {
       callback(null, true);
       return;
     }

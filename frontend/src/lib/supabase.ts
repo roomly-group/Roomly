@@ -32,6 +32,27 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // during login, rather than client-side localStorage storage.
 // Token refresh is handled by calling the backend refresh endpoint when
 // Supabase emits a TOKEN_REFRESHED event.
+/** Max wait for a session found in the URL to reach the backend cookies before the app renders anyway (ms). */
+const URL_SESSION_SYNC_TIMEOUT_MS = 10000 as const;
+
+// Back from Google, or from the link in the confirmation email: the
+// session arrives in the URL hash (#access_token=...) instead of through
+// /api/login. Read it before createClient(), which clears the hash.
+const hasSessionInUrl = typeof window !== 'undefined' && /(?:^#|&)access_token=/.test(window.location.hash);
+
+let settleUrlSession: (synced: boolean) => void = () => {};
+/**
+ * Resolves to true once a session found in the URL has been turned into our
+ * HttpOnly cookies (so API calls work), false when there was none or it failed.
+ * main.tsx waits for it before deciding where a logged-in user lands.
+ */
+export const urlSessionSynced: Promise<boolean> = hasSessionInUrl
+  ? new Promise<boolean>((resolve) => {
+      settleUrlSession = resolve;
+      window.setTimeout(() => resolve(false), URL_SESSION_SYNC_TIMEOUT_MS);
+    })
+  : Promise.resolve(false);
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: false, // Prevent automatic storage in localStorage/sessionStorage
@@ -57,23 +78,43 @@ const getCsrfToken = () => {
   return match ? decodeURIComponent(match[1]) : '';
 };
 
+// A session that never went through /api/login (Google, confirmation
+// email, signup with an immediate session) has no CSRF cookie yet: ask the
+// backend for one so the X-CSRF-Token header below can match it.
+async function ensureCsrfToken(): Promise<string> {
+  const existing = getCsrfToken();
+  if (existing) return existing;
+  await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.CSRF}`, { credentials: 'include' }).catch(() => undefined);
+  return getCsrfToken();
+}
+
 supabase.auth.onAuthStateChange(async (event, session) => {
+  // The token in the URL was expired or invalid: stop waiting for it.
+  if (!session && (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT')) settleUrlSession(false);
+
   if (session && (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN')) {
     const endpoint = event === 'SIGNED_IN'
       ? `${API_BASE_PATH}${API_ROUTE_PATHS.SESSION}`
       : `${API_BASE_PATH}${API_ROUTE_PATHS.REFRESH}`;
 
-    await fetch(endpoint, {
+    const synced = await fetch(endpoint, {
       method: 'POST',
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRF-Token': getCsrfToken()
+        'X-CSRF-Token': await ensureCsrfToken(),
       },
       body: JSON.stringify({
         access_token: session.access_token,
         refresh_token: session.refresh_token,
       }),
-    }).catch((err) => console.error('Errore nel sincronizzare il cookie di sessione:', err));
+    })
+      .then((response) => response.ok)
+      .catch((err) => {
+        console.error('Errore nel sincronizzare il cookie di sessione:', err);
+        return false;
+      });
+
+    if (event === 'SIGNED_IN') settleUrlSession(synced);
   }
 });

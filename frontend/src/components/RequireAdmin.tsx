@@ -3,7 +3,7 @@ import { Redirect } from 'wouter';
 import { getRoleInfo, UserRole } from '@/lib/auth-role';
 import { peekLastKnownRole, peekRoleCache } from '@/lib/role-cache';
 import { supabase } from '@/lib/supabase';
-import NotFound from '@/pages/not-found';
+import { APP_ROUTES } from '@/lib/constants';
 import { useLanguage } from '@/lib/i18n';
 
 export function RequireAdmin({
@@ -19,6 +19,8 @@ export function RequireAdmin({
   const [role, setRole] = useState<UserRole | null>(known ? known.role : null);
   const [isOwner, setIsOwner] = useState(known ? known.owner : false);
   const [loading, setLoading] = useState(!known);
+  // Known role means signed in; otherwise the check below finds out.
+  const [signedIn, setSignedIn] = useState(known !== null);
   const { t } = useLanguage();
 
   useEffect(() => {
@@ -29,9 +31,13 @@ export function RequireAdmin({
         const { data } = await supabase.auth.getSession();
         const user = data?.session?.user;
         if (!user) {
-          if (!cancelled) setRole('user'); // treat as normal user if no session
+          if (!cancelled) {
+            setRole('user'); // treat as normal user if no session
+            setSignedIn(false);
+          }
           return;
         }
+        if (!cancelled) setSignedIn(true);
         // Una sola chiamata: ruolo e owner arrivano insieme.
         const info = await getRoleInfo(user);
         // Verifica fallita (nulla in cache): non si declassa chi era già noto.
@@ -64,8 +70,9 @@ export function RequireAdmin({
 
   const hasAccess = role === 'admin' || (allowOwner && isOwner);
 
+  // No access to the app yet: students go to their waitlist page, guests to the landing page.
   if (!hasAccess) {
-    return <NotFound />;
+    return <Redirect to={signedIn ? APP_ROUTES.WAITLIST_CONFIRMED : APP_ROUTES.ROOT} replace />;
   }
 
   return <>{children}</>;

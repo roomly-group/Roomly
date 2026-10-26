@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { clearRoleCache } from '@/lib/role-cache';
+import { clearRoleCache, peekLastKnownRole, peekRoleCache } from '@/lib/role-cache';
 import { clearAccountCache, useAccount } from '@/lib/account-cache';
 import { Link, useLocation } from 'wouter';
-import { ArrowRight, LogOut, Mail, Menu, UserRound } from 'lucide-react';
+import { ArrowRight, Home, ListOrdered, LogOut, Mail, Menu, UserRound } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n';
 import { Avatar } from '@/components/shared/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { APP_ROUTES } from '@/lib/constants';
+import { mainPageFor } from '@/lib/auth-role';
 import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 
 // ===================== CONFIGURATION =====================
@@ -18,6 +19,7 @@ const PROFILE_MENU_TEST_IDS = {
   PANEL_PROFILE_INFO: 'panel-profile-info',
   LINK_FULL_PROFILE: 'link-full-profile',
   BUTTON_LOGOUT: 'button-logout',
+  LINK_BACK: 'link-menu-back',
 } as const;
 
 // Avatar button + dropdown panel with account info, an optional extra row
@@ -38,7 +40,7 @@ export function ProfileMenu({
   logoutRedirect?: string;
 }) {
   const { t } = useLanguage();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   // Shared /api/me cache: fetched once per app load and kept across pages and
   // reloads, so the header never shows a skeleton again after the first time.
   const { account, loading: accountLoading } = useAccount();
@@ -78,6 +80,12 @@ export function ProfileMenu({
     setLocation(logoutRedirect);
   }
 
+  // Way back to the user's main page: the home for admins and owners (who can
+  // open it already), the waitlist page for everyone else.
+  const backTarget = mainPageFor(peekRoleCache() ?? peekLastKnownRole()) === APP_ROUTES.HOME
+    ? { href: APP_ROUTES.HOME, label: 'nav.backToHome' as const, icon: <Home size={15} /> }
+    : { href: APP_ROUTES.WAITLIST_CONFIRMED, label: 'nav.backToWaitlist' as const, icon: <ListOrdered size={15} /> };
+
   const userEmail = account?.email ?? fallbackEmail;
   const displayName =
     account?.full_name?.trim() ||
@@ -102,7 +110,7 @@ export function ProfileMenu({
           <>
             <Menu size={16} className="text-pine" aria-hidden />
             <span className="hidden text-sm font-extrabold text-pine sm:block">{displayName}</span>
-            <Avatar name={displayName} size="sm" tone="shutter" />
+            <Avatar name={displayName} size="sm" tone="shutter" src={account?.foto_profilo_url} />
           </>
         )}
       </button>
@@ -123,7 +131,7 @@ export function ProfileMenu({
               </>
             ) : (
               <>
-                <Avatar name={displayName} size="md" />
+                <Avatar name={displayName} size="md" src={account?.foto_profilo_url} />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-black text-pine">{displayName}</p>
                   <p className="flex items-center gap-1 truncate text-xs font-semibold text-sage">
@@ -137,10 +145,22 @@ export function ProfileMenu({
 
           {extra && <div className="mt-4 space-y-2">{extra}</div>}
 
+          {location !== backTarget.href ? (
+            <Link
+              href={backTarget.href}
+              onClick={() => setMenuOpen(false)}
+              className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-mint-mist py-2.5 text-sm font-bold text-pine transition-colors hover:bg-mint-wash"
+              data-testid={PROFILE_MENU_TEST_IDS.LINK_BACK}
+            >
+              {backTarget.icon}
+              {t(backTarget.label)}
+            </Link>
+          ) : null}
+
           <Link
             href={profileHref}
             onClick={() => setMenuOpen(false)}
-            className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-pine py-2.5 text-sm font-bold text-mint-mist transition-colors hover:bg-shutter"
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-pine py-2.5 text-sm font-bold text-mint-mist transition-colors hover:bg-shutter"
             data-testid={PROFILE_MENU_TEST_IDS.LINK_FULL_PROFILE}
           >
             <UserRound size={15} />

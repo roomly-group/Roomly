@@ -1,10 +1,21 @@
 import { useEffect, useState } from 'react';
-import { Redirect } from 'wouter';
+import { Redirect, useLocation } from 'wouter';
 import { supabase } from '@/lib/supabase';
 import { peekLastKnownRole, peekRoleCache } from '@/lib/role-cache';
-import NotFound from '@/pages/not-found';
+import { useAccount } from '@/lib/account-cache';
 import { useLanguage } from '@/lib/i18n';
 import { APP_ROUTES } from '@/lib/constants';
+
+/**
+ * Sends a logged-in user whose required onboarding steps are unfinished back
+ * to /onboarding, which reopens at the first step still missing (so leaving at
+ * step 2 brings you back to step 2). Renders nothing while it redirects.
+ */
+export function useOnboardingRedirect(): boolean {
+  const { account } = useAccount();
+  const [location] = useLocation();
+  return account?.onboarding_completato === false && location !== APP_ROUTES.ONBOARDING;
+}
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {
   // Se il ruolo è già noto l'utente è autenticato: niente schermata di caricamento.
@@ -13,6 +24,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(!known);
   const [authenticated, setAuthenticated] = useState(known);
   const { t } = useLanguage();
+  const unfinishedOnboarding = useOnboardingRedirect();
 
   useEffect(() => {
     if (known) return;
@@ -43,6 +55,10 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
 
   if (!authenticated) {
     return <Redirect to={APP_ROUTES.LOGIN} replace />;
+  }
+
+  if (unfinishedOnboarding) {
+    return <Redirect to={APP_ROUTES.ONBOARDING} replace />;
   }
 
   return <>{children}</>;

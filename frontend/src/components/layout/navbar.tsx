@@ -14,7 +14,7 @@ import { useLanguage } from '@/lib/i18n';
 import { LanguagePicker } from '@/components/language-selector';
 import { ProfileMenu } from '@/components/layout/profile-menu';
 import { supabase } from '@/lib/supabase';
-import { getRoleInfo } from '@/lib/auth-role';
+import { getRoleInfo, mainPageFor } from '@/lib/auth-role';
 import { peekLastKnownRole, peekRoleCache } from '@/lib/role-cache';
 import { useAccount } from '@/lib/account-cache';
 import { APP_ROUTES, SHARED_TEST_IDS } from '@/lib/constants';
@@ -151,14 +151,15 @@ export function useAppNav() {
 export function Navbar() {
   const { t } = useLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
-  // Waitlist position comes from the shared /api/me cache (same value as /api/waitlist/me).
-  const { account, loading: positionLoading } = useAccount();
-  const position = account?.posizione ?? null;
+  const { account } = useAccount();
   const { isApp, isStatic, isWaitlistConfirmed, owner, links, isActive, showSwitch, switchHref, switchLabel } =
     useAppNav();
+  // Logo: guests go to the landing page; signed-in users to their main page
+  // (the home for admins and owners, the waitlist page for everyone else).
+  const logoHref = account ? mainPageFor(peekRoleCache() ?? peekLastKnownRole()) : APP_ROUTES.ROOT;
 
   const logo = (
-    <Link href={APP_ROUTES.HOME} className="flex shrink-0 items-center gap-2.5 rounded-xl" data-testid={SHARED_TEST_IDS.LINK_LOGO}>
+    <Link href={logoHref} className="flex shrink-0 items-center gap-2.5 rounded-xl" data-testid={SHARED_TEST_IDS.LINK_LOGO}>
       <img
         src={roomlyMark}
         alt={isApp ? '' : 'Roomly'}
@@ -277,19 +278,8 @@ export function Navbar() {
     return (
       <div className="flex items-center justify-between gap-3">
         {logo}
-        <ProfileMenu
-          profileHref={APP_ROUTES.PROFILE}
-          extra={
-            <div className="flex items-center justify-between rounded-xl bg-mint-mist px-3 py-2.5">
-              <span className="text-xs font-bold text-sage">
-                {t('waitlistConfirmed.menuPositionLabel')}
-              </span>
-              <span className="text-sm font-black text-pine">
-                {positionLoading ? '…' : position !== null ? `#${position}` : '—'}
-              </span>
-            </div>
-          }
-        />
+        {/* The position is on the page itself, next to the invite link: not repeated here. */}
+        <ProfileMenu profileHref={APP_ROUTES.PROFILE} />
       </div>
     );
   }
@@ -298,7 +288,7 @@ export function Navbar() {
     return (
       <div className="flex items-center justify-between gap-3">
         {logo}
-        <Link href={APP_ROUTES.HOME} className="text-sm font-extrabold text-pine hover:text-shutter">
+        <Link href={logoHref} className="text-sm font-extrabold text-pine hover:text-shutter">
           {t('searchPage.backHome')}
         </Link>
       </div>

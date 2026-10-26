@@ -13,6 +13,7 @@ import { APP_ROUTES, PASSWORD_FIELD_PLACEHOLDER, SHARED_TEST_IDS } from '@/lib/c
 import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 import { AuthShell } from '@/components/layout/auth-shell';
 import { TurnstileWidget } from '@/components/shared/turnstile';
+import { OAuthButtons } from '@/components/shared/oauth-buttons';
 import roomlyMark from '@assets/logo_no_background.png';
 
 // ===================== CONFIGURATION =====================
@@ -118,6 +119,8 @@ export function LoginPage() {
         </p>
       }
     >
+      <OAuthButtons />
+
       <form onSubmit={handleSubmit} className="flex flex-col gap-4" data-testid={LOGIN_TEST_IDS.FORM_LOGIN}>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="login-email">{t('auth.emailLabel')}</Label>

@@ -25,6 +25,10 @@ export const API_ROUTE_PATHS = {
   ME_PROFILE: "/me/profile",
   ME_LANGUAGE: "/me/language",
   ME_PREFERENCES: "/me/preferences",
+  ME_ONBOARDING: "/me/onboarding",
+  ME_PHOTO: "/me/photo",
+  ME_INVITE: "/me/invito",
+  ME_INVITE_CLAIM: "/me/invito/usa",
   WAITLIST_COUNT: "/waitlist/count",
   WAITLIST_ME: "/waitlist/me",
   LOGIN: "/login",
@@ -34,6 +38,7 @@ export const API_ROUTE_PATHS = {
   AUTH_CONFIG: "/config",
   REGISTER: "/register",
   SESSION: "/session",
+  CSRF: "/csrf",
   UNIVERSITIES: "/universita",
 } as const;
 
@@ -90,3 +95,28 @@ export const ROOM_PHOTO_MAX_COUNT = 10 as const;
 
 /** Maximum room-photo upload size enforced by frontend and backend (bytes). */
 export const ROOM_PHOTO_MAX_SIZE_BYTES = 8388608 as const;
+
+/** Maximum profile-photo upload size (bytes). The frontend shrinks photos well below this before uploading. */
+export const PROFILE_PHOTO_MAX_SIZE_BYTES = 5242880 as const;
+
+/** Answers saved by the signup onboarding (CHECK constraints in migrations/006_onboarding.sql). */
+export const ONBOARDING_OPTIONS = {
+  /** "Come ci hai scoperto?" → `utenti.fonte_scoperta`. */
+  sources: ["instagram", "tiktok", "linkedin", "amico", "google", "ai", "facebook", "altro"],
+  /** "Per quanto tempo?" → `utenti.durata_permanenza`. */
+  stayDurations: ["semestre", "un_anno", "piu_anni", "non_so"],
+  /** Monthly budget choices (€) → `preferenze_utenti.budget_max`. */
+  budgets: [300, 400, 500, 600, 800, 1000],
+} as const;
+
+/** Places a user moves up the waitlist for each invited friend who finishes the onboarding. */
+export const WAITLIST_INVITE_BONUS = 5 as const;
+
+/** Query parameter carrying an invite code in links (/register?invito=CODE). */
+export const INVITE_QUERY_PARAM = "invito" as const;
+
+/** Minimum age to sign up (years). */
+export const MINIMUM_SIGNUP_AGE_YEARS = 18 as const;
+
+/** Maximum length of the short self-introduction (`utenti.bio`, characters). */
+export const PROFILE_BIO_MAX_LENGTH_CHARS = 400 as const;

@@ -652,7 +652,7 @@ export function ListingDetail() {
           </aside>
           <section aria-label={t('listingDetail.ownerLabel')}>
             <div className="flex items-center gap-4 rounded-2xl border border-pine/10 bg-paper p-5">
-                <Avatar name={listing.owner} size="lg" />
+                <Avatar name={listing.owner} size="lg" src={listing.ownerPhotoUrl} />
                 <div className="min-w-0">
                   <p className="truncate text-lg font-black text-pine">{listing.owner}</p>
                   <p className="mt-0.5 flex items-center gap-1.5 text-sm font-bold text-sage">

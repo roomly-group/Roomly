@@ -15,6 +15,10 @@ export type Account = {
   email?: string | null;
   posizione?: number | null;
   lingua?: string | null;
+  /** Signed URL of the profile photo (expires after an hour; refreshed with /api/me). */
+  foto_profilo_url?: string | null;
+  /** False while the required onboarding steps are unfinished. */
+  onboarding_completato?: boolean;
 };
 
 type Snapshot = {

@@ -1,15 +1,23 @@
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import { ErrorBoundary } from '@/components/error-boundary';
-import { supabase } from '@/lib/supabase';
+import { supabase, urlSessionSynced } from '@/lib/supabase';
 import { APP_ROUTES } from '@/lib/constants';
 import { clearRoleCache } from '@/lib/role-cache';
 import { clearAccountCache } from '@/lib/account-cache';
+import { rememberInviteFromUrl } from '@/lib/onboarding';
 import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 import './index.css';
 
 async function initializeApp() {
   try {
+    // Back from Google or the confirmation email: the session came in the
+    // URL and is now in our cookies too, so the user is logged in.
+    if (await urlSessionSynced) {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) return data.session;
+    }
+
     // Check if we have a valid session cookie and restore Supabase session
     const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.VERIFY}`, {
       method: 'POST',
@@ -43,6 +51,9 @@ const LOGGED_OUT_ONLY_PATHS: readonly string[] = [
   APP_ROUTES.REGISTER,
 ];
 
+// Someone opened a friend's invite link: keep the code until they have an account.
+rememberInviteFromUrl();
+
 initializeApp().then((session) => {
   if (!session) {
     // No valid session: role/profile saved by a previous session must not be shown.
@@ -50,9 +61,10 @@ initializeApp().then((session) => {
     clearAccountCache();
     return;
   }
-  // Logged in and on a public entry page: go to the waitlist confirmation page
+  // Logged in and on a public entry page: go to the onboarding, which sends
+  // users who already finished it on to the waitlist confirmation page.
   if (LOGGED_OUT_ONLY_PATHS.includes(window.location.pathname)) {
-    window.location.href = APP_ROUTES.WAITLIST_CONFIRMED;
+    window.location.href = APP_ROUTES.ONBOARDING;
   }
 }).finally(() => {
   createRoot(document.getElementById('root')!, {

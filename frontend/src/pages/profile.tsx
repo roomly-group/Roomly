@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'wouter';
-import { Settings, ShieldCheck, SlidersHorizontal } from 'lucide-react';
+import { Cake, CalendarDays, Camera, GraduationCap, Home, Loader2, Megaphone, Pencil, Quote, Settings, SlidersHorizontal, Wallet } from 'lucide-react';
 import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n';
@@ -11,7 +11,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { patchAccount, useAccount } from '@/lib/account-cache';
-import { APP_ROUTES } from '@/lib/constants';
+import { APP_ROUTES, formatMonthYear, formatPrice } from '@/lib/constants';
+import { editStepHref, fetchOnboarding, type OnboardingData } from '@/lib/onboarding';
+import { PROFILE_PHOTO_ACCEPT, PhotoReadError, shrinkPhoto, uploadProfilePhoto } from '@/lib/profile-photo';
 
 // ===================== CONFIGURATION =====================
 
@@ -36,12 +38,12 @@ async function profileError(response: Response): Promise<Error> {
 
 function InfoRow({ label, value, loading }: { label: string; value: string; loading?: boolean }) {
   return (
-    <div className="rounded-xl bg-[#E1F5EE] px-4 py-3">
-      <p className="text-[11px] font-black uppercase tracking-wider text-[#527067]">{label}</p>
+    <div className="min-w-0 rounded-xl bg-mint-mist px-4 py-3">
+      <p className="text-[11px] font-black uppercase tracking-wider text-sage">{label}</p>
       {loading ? (
         <Skeleton className="mt-1.5 h-4 w-20" />
       ) : (
-        <p className="mt-1 text-sm font-extrabold text-[#085041]">{value}</p>
+        <p className="mt-1 break-words text-sm font-extrabold text-pine [overflow-wrap:anywhere]">{value}</p>
       )}
     </div>
   );
@@ -139,11 +141,7 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
 
         <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
           <aside className="surface h-fit rounded-2xl p-5 text-center">
-            {loading ? (
-              <Skeleton className="mx-auto h-14 w-14 rounded-full" />
-            ) : (
-              <Avatar name={displayName} size="lg" />
-            )}
+            {loading ? <Skeleton className="mx-auto h-28 w-28 rounded-full" /> : <ProfilePhoto name={displayName} url={profile?.foto_profilo_url ?? null} />}
             {loading ? (
               <Skeleton className="mx-auto mt-3 h-5 w-32" />
             ) : (
@@ -154,18 +152,19 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
             ) : (
               <p className="mt-1 text-sm text-[#527067]">{profile?.email ?? ''}</p>
             )}
-            <div className="my-5 border-t border-[#e1ebe4]" />
-            <div className="flex items-center justify-center gap-1 text-xs font-extrabold text-[#0F6E56]">
-              <ShieldCheck size={14} /> {t('profile.identityChecked')}
-            </div>
-            <Link
-              href={owner ? APP_ROUTES.OWNER_PROFILE_PREFERENCES : APP_ROUTES.PROFILE_PREFERENCES}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-[#0850411a] px-4 py-3 text-sm font-extrabold text-[#085041] transition-colors hover:border-[#08504140] hover:bg-[#E1F5EE]"
-              data-testid="link-profile-preferences"
-            >
-              <SlidersHorizontal size={16} />
-              {t('preferences.open')}
-            </Link>
+            {owner ? (
+              <>
+                <div className="my-5 border-t border-[#e1ebe4]" />
+                <Link
+                  href={APP_ROUTES.OWNER_PROFILE_PREFERENCES}
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-[#0850411a] px-4 py-3 text-sm font-extrabold text-[#085041] transition-colors hover:border-[#08504140] hover:bg-[#E1F5EE]"
+                  data-testid="link-profile-preferences"
+                >
+                  <SlidersHorizontal size={16} />
+                  {t('preferences.open')}
+                </Link>
+              </>
+            ) : null}
           </aside>
 
           <div className="space-y-5">
@@ -249,14 +248,11 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
               ) : (
                 <>
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <InfoRow label={t('profile.labelEmail')} value={profile?.email ?? '—'} loading={loading} />
                     <InfoRow label={t('auth.firstNameLabel')} value={profile?.nome || '—'} loading={loading} />
                     <InfoRow label={t('auth.lastNameLabel')} value={profile?.cognome || '—'} loading={loading} />
-                    <InfoRow
-                      label="Posizione in waitlist"
-                      value={profile?.posizione != null ? `#${profile.posizione}` : '—'}
-                      loading={loading}
-                    />
+                    <div className="sm:col-span-2">
+                      <InfoRow label={t('profile.labelEmail')} value={profile?.email ?? '—'} loading={loading} />
+                    </div>
                   </div>
                   {saveMessage && (
                     <p className="mt-4 text-sm font-semibold text-[#0F6E56]" role="status" data-testid={PROFILE_TEST_IDS.STATUS_PROFILE_EDITING}>
@@ -267,11 +263,195 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
               )}
             </section>
 
+            {!owner ? <SearchDetails /> : null}
+
             <LanguageSetting />
           </div>
         </div>
       </div>
     </AppShell>
+  );
+}
+
+// ===================== PHOTO =====================
+
+/** Big avatar with the profile photo; choosing a file shrinks it, uploads it and updates the header at once. */
+function ProfilePhoto({ name, url }: { name: string; url: string | null }) {
+  const { t } = useLanguage();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function upload(file: File) {
+    setError(null);
+    setUploading(true);
+    try {
+      patchAccount({ foto_profilo_url: await uploadProfilePhoto(await shrinkPhoto(file)) });
+    } catch (uploadError) {
+      setError(t(uploadError instanceof PhotoReadError ? 'onboarding.photoReadError' : 'onboarding.photoUploadError'));
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-center">
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={uploading}
+        className="group relative rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-shutter"
+        aria-label={url ? t('profile.photoChange') : t('profile.photoAdd')}
+        data-testid="button-profile-photo"
+      >
+        <Avatar name={name} size="xl" src={url} />
+        <span className="absolute bottom-0.5 right-0.5 grid h-9 w-9 place-items-center rounded-full border-2 border-paper bg-shutter text-mint-mist shadow-rest" aria-hidden>
+          {uploading ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={uploading}
+        className="mt-2 text-sm font-extrabold text-shutter hover:text-pine"
+      >
+        {url ? t('profile.photoChange') : t('profile.photoAdd')}
+      </button>
+      {error ? (
+        <p className="mt-1 text-xs font-semibold text-terracotta" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <input
+        ref={inputRef}
+        type="file"
+        accept={PROFILE_PHOTO_ACCEPT}
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) void upload(file);
+        }}
+        data-testid="input-profile-photo"
+      />
+    </div>
+  );
+}
+
+// ===================== SEARCH DETAILS =====================
+
+const SOURCE_LABELS = {
+  instagram: 'onboarding.source.instagram',
+  tiktok: 'onboarding.source.tiktok',
+  linkedin: 'onboarding.source.linkedin',
+  amico: 'onboarding.source.amico',
+  google: 'onboarding.source.google',
+  ai: 'onboarding.source.ai',
+  facebook: 'onboarding.source.facebook',
+  altro: 'onboarding.source.altro',
+} as const;
+
+const DURATION_LABELS = {
+  semestre: 'onboarding.duration.semestre',
+  un_anno: 'onboarding.duration.un_anno',
+  piu_anni: 'onboarding.duration.piu_anni',
+  non_so: 'onboarding.duration.non_so',
+} as const;
+
+const NOISE_LABELS = {
+  silenzioso: 'preferences.noise.silent',
+  medio: 'preferences.noise.medium',
+  tollerante: 'preferences.noise.tolerant',
+} as const;
+const CLEANLINESS_LABELS = {
+  molto_ordinato: 'preferences.cleanliness.veryTidy',
+  abbastanza_ordinato: 'preferences.cleanliness.tidy',
+  tollerante: 'preferences.cleanliness.flexible',
+} as const;
+const SCHEDULE_LABELS = {
+  notturno: 'preferences.schedule.night',
+  diurno: 'preferences.schedule.day',
+  flessibile: 'preferences.schedule.flexible',
+} as const;
+
+/** The onboarding answers, each with a link that reopens its question and comes back here. */
+function SearchDetails() {
+  const { t, language } = useLanguage();
+  const [data, setData] = useState<OnboardingData | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetchOnboarding()
+      .then((result) => active && setData(result))
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (!data) return null;
+
+  const birth = data.data_nascita
+    ? new Intl.DateTimeFormat(language, { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${data.data_nascita}T00:00:00`))
+    : null;
+  const arrival = [
+    data.arrivo_previsto ? formatMonthYear(new Date(`${data.arrivo_previsto}T00:00:00`), language) : null,
+    data.durata_permanenza ? t(DURATION_LABELS[data.durata_permanenza]) : null,
+  ].filter(Boolean).join(' · ') || null;
+  const budget = data.preferenze?.budget_max != null
+    ? t('onboarding.budgetUpTo').replace('{price}', formatPrice(Number(data.preferenze.budget_max), language))
+    : null;
+  const university = [data.universita, data.corso_di_studio].filter(Boolean).join(' · ') || null;
+  const prefs = data.preferenze;
+  const lifestyle = prefs
+    ? [
+        prefs.animali === true ? t('profile.lifestylePetsYes') : prefs.animali === false ? t('profile.lifestylePetsNo') : null,
+        prefs.fumatori === true ? t('profile.lifestyleSmokingYes') : prefs.fumatori === false ? t('profile.lifestyleSmokingNo') : null,
+        t(NOISE_LABELS[prefs.livello_rumore_preferito]),
+        t(CLEANLINESS_LABELS[prefs.ordine_pulizia]),
+        t(SCHEDULE_LABELS[prefs.orari_sosta]),
+      ].filter(Boolean).join(' · ')
+    : null;
+
+  const tiles: { step: string; icon: ReactNode; label: string; value: string | null; wide?: boolean }[] = [
+    { step: 'university', icon: <GraduationCap size={16} />, label: t('onboarding.universityLabel'), value: university },
+    { step: 'arrival', icon: <CalendarDays size={16} />, label: t('waitlistConfirmed.searchArrival'), value: arrival },
+    { step: 'budget', icon: <Wallet size={16} />, label: t('waitlistConfirmed.searchBudget'), value: budget },
+    { step: 'lifestyle', icon: <Home size={16} />, label: t('profile.lifestyleLabel'), value: lifestyle },
+    { step: 'birth', icon: <Cake size={16} />, label: t('auth.dateOfBirthLabel'), value: birth },
+    { step: 'source', icon: <Megaphone size={16} />, label: t('profile.sourceLabel'), value: data.fonte_scoperta ? t(SOURCE_LABELS[data.fonte_scoperta]) : null },
+    { step: 'about', icon: <Quote size={16} />, label: t('profile.aboutLabel'), value: data.bio, wide: true },
+  ];
+
+  return (
+    <section className="surface rounded-2xl p-5 sm:p-6" data-testid="panel-profile-search">
+      <h2 className="mb-4 text-xl font-black text-pine">{t('profile.searchTitle')}</h2>
+      <ul className="grid gap-2.5 sm:grid-cols-2">
+        {tiles.map((tile) => (
+          <li key={tile.step} className={tile.wide ? 'sm:col-span-2' : undefined}>
+            <Link
+              href={editStepHref(tile.step, 'profile')}
+              className="group flex h-full items-start gap-3 rounded-xl border border-line bg-cream px-3.5 py-3 transition-colors hover:border-shutter hover:bg-mint-mist"
+              aria-label={`${t('profile.searchEdit')}: ${tile.label}`}
+              data-testid={`link-edit-${tile.step}`}
+            >
+              <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-mint-mist text-shutter group-hover:bg-paper" aria-hidden>
+                {tile.icon}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[11px] font-black uppercase tracking-wider text-sage">{tile.label}</span>
+                <span className={`mt-0.5 line-clamp-2 text-sm font-extrabold leading-5 ${tile.value ? 'text-pine' : 'text-sage'}`}>
+                  {tile.value ?? t('profile.notSet')}
+                </span>
+              </span>
+              <Pencil size={14} className="mt-1 shrink-0 text-sage transition-colors group-hover:text-shutter" aria-hidden />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

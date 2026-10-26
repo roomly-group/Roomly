@@ -36,6 +36,8 @@ export interface Listing {
   zone: string;
   price: number;
   owner: string;
+  /** Foto profilo del proprietario, URL firmato (solo nel dettaglio annuncio). */
+  ownerPhotoUrl?: string;
   rating: number;
   photos: number;
   coverPhotoUrl?: string;

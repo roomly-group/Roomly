@@ -3,6 +3,7 @@ import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { createRequestAuthClient, supabaseAuthClient } from "../lib/supabase-auth.js";
 import { loginLimiter, refreshLimiter, signupLimiter } from "../middleware/rateLimit.js";
 import { logger } from "../lib/logger.js";
+import { isAllowedOrigin } from "../lib/origins.js";
 import { API_ROUTE_PATHS, CSRF_TOKEN_COOKIE_NAME } from "@workspace/api-zod";
 
 import crypto from 'crypto';
@@ -21,6 +22,8 @@ const ACCESS_TOKEN_COOKIE_MAX_AGE_SECONDS = 604800 as const;
 const REFRESH_TOKEN_COOKIE_MAX_AGE_SECONDS = 2592000 as const;
 /** Random byte length used to create CSRF cookie values (bytes). */
 const CSRF_TOKEN_RANDOM_BYTES = 32 as const;
+/** Frontend page the signup confirmation email links to (mirrors APP_ROUTES.ONBOARDING). */
+const ONBOARDING_APP_PATH = '/onboarding' as const;
 
 const router: IRouter = Router();
 
@@ -340,24 +343,31 @@ router.get(API_ROUTE_PATHS.AUTH_CONFIG, (_req: Request, res: Response) => {
 // whether the call came through this route or hit Supabase directly with
 // the anon key, like a script such as test.py does. Requires "Enable
 // Captcha protection" to actually be turned on in Supabase; see chat.
+//
+// Signup asks only for email and password: name, date of birth and the rest
+// are collected right after, by the onboarding (/onboarding, routes/onboarding.ts).
 router.post(API_ROUTE_PATHS.REGISTER, signupLimiter, async (req: Request, res: Response) => {
-  const { nome, cognome, password, dataNascita, captchaToken } = req.body as {
-    nome?: string;
-    cognome?: string;
+  const { password, captchaToken } = req.body as {
     email?: string;
     password?: string;
-    dataNascita?: string;
     captchaToken?: string;
   };
   const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : req.body?.email;
 
-  if (!nome || !cognome || !email || !password) {
-    return res.status(400).json({ error: 'nome, cognome, email e password sono obbligatori' });
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email e password sono obbligatorie' });
   }
 
   if (!captchaToken) {
     return res.status(400).json({ error: 'Verifica di sicurezza mancante o scaduta' });
   }
+
+  // The confirmation link brings the user straight into the onboarding. Supabase
+  // only honours this URL if it is listed under Authentication → URL
+  // Configuration → Redirect URLs; otherwise it falls back to the Site URL, and
+  // the frontend forwards a fresh session from there to /onboarding anyway.
+  const origin = req.header('origin');
+  const emailRedirectTo = isAllowedOrigin(origin) ? `${origin}${ONBOARDING_APP_PATH}` : undefined;
 
   try {
     // Same reasoning as /login and /refresh: signUp() sets a live session
@@ -367,12 +377,7 @@ router.post(API_ROUTE_PATHS.REGISTER, signupLimiter, async (req: Request, res: R
       password,
       options: {
         captchaToken,
-        data: {
-          nome,
-          cognome,
-          full_name: `${nome} ${cognome}`.trim(),
-          data_nascita: dataNascita,
-        },
+        emailRedirectTo,
       },
     });
 
@@ -402,6 +407,20 @@ router.post(API_ROUTE_PATHS.REGISTER, signupLimiter, async (req: Request, res: R
     console.error('Register error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// Hands the browser a CSRF cookie when it has none yet. A session that arrives
+// in the URL (back from Google, or from the confirmation email) never went
+// through /login, so there is no CSRF cookie to echo in the X-CSRF-Token header
+// that /session requires. Safe to expose: another site can make the browser
+// call this, but it cannot read the cookie value it sets, so it still cannot
+// produce a matching header.
+router.get(API_ROUTE_PATHS.CSRF, (req: Request, res: Response) => {
+  res.set('Cache-Control', 'no-store');
+  if (!req.cookies?.[CSRF_TOKEN_COOKIE_NAME]) {
+    setCsrfCookie(res, crypto.randomBytes(CSRF_TOKEN_RANDOM_BYTES).toString('hex'));
+  }
+  res.json({ ok: true });
 });
 
 // Idrata i cookie di sessione da un access_token/refresh_token Supabase

@@ -30,6 +30,7 @@ export const APP_ROUTES = {
   OWNER_DASHBOARD: '/owner',
   WAITLIST: '/waitlist',
   WAITLIST_CONFIRMED: '/waitlist/confirmed',
+  ONBOARDING: '/onboarding',
   ABOUT: '/chi-siamo',
   CONTACT: '/contatti',
   PRIVACY: '/privacy',
@@ -167,6 +168,12 @@ export function formatShortDate(value: string | Date, language: string) {
   const date = typeof value === 'string' ? new Date(value) : value;
   if (Number.isNaN(date.getTime())) return '';
   return new Intl.DateTimeFormat(numberLocale(language), { day: 'numeric', month: 'short' }).format(date);
+}
+
+/** Month and year ("Settembre 2027") in the reader's language, capitalised for use as a label. */
+export function formatMonthYear(date: Date, language: string) {
+  const label = new Intl.DateTimeFormat(numberLocale(language), { month: 'long', year: 'numeric' }).format(date);
+  return label.charAt(0).toLocaleUpperCase(numberLocale(language)) + label.slice(1);
 }
 
 /** Default search radius around a university (km). Mirrors the backend's SEARCH_RADIUS_KM default. */

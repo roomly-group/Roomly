@@ -66,7 +66,16 @@ export async function getIsOwner(user: User | null | undefined): Promise<boolean
   return owner;
 }
 
+/**
+ * The signed-in user's main page, from the role already known (no request):
+ * the home for admins and owners, the waitlist page for everyone else.
+ */
+export function mainPageFor(role: { role: UserRole; owner: boolean } | null): string {
+  return role && (role.role === 'admin' || role.owner) ? APP_ROUTES.HOME : APP_ROUTES.WAITLIST_CONFIRMED;
+}
+
 export async function postAuthRoute(user: User | null | undefined): Promise<string> {
   const role = await getUserRole(user);
-  return role === 'admin' ? APP_ROUTES.HOME : APP_ROUTES.WAITLIST_CONFIRMED;
+  // The onboarding forwards users who already finished it to WAITLIST_CONFIRMED.
+  return role === 'admin' ? APP_ROUTES.HOME : APP_ROUTES.ONBOARDING;
 }

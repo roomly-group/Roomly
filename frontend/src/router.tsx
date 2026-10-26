@@ -17,6 +17,7 @@ const NewListingPage = lazy(() => import('@/pages/new-listing').then((m) => ({ d
 const EditListingPage = lazy(() => import('@/pages/edit-listing').then((m) => ({ default: m.EditListingPage })));
 const WaitlistPage = lazy(() => import('@/pages/waitlist').then((m) => ({ default: m.WaitlistPage })));
 const WaitlistConfirmedPage = lazy(() => import('@/pages/waitlist-confirmed').then((m) => ({ default: m.WaitlistConfirmedPage })));
+const OnboardingPage = lazy(() => import('@/pages/onboarding').then((m) => ({ default: m.OnboardingPage })));
 const ChiSiamoPage = lazy(() => import('@/pages/chi-siamo').then((m) => ({ default: m.ChiSiamoPage })));
 const ContattiPage = lazy(() => import('@/pages/contatti').then((m) => ({ default: m.ContattiPage })));
 const PrivacyPage = lazy(() => import('@/pages/privacy').then((m) => ({ default: m.PrivacyPage })));
@@ -111,6 +112,16 @@ export function Router() {
         </Route>
         <Route path={APP_ROUTES.WAITLIST} component={WaitlistPage} />
         <Route path={APP_ROUTES.WAITLIST_CONFIRMED} component={WaitlistConfirmedPage} />
+        <Route path={APP_ROUTES.ONBOARDING}>
+          {/* `?preview` in development shows the flow with sample data and no login (pages/onboarding.tsx). */}
+          {import.meta.env.DEV && new URLSearchParams(window.location.search).has('preview') ? (
+            <OnboardingPage />
+          ) : (
+            <RequireAuth>
+              <OnboardingPage />
+            </RequireAuth>
+          )}
+        </Route>
         <Route path={APP_ROUTES.ABOUT} component={ChiSiamoPage} />
         <Route path={APP_ROUTES.CONTACT} component={ContattiPage} />
         <Route path={APP_ROUTES.PRIVACY} component={PrivacyPage} />

@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
+import { waitlistPosition } from "../lib/waitlist.js";
 import { API_ROUTE_PATHS } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -53,7 +54,7 @@ router.get(API_ROUTE_PATHS.WAITLIST_ME, requireAuth, async (req: AuthenticatedRe
       return;
     }
 
-    res.json({ position: data.posizione });
+    res.json({ position: await waitlistPosition(userId, data.posizione) });
   } catch (err) {
     console.error("Error fetching waitlist position:", err);
     res.status(500).json({ error: "Internal server error" });
