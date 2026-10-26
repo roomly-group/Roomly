@@ -25,6 +25,8 @@ import {
 } from '@workspace/api-zod';
 import { useLanguage } from '@/lib/i18n';
 import { patchAccount } from '@/lib/account-cache';
+import { mainPageFor } from '@/lib/auth-role';
+import { peekLastKnownRole, peekRoleCache } from '@/lib/role-cache';
 import {
   ONBOARDING_EXTRAS_QUERY,
   ONBOARDING_RETURN_PROFILE,
@@ -341,7 +343,11 @@ function OnboardingFlow({ initial, preview }: { initial: OnboardingData; preview
   const [step, setStep] = useState<Step | 'exit'>(() => firstStep(initial, params.get(ONBOARDING_EXTRAS_QUERY)));
   // Editing one question (from the profile or the waitlist page): save, then go back there.
   const [singleEdit] = useState(() => editedStep(initial, params.get(ONBOARDING_EXTRAS_QUERY)) !== null);
-  const returnTo = params.get(ONBOARDING_RETURN_QUERY) === ONBOARDING_RETURN_PROFILE ? APP_ROUTES.PROFILE : APP_ROUTES.WAITLIST_CONFIRMED;
+  // Done (or nothing to do): back to the profile when editing from there, else
+  // the user's main page (home for admins and owners, waitlist for students).
+  const returnTo = params.get(ONBOARDING_RETURN_QUERY) === ONBOARDING_RETURN_PROFILE
+    ? APP_ROUTES.PROFILE
+    : mainPageFor(peekRoleCache() ?? peekLastKnownRole());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

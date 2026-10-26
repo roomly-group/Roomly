@@ -138,3 +138,24 @@ export const chatReadLimiter = rateLimit({
     });
   },
 });
+
+/** Profile-photo uploads allowed per user per window (uploads). */
+const PHOTO_UPLOAD_RATE_LIMIT_MAX_REQUESTS = 10 as const;
+
+/**
+ * Rate limiter for profile-photo uploads (up to 5 MB each): stops one account
+ * from hammering storage and bandwidth. Keyed by user; mount after requireAuth.
+ */
+export const photoUploadLimiter = rateLimit({
+  windowMs: CHAT_RATE_LIMIT_WINDOW_MS, // 1 minute
+  max: PHOTO_UPLOAD_RATE_LIMIT_MAX_REQUESTS,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const userId = (req as Request & { userId?: string }).userId;
+    return userId ? `photo:${userId}` : extractIP(req);
+  },
+  handler: (_req: Request, res: Response) => {
+    res.status(429).json({ error: 'Troppi caricamenti, riprova tra un minuto.' });
+  },
+});

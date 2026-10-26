@@ -71,3 +71,42 @@ export async function requireAuth(
 
   next();
 }
+
+/** How long an admin/owner check stays cached per user (ms). */
+const APP_ACCESS_CACHE_TTL_MS = 60_000 as const;
+const appAccessCache = new Map<string, { allowed: boolean; expires: number }>();
+
+// Pre-launch, the listings part of the app is open only to admins and owners
+// (the frontend gates the same pages with RequireAdmin allowOwner). Without
+// this, anyone could page through /api/listings and collect owner names,
+// photos and listings while the site shows them only the waitlist.
+// Mount after requireAuth.
+export async function requireAppAccess(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const { userId } = req as AuthenticatedRequest;
+  const cached = appAccessCache.get(userId);
+  let allowed = cached && cached.expires > Date.now() ? cached.allowed : undefined;
+
+  if (allowed === undefined) {
+    const { data, error } = await supabaseAdmin
+      .from("utenti")
+      .select("admin, owner")
+      .eq("id", userId)
+      .maybeSingle();
+    if (error) {
+      res.status(500).json({ error: "Internal server error" });
+      return;
+    }
+    allowed = data?.admin === true || data?.owner === true;
+    appAccessCache.set(userId, { allowed, expires: Date.now() + APP_ACCESS_CACHE_TTL_MS });
+  }
+
+  if (!allowed) {
+    res.status(403).json({ error: "Not available yet" });
+    return;
+  }
+  next();
+}

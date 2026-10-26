@@ -1,6 +1,6 @@
 import { raw, Router, type IRouter, type Request, type Response } from "express";
 import { randomUUID } from "node:crypto";
-import { requireAuth } from "../middleware/auth";
+import { requireAppAccess, requireAuth } from "../middleware/auth";
 import { readNearbyPlaces, refreshNearbyPlaces } from "../lib/nearby-places.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { isValidImage, uploadImageType } from "../lib/image.js";
@@ -165,7 +165,7 @@ const ROOM_SELECT = `
  * GET /api/listings
  * Returns a list of listings (rooms) with optional filtering.
  */
-router.get(API_ROUTE_PATHS.LISTINGS, async (req: Request, res: Response) => {
+router.get(API_ROUTE_PATHS.LISTINGS, requireAuth, requireAppAccess, async (req: Request, res: Response) => {
   try {
     const query = ListListingsQueryParams.parse(req.query);
 
@@ -275,7 +275,7 @@ router.get(API_ROUTE_PATHS.LISTINGS, async (req: Request, res: Response) => {
  * GET /api/listings/:id
  * Get a single listing by ID.
  */
-router.get(API_ROUTE_PATHS.LISTING_BY_ID, async (req: Request, res: Response) => {
+router.get(API_ROUTE_PATHS.LISTING_BY_ID, requireAuth, requireAppAccess, async (req: Request, res: Response) => {
   try {
     const { id } = GetListingParams.parse({ id: Number(req.params.id) });
 

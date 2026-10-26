@@ -2,6 +2,7 @@ import { raw, Router, type IRouter, type Request, type Response } from "express"
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
+import { photoUploadLimiter } from "../middleware/rateLimit.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { ensureUtenteRecord } from "../lib/utenti.js";
 import { isValidImage, uploadImageType } from "../lib/image.js";
@@ -269,6 +270,7 @@ router.patch(API_ROUTE_PATHS.ME_ONBOARDING, requireAuth, async (req: Authenticat
 router.post(
   API_ROUTE_PATHS.ME_PHOTO,
   requireAuth,
+  photoUploadLimiter,
   raw({ type: () => true, limit: PROFILE_PHOTO_MAX_SIZE_BYTES }),
   async (req: Request, res: Response) => {
     const { userId } = req as AuthenticatedRequest;
@@ -350,6 +352,21 @@ router.get(API_ROUTE_PATHS.ME_INVITE, requireAuth, async (req: AuthenticatedRequ
   }
 });
 
+/** Mailbox an address really delivers to: drops "+tag", and dots for Gmail. */
+function mailbox(email: string | null | undefined): string | null {
+  if (!email) return null;
+  const [local, domain] = email.trim().toLowerCase().split("@");
+  if (!local || !domain) return null;
+  const base = local.split("+")[0];
+  const gmail = domain === "gmail.com" || domain === "googlemail.com";
+  return `${gmail ? base.replace(/\./g, "") : base}@${gmail ? "gmail.com" : domain}`;
+}
+
+function sameMailbox(a: string | null | undefined, b: string | null | undefined): boolean {
+  const left = mailbox(a);
+  return left !== null && left === mailbox(b);
+}
+
 const inviteClaimSchema = z.object({ codice: z.string().trim().min(4).max(12) }).strict();
 
 // Records who invited a new user. Only once, only before they finish the
@@ -363,11 +380,12 @@ router.post(API_ROUTE_PATHS.ME_INVITE_CLAIM, requireAuth, async (req: Authentica
   try {
     const { data: inviter, error: inviterError } = await supabaseAdmin
       .from("utenti")
-      .select("id")
+      .select("id, email")
       .eq("codice_invito", parsed.data.codice)
       .maybeSingle();
     if (inviterError) throw inviterError;
-    if (!inviter || inviter.id === req.userId) {
+    // Same person under an alias (name+1@gmail.com, n.a.me@gmail.com) does not count.
+    if (!inviter || inviter.id === req.userId || sameMailbox(inviter.email, req.userEmail)) {
       res.json({ ok: false });
       return;
     }
