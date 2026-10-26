@@ -550,25 +550,34 @@ function StepFrame({
       ) : null}
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
-        <div className="mx-auto flex h-20 w-full max-w-[720px] items-center justify-between gap-3 px-5">
+        {/* Phones: Back is just the arrow, so Back + Skip + Continue fit on one line without wrapping. */}
+        <div className="mx-auto flex h-20 w-full max-w-[720px] items-center justify-between gap-2 px-4 sm:gap-3 sm:px-5">
           {back ? (
-            <Button type="button" variant="ghost" onClick={back} disabled={saving} className="h-12 px-3 text-pine" data-testid="onboarding-back">
-              <ArrowLeft size={17} aria-hidden />
-              {t('onboarding.back')}
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={back}
+              disabled={saving}
+              className="h-12 w-12 shrink-0 px-0 text-pine sm:w-auto sm:px-3"
+              aria-label={t('onboarding.back')}
+              data-testid="onboarding-back"
+            >
+              <ArrowLeft size={18} aria-hidden />
+              <span className="hidden sm:inline">{t('onboarding.back')}</span>
             </Button>
           ) : (
             <span />
           )}
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex min-w-0 items-center gap-1 sm:gap-2">
             {skip ? (
-              <Button type="button" variant="ghost" onClick={skip} disabled={saving} className="h-12 px-3 text-sage hover:text-pine" data-testid="onboarding-skip">
+              <Button type="button" variant="ghost" onClick={skip} disabled={saving} className="h-12 whitespace-nowrap px-3 text-sage hover:text-pine" data-testid="onboarding-skip">
                 {skipLabel ?? t('onboarding.skip')}
               </Button>
             ) : null}
             <Button
               type="submit"
               disabled={!canContinue || saving}
-              className="h-12 min-w-[128px] px-6 text-[15px]"
+              className="h-12 min-w-[112px] whitespace-nowrap px-5 text-[15px] sm:min-w-[128px] sm:px-6"
               data-testid="onboarding-continue"
             >
               {saving ? <Loader2 size={17} className="animate-spin" aria-hidden /> : null}
@@ -1020,7 +1029,7 @@ function ArrivalStep({ data, eyebrow, saving, error, save, back, skip }: StepPro
       error={error}
     >
       <div className="flex flex-col gap-8">
-        <ChipGroup legend={t('onboarding.arrivalMonthLegend')}>
+        <ChipGroup legend={t('onboarding.arrivalMonthLegend')} columns>
           {months.map((month) => {
             const value = toMonthIso(month);
             return (
@@ -1034,7 +1043,7 @@ function ArrivalStep({ data, eyebrow, saving, error, save, back, skip }: StepPro
           </ChoiceChip>
         </ChipGroup>
 
-        <ChipGroup legend={t('onboarding.durationLegend')}>
+        <ChipGroup legend={t('onboarding.durationLegend')} columns>
           {ONBOARDING_OPTIONS.stayDurations.map((option) => (
             <ChoiceChip key={option} name="durata" value={option} checked={duration === option} onSelect={() => setDuration(option)}>
               {t(DURATION_LABELS[option])}

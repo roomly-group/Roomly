@@ -14,11 +14,15 @@ type ChoiceProps = {
   testId?: string;
 };
 
-/** Big card with an icon above the label ("Come ci hai scoperto?"). */
+/**
+ * Card with an icon and a label ("Come ci hai scoperto?"). Phones: a compact
+ * row (icon left of the label), so all eight answers fit on one screen. From
+ * sm: a big square card with the icon above the label.
+ */
 export function ChoiceCard({ name, value, checked, onSelect, children, icon, testId }: ChoiceProps & { icon: ReactNode }) {
   return (
     <label
-      className={`relative flex min-h-[112px] cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border px-3 py-5 text-center transition-[border-color,background-color,box-shadow,transform] duration-200 active:scale-[0.98] has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-shutter motion-reduce:transition-none ${
+      className={`relative flex min-h-16 cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-[border-color,background-color,box-shadow,transform] duration-200 active:scale-[0.98] has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-shutter motion-reduce:transition-none sm:min-h-[112px] sm:flex-col sm:justify-center sm:px-3 sm:py-5 sm:text-center ${
         checked
           ? 'border-shutter bg-mint-mist shadow-[inset_0_0_0_1px_var(--color-shutter)]'
           : 'border-hairline bg-paper shadow-rest hover:border-outline hover:shadow-lift'
@@ -27,14 +31,14 @@ export function ChoiceCard({ name, value, checked, onSelect, children, icon, tes
     >
       <input type="radio" name={name} value={value} checked={checked} onChange={onSelect} className="sr-only" />
       {checked ? (
-        <span className="absolute right-2.5 top-2.5 grid h-5 w-5 place-items-center rounded-full bg-shutter text-mint-mist" aria-hidden>
+        <span className="absolute right-3 top-1/2 grid h-5 w-5 -translate-y-1/2 place-items-center rounded-full bg-shutter text-mint-mist sm:right-2.5 sm:top-2.5 sm:translate-y-0" aria-hidden>
           <Check size={13} strokeWidth={3} />
         </span>
       ) : null}
-      <span className="grid h-7 place-items-center text-pine" aria-hidden>
+      <span className="grid h-7 w-7 shrink-0 place-items-center text-pine" aria-hidden>
         {icon}
       </span>
-      <span className="text-sm font-extrabold text-ink">{children}</span>
+      <span className="min-w-0 pr-4 text-sm font-extrabold text-ink sm:pr-0">{children}</span>
     </label>
   );
 }
@@ -57,12 +61,16 @@ export function ChoiceChip({ name, value, checked, onSelect, children, testId }:
   );
 }
 
-/** A labelled group of chips: the legend is the question, the chips the answers. */
-export function ChipGroup({ legend, children }: { legend: string; children: ReactNode }) {
+/**
+ * A labelled group of chips: the legend is the question, the chips the answers.
+ * `columns`: on phones the chips sit in two even columns instead of ragged
+ * rows (long lists like the arrival months); from sm they wrap freely again.
+ */
+export function ChipGroup({ legend, children, columns = false }: { legend: string; children: ReactNode; columns?: boolean }) {
   return (
     <fieldset>
       <legend className="mb-3 text-sm font-extrabold text-pine">{legend}</legend>
-      <div className="flex flex-wrap gap-2">{children}</div>
+      <div className={columns ? 'grid grid-cols-2 gap-2 sm:flex sm:flex-wrap' : 'flex flex-wrap gap-2'}>{children}</div>
     </fieldset>
   );
 }

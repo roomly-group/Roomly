@@ -104,8 +104,9 @@ export function WaitlistConfirmedPage() {
 
       <main className="mx-auto w-full max-w-[1120px] flex-1 px-5 pb-16 lg:px-8">
         {/* Hero: confirmation and, when decided, the opening month. The position lives in the invite card. */}
-        <section className="relative overflow-hidden rounded-[2rem] bg-mint-wash px-6 py-10 sm:px-12 sm:py-14">
-          <div className="relative grid items-center gap-10 md:grid-cols-[1.15fr_1fr]">
+        <section className="relative overflow-hidden rounded-[2rem] bg-mint-wash px-5 py-8 sm:px-12 sm:py-14">
+          {/* grid-cols-1 (minmax(0,1fr)) on phones: an auto column grew to the invite field's width and pushed the card out of the hero. */}
+          <div className="relative grid grid-cols-1 items-center gap-8 sm:gap-10 md:grid-cols-[1.15fr_1fr]">
             <div className="page-enter">
               <p className="inline-flex items-center gap-2 rounded-full bg-mint-mist px-3.5 py-1.5 text-xs font-extrabold text-pine">
                 <span className="h-1.5 w-1.5 rounded-full bg-shutter" aria-hidden />
@@ -130,7 +131,7 @@ export function WaitlistConfirmedPage() {
         {onboarding ? <SearchSummary data={onboarding} /> : null}
 
         {/* Owners never wait in the list: they talk to the team straight away. */}
-        <section className="mt-6 grid gap-6 rounded-[2rem] bg-sun px-6 py-8 sm:px-10 md:grid-cols-[1fr_auto] md:items-center" data-testid="panel-owners">
+        <section className="mt-6 grid grid-cols-1 gap-6 rounded-[2rem] bg-sun px-5 py-8 sm:px-10 md:grid-cols-[1fr_auto] md:items-center" data-testid="panel-owners">
           <div>
             <h2 className="text-[clamp(1.5rem,3vw,2rem)] font-black leading-tight tracking-[-0.02em] text-ink">{t('waitlistConfirmed.ownersTitle')}</h2>
             <p className="mt-2 max-w-xl text-[15px] leading-6 text-ink">{t('waitlistConfirmed.ownersText')}</p>
@@ -217,27 +218,31 @@ function SearchSummary({ data }: { data: OnboardingData }) {
   ];
 
   return (
-    <section className="mt-6 rounded-2xl border border-hairline bg-paper p-6 shadow-rest sm:p-8" data-testid="panel-search-summary">
+    <section className="mt-6 rounded-2xl border border-hairline bg-paper p-5 shadow-rest sm:p-8" data-testid="panel-search-summary">
       <h2 className="text-lg font-black text-pine">{t('waitlistConfirmed.searchTitle')}</h2>
       <p className="mt-1.5 max-w-2xl text-[15px] leading-6 text-sage">{t('waitlistConfirmed.searchText')}</p>
       <ul className="mt-5 grid gap-3 sm:grid-cols-3">
         {tiles.map((tile) => (
           <li key={tile.step}>
+            {/* Phones: one compact row (label and value left, "Modifica" right). From sm: a three-line tile. */}
             <Link
               href={editStepHref(tile.step, 'waitlist')}
-              className={`flex h-full flex-col gap-1 rounded-xl border px-4 py-3.5 transition-colors hover:border-shutter hover:bg-mint-mist ${
+              className={`flex h-full items-center justify-between gap-3 rounded-xl border px-4 py-3 transition-colors hover:border-shutter hover:bg-mint-mist sm:flex-col sm:items-stretch sm:justify-start sm:gap-1 sm:py-3.5 ${
                 tile.value ? 'border-line bg-cream' : 'border-dashed border-outline bg-paper'
               }`}
               data-testid={`link-search-${tile.step}`}
             >
-              <span className="flex items-center gap-2 text-xs font-extrabold text-sage">
-                <span className="text-shutter" aria-hidden>{tile.icon}</span>
-                {tile.label}
+              <span className="flex min-w-0 flex-col gap-1">
+                <span className="flex items-center gap-2 text-xs font-extrabold text-sage">
+                  <span className="text-shutter" aria-hidden>{tile.icon}</span>
+                  {tile.label}
+                </span>
+                <span className={`text-[15px] font-black ${tile.value ? 'text-pine' : 'text-shutter'}`}>
+                  {tile.value ?? t('waitlistConfirmed.searchAdd')}
+                </span>
               </span>
-              <span className={`text-[15px] font-black ${tile.value ? 'text-pine' : 'text-shutter'}`}>
-                {tile.value ?? t('waitlistConfirmed.searchAdd')}
-              </span>
-              <span className="text-xs font-bold text-sage">{tile.value ? t('waitlistConfirmed.searchEdit') : ' '}</span>
+              {/* Empty tiles keep the line from sm up so the three tiles stay the same height. */}
+              <span className={`shrink-0 text-xs font-bold text-sage ${tile.value ? '' : 'hidden sm:block'}`}>{tile.value ? t('waitlistConfirmed.searchEdit') : ' '}</span>
             </Link>
           </li>
         ))}
@@ -265,7 +270,7 @@ function InviteCard({ invite }: { invite: InviteData }) {
   }
 
   return (
-    <div className="rounded-2xl border border-pine/10 bg-paper p-6 shadow-float sm:p-7" data-testid="panel-invite">
+    <div className="min-w-0 rounded-2xl border border-pine/10 bg-paper p-5 shadow-float sm:p-7" data-testid="panel-invite">
       <div className="flex items-end justify-between gap-4">
         <div>
           <p className="text-sm font-bold text-sage">{t('waitlistConfirmed.positionLabel')}</p>

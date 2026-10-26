@@ -247,10 +247,10 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
                 </form>
               ) : (
                 <>
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
                     <InfoRow label={t('auth.firstNameLabel')} value={profile?.nome || '—'} loading={loading} />
                     <InfoRow label={t('auth.lastNameLabel')} value={profile?.cognome || '—'} loading={loading} />
-                    <div className="sm:col-span-2">
+                    <div className="col-span-2">
                       <InfoRow label={t('profile.labelEmail')} value={profile?.email ?? '—'} loading={loading} />
                     </div>
                   </div>
