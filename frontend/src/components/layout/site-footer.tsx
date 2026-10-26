@@ -48,8 +48,10 @@ export function SiteFooter() {
               { label: t('footer.link.privacy'), href: APP_ROUTES.PRIVACY },
               { label: t('footer.link.termini'), href: APP_ROUTES.TERMS },
               { label: t('footer.link.cookie'), href: APP_ROUTES.COOKIES },
+              // Always-visible way to change or withdraw analytics consent (preferences are at the top of the cookie page).
+              { label: t('footer.link.manageCookies'), href: APP_ROUTES.COOKIES },
             ].map((link) => (
-              <li key={link.href}>
+              <li key={link.label}>
                 <Link href={link.href} className="inline-flex min-h-11 items-center hover:text-pine hover:underline hover:underline-offset-4">
                   {link.label}
                 </Link>

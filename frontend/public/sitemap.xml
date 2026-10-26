@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sitemap pubblica di Roomly, servita da Vercel su /sitemap.xml (file statico in frontend/public).
+  Gli URL usano il dominio principale www.roomly.group: roomly.group reindirizza (308) a www.
+  Contiene solo le pagine pubbliche: waitlist (root), chi siamo, contatti, privacy e cookie.
+  Aggiorna <lastmod> quando il contenuto di una pagina cambia.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Root: pagina waitlist -->
+  <url>
+    <loc>https://www.roomly.group/</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://www.roomly.group/chi-siamo</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://www.roomly.group/contatti</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://www.roomly.group/privacy</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+  <url>
+    <loc>https://www.roomly.group/cookie</loc>
+    <lastmod>2026-10-23</lastmod>
+  </url>
+</urlset>

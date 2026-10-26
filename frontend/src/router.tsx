@@ -111,7 +111,13 @@ export function Router() {
           </RequireAuth>
         </Route>
         <Route path={APP_ROUTES.WAITLIST} component={WaitlistPage} />
-        <Route path={APP_ROUTES.WAITLIST_CONFIRMED} component={WaitlistConfirmedPage} />
+        {/* Only for logged-in users: after logout, the browser back arrow
+            must not reopen this page (no session = redirect to login). */}
+        <Route path={APP_ROUTES.WAITLIST_CONFIRMED}>
+          <RequireAuth>
+            <WaitlistConfirmedPage />
+          </RequireAuth>
+        </Route>
         <Route path={APP_ROUTES.ONBOARDING}>
           {/* `?preview` in development shows the flow with sample data and no login (pages/onboarding.tsx). */}
           {import.meta.env.DEV && new URLSearchParams(window.location.search).has('preview') ? (

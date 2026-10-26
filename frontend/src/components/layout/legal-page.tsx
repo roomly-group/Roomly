@@ -1,14 +1,17 @@
 import { useLanguage } from '@/lib/i18n';
 import { getLegalDoc } from '@/lib/legal-content';
+import type { ReactNode } from 'react';
 import { StaticPage } from '@/components/layout/static-page';
 
 /** Privacy, terms and cookie pages: Italian text for Italian, English for the other languages. */
-export function LegalPage({ kind }: { kind: 'privacy' | 'terms' | 'cookies' }) {
+/** `children` is shown under the update date (e.g. the cookie preferences on the cookie page). */
+export function LegalPage({ kind, children }: { kind: 'privacy' | 'terms' | 'cookies'; children?: ReactNode }) {
   const { language } = useLanguage();
   const doc = getLegalDoc(kind, language);
   return (
     <StaticPage eyebrow="" title={doc.title} intro={doc.intro}>
       <p className="text-sm font-bold text-sage">{doc.updated}</p>
+      {children}
       {doc.sections.map((section) => (
         <section key={section.title} className="border-t border-line pt-6">
           <h2 className="text-lg font-black text-pine">{section.title}</h2>

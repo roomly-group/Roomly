@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { PersonaLanguageProvider } from '@/components/layout/app-shell';
 import { Router } from '@/router';
+import { CookieConsentBanner } from '@/components/shared/cookie-consent';
 
 // ===================== CONFIGURATION =====================
 
@@ -25,6 +26,8 @@ function App() {
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
           <PersonaLanguageProvider>
             <Router />
+            {/* Analytics consent: banner on public pages, GA only after "Accept". */}
+            <CookieConsentBanner />
           </PersonaLanguageProvider>
         </WouterRouter>
         <Toaster />
