@@ -14,14 +14,16 @@ import { QueryError } from '@/components/shared/query-error';
 import { EmptyState } from '@/components/shared/empty-state';
 import { CategoryStrip } from '@/components/shared/category-strip';
 import { browseHref, parseBrowseParams, useBrowseParams } from '@/hooks/use-browse-params';
-import { APP_ROUTES, LISTING_GRID_CLASS } from '@/lib/constants';
+import { APP_ROUTES, FEATURED_GRID_CLASS, PC_ONLY_CARD_CLASS } from '@/lib/constants';
 import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 
 // ===================== CONFIGURATION =====================
 
 
-/** Rooms shown on the home grid: two rows of four on desktop. */
+/** Rooms shown on the home grid on PCs: two rows of four. */
 const FEATURED_LISTING_COUNT = 8 as const;
+/** Rooms shown on every other device (phones, tablets): two rows of three. */
+const FEATURED_LISTING_COUNT_COMPACT = 6 as const;
 /** Universities listed in the "Dove vuoi studiare?" grid. */
 const UNIVERSITY_LINK_COUNT = 12 as const;
 /** Stable selectors for the homepage links. */
@@ -129,13 +131,21 @@ export function Home() {
           </div>
 
           {isLoading ? (
-            <LoadingCards count={FEATURED_LISTING_COUNT} />
+            <LoadingCards
+              count={FEATURED_LISTING_COUNT}
+              pcOnlyFrom={FEATURED_LISTING_COUNT_COMPACT}
+              gridClassName={FEATURED_GRID_CLASS}
+            />
           ) : isError ? (
             <QueryError onRetry={() => refetch()} />
           ) : listings.length ? (
-            <div className={LISTING_GRID_CLASS}>
+            <div className={FEATURED_GRID_CLASS}>
               {listings.slice(0, FEATURED_LISTING_COUNT).map((listing, index) => (
-                <div key={listing.id} data-reveal style={{ '--reveal-delay': `${index * 90}ms` } as React.CSSProperties}>
+                <div
+                  key={listing.id}
+                  data-reveal
+                  className={index >= FEATURED_LISTING_COUNT_COMPACT ? PC_ONLY_CARD_CLASS : undefined}
+                  style={{ '--reveal-delay': `${index * 90}ms` } as React.CSSProperties}>
                   <ListingCard listing={listing} />
                 </div>
               ))}

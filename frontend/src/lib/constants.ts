@@ -136,6 +136,15 @@ export const gradients = [
 /** Listing grid: 1 → 2 (640px) → 3 (900px) → 4 (1180px) columns; columns drop, rows never reflow. */
 export const LISTING_GRID_CLASS = 'grid gap-x-6 gap-y-10 sm:grid-cols-2 laptop:grid-cols-3 desk:grid-cols-4';
 
+/**
+ * Home "featured" grid: PCs (≥1180px with a mouse/touchpad) get 4 columns × 2 rows.
+ * Wide touch screens (tablets in landscape, e.g. iPad 1180px, iPad Pro 1366px) stay at
+ * 3 columns, so they show 3 × 2 like every other non-PC device.
+ */
+export const FEATURED_GRID_CLASS = `${LISTING_GRID_CLASS} desk:pointer-coarse:grid-cols-3`;
+/** Cards past the compact count: shown only on PCs (desk width + fine pointer). */
+export const PC_ONLY_CARD_CLASS = 'hidden desk:pointer-fine:block';
+
 /** Number-format locale per UI language: prices and distances follow the reader ("420 €" in Italian, "€420" in English). */
 const NUMBER_LOCALES: Record<string, string> = {
   it: 'it-IT',
