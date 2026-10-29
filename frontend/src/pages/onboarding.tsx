@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, Redirect, useLocation } from 'wouter';
 import {
   ArrowLeft,
@@ -7,7 +7,6 @@ import {
   Camera,
   Ellipsis,
   Facebook,
-  GraduationCap,
   ImagePlus,
   Instagram,
   Linkedin,
@@ -34,14 +33,16 @@ import {
   ONBOARDING_EXTRA_STEPS,
   claimStoredInvite,
   fetchOnboarding,
+  fromBoolean,
+  isAdult,
+  toBoolean,
   missingExtraSteps,
   type OnboardingData,
   type OnboardingExtraStep,
   type OnboardingSource,
-  type OnboardingStayDuration,
+  type YesNoAny,
 } from '@/lib/onboarding';
-import { APP_ROUTES, formatMonthYear, formatPrice } from '@/lib/constants';
-import { useUniversities } from '@/hooks/use-universities';
+import { APP_ROUTES } from '@/lib/constants';
 import { PROFILE_PHOTO_ACCEPT, PhotoReadError, shrinkPhoto, uploadProfilePhoto } from '@/lib/profile-photo';
 import { Button } from '@/components/shared/button';
 import { Input } from '@/components/ui/input';
@@ -54,7 +55,7 @@ import roomlyMark from '@assets/logo_no_background.png';
 // The onboarding right after signup: one question per screen, a progress bar
 // and the waitlist position at the top. Four required steps (name, how they
 // found Roomly, date of birth, photo, which can be skipped), then a "you're on
-// the list" screen, then five optional ones the student needs anyway once the
+// the list" screen, then two optional ones the student needs anyway once the
 // app opens. Every answer is saved as soon as they press Continue, so leaving
 // halfway never loses anything. Backend: routes/onboarding.ts.
 
@@ -74,10 +75,7 @@ const NEXT_STEP: Record<Step, Step | null> = {
   source: 'birth',
   birth: 'photo',
   photo: 'milestone',
-  milestone: 'university',
-  university: 'arrival',
-  arrival: 'budget',
-  budget: 'lifestyle',
+  milestone: 'lifestyle',
   lifestyle: 'about',
   about: null,
 };
@@ -85,35 +83,17 @@ const PREVIOUS_STEP: Partial<Record<Step, Step>> = {
   source: 'name',
   birth: 'source',
   photo: 'birth',
-  university: 'milestone',
-  arrival: 'university',
-  budget: 'arrival',
-  lifestyle: 'budget',
+  lifestyle: 'milestone',
   about: 'lifestyle',
 };
 
 /** Smallest visible width of the progress bar, so step one is not an empty track (fraction). */
 const MIN_PROGRESS = 0.04 as const;
-/** Move-in months offered, starting from the current one (months). */
-const ARRIVAL_MONTHS_SHOWN = 12 as const;
-/** University matches listed under the search field (items). */
-const UNIVERSITY_MATCHES_SHOWN = 6 as const;
-/** Characters typed before university matches appear. */
-const UNIVERSITY_QUERY_MIN_CHARS = 2 as const;
 /** `/onboarding?preview` in development: the whole flow with sample data, nothing saved, no login needed. */
 const ONBOARDING_PREVIEW_QUERY = 'preview' as const;
 
-/** Universities of the launch city, offered as one-tap answers (full name in `universita` → short label). */
-const LAUNCH_CITY_UNIVERSITIES: Record<string, string> = {
-  'Università di Napoli Federico II': 'Federico II',
-  "Università di Napoli L'Orientale": "L'Orientale",
-  'Università di Napoli Parthenope': 'Parthenope',
-  'Università della Campania Luigi Vanvitelli': 'Vanvitelli',
-  'Università Suor Orsola Benincasa': 'Suor Orsola Benincasa',
-};
 
 type Source = OnboardingSource;
-type StayDuration = OnboardingStayDuration;
 
 const SOURCE_ICONS: Record<Source, ReactNode> = {
   instagram: <Instagram size={26} strokeWidth={1.8} />,
@@ -135,13 +115,6 @@ const SOURCE_LABELS = {
   ai: 'onboarding.source.ai',
   facebook: 'onboarding.source.facebook',
   altro: 'onboarding.source.altro',
-} as const;
-
-const DURATION_LABELS = {
-  semestre: 'onboarding.duration.semestre',
-  un_anno: 'onboarding.duration.un_anno',
-  piu_anni: 'onboarding.duration.piu_anni',
-  non_so: 'onboarding.duration.non_so',
 } as const;
 
 const NOISE_LABELS = {
@@ -175,10 +148,6 @@ type OnboardingPatch = Partial<
     | 'data_nascita'
     | 'fonte_scoperta'
     | 'fonte_scoperta_altro'
-    | 'universita'
-    | 'corso_di_studio'
-    | 'arrivo_previsto'
-    | 'durata_permanenza'
     | 'bio'
   >
 > & { preferenze?: Partial<UserPreferences>; completato?: true };
@@ -236,7 +205,7 @@ function editedStep(data: OnboardingData, param: string | null): Step | null {
 function firstStep(data: OnboardingData, extras: string | null): Step | 'exit' {
   if (data.onboarding_completato_at) {
     if (extras === null) return 'exit';
-    // `?completa=budget` opens that question; a bare `?completa` the first one still unanswered.
+    // `?completa=lifestyle` opens that question; a bare `?completa` the first one still unanswered.
     return editedStep(data, extras) ?? missingExtraSteps(data)[0] ?? EXTRA_STEPS[0];
   }
   if (!data.nome || !data.cognome) return 'name';
@@ -252,25 +221,6 @@ function progressOf(step: Step) {
 
 function fill(template: string, values: Record<string, string | number>) {
   return template.replace(/\{(\w+)\}/g, (match, key: string) => (key in values ? String(values[key]) : match));
-}
-
-function isAdult(isoDate: string) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
-  if (!match) return false;
-  const [year, month, day] = match.slice(1).map(Number);
-  const today = new Date();
-  let age = today.getFullYear() - year;
-  if (today.getMonth() + 1 < month || (today.getMonth() + 1 === month && today.getDate() < day)) age -= 1;
-  return age >= MINIMUM_SIGNUP_AGE_YEARS;
-}
-
-function toMonthIso(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
-}
-
-/** Lowercase, no accents: "universita" finds "Università". */
-function normalise(value: string) {
-  return value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 }
 
 // ===================== PAGE =====================
@@ -425,11 +375,8 @@ function OnboardingFlow({ initial, preview }: { initial: OnboardingData; preview
           }} />
       )}
       {current === 'milestone' && (
-        <Milestone data={data} onContinue={() => go('university')} onLater={() => go(null)} />
+        <Milestone data={data} onContinue={() => go('lifestyle')} onLater={() => go(null)} />
       )}
-      {current === 'university' && <UniversityStep key="university" {...props} />}
-      {current === 'arrival' && <ArrivalStep key="arrival" {...props} />}
-      {current === 'budget' && <BudgetStep key="budget" {...props} />}
       {current === 'lifestyle' && <LifestyleStep key="lifestyle" {...props} />}
       {current === 'about' && <AboutStep key="about" {...props} />}
     </OnboardingChrome>
@@ -530,7 +477,11 @@ function StepFrame({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="page-enter" noValidate>
+    <form onSubmit={handleSubmit} noValidate>
+      {/* The entry animation lives on this inner wrapper, not on the form: its
+          transform would otherwise pin the fixed bottom bar to the form instead
+          of the bottom of the screen, covering the answers. */}
+      <div className="page-enter">
       <p className="text-[11px] font-black uppercase tracking-[0.15em] text-shutter">{eyebrow}</p>
       <h1
         ref={headingRef}
@@ -548,6 +499,7 @@ function StepFrame({
           {error}
         </p>
       ) : null}
+      </div>
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
         <div className="mx-auto flex h-20 w-full max-w-[720px] items-center justify-between gap-3 px-5">
@@ -870,219 +822,6 @@ function Milestone({ data, onContinue, onLater }: { data: OnboardingData; onCont
 }
 
 // ===================== OPTIONAL STEPS =====================
-
-function UniversityStep({ data, eyebrow, saving, error, save, back, skip }: StepProps) {
-  const { t } = useLanguage();
-  const { universities, loading } = useUniversities();
-  const [query, setQuery] = useState(data.universita ?? '');
-  const [course, setCourse] = useState(data.corso_di_studio ?? '');
-  const listRef = useRef<HTMLUListElement>(null);
-
-  const selected = universities.includes(query) ? query : null;
-  // In the order listed above (largest first), and only those really in the database.
-  const launchCity = Object.keys(LAUNCH_CITY_UNIVERSITIES).filter((name) => universities.includes(name));
-  const matches = useMemo(() => {
-    const needle = normalise(query);
-    if (selected || needle.length < UNIVERSITY_QUERY_MIN_CHARS) return [];
-    return universities.filter((name) => normalise(name).includes(needle)).slice(0, UNIVERSITY_MATCHES_SHOWN);
-  }, [query, selected, universities]);
-
-  const typedButUnmatched = query.trim() !== '' && !selected && !loading;
-  const canContinue = selected !== null || (query.trim() === '' && course.trim() !== '');
-
-  return (
-    <StepFrame
-      eyebrow={eyebrow}
-      title={t('onboarding.universityTitle')}
-      text={t('onboarding.universityText')}
-      canContinue={canContinue}
-      onSubmit={() => save({ universita: selected, corso_di_studio: course.trim() || null })}
-      back={back}
-      skip={skip}
-      saving={saving}
-      error={error}
-    >
-      {launchCity.length > 0 ? (
-        <ChipGroup legend={t('onboarding.universityLaunchCity')}>
-          {launchCity.map((name) => (
-            <ChoiceChip key={name} name="universita-rapida" value={name} checked={selected === name} onSelect={() => setQuery(name)}>
-              {LAUNCH_CITY_UNIVERSITIES[name]}
-            </ChoiceChip>
-          ))}
-        </ChipGroup>
-      ) : null}
-
-      <div className="mt-8 flex flex-col gap-1.5">
-        <Label htmlFor="onboarding-universita">{t('onboarding.universityLabel')}</Label>
-        <div className="relative">
-          <GraduationCap size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sage" aria-hidden />
-          <Input
-            id="onboarding-universita"
-            role="combobox"
-            aria-autocomplete="list"
-            aria-expanded={matches.length > 0}
-            aria-controls="onboarding-universita-options"
-            autoComplete="off"
-            placeholder={t('onboarding.universityPlaceholder')}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'ArrowDown' && matches.length > 0) {
-                event.preventDefault();
-                listRef.current?.querySelector('button')?.focus();
-              }
-            }}
-            className="pl-9"
-            data-testid="input-universita"
-          />
-        </div>
-
-        {matches.length > 0 ? (
-          <ul
-            ref={listRef}
-            id="onboarding-universita-options"
-            role="listbox"
-            className="mt-1 overflow-hidden rounded-xl border border-hairline bg-paper shadow-lift"
-          >
-            {matches.map((name) => (
-              <li key={name} role="option" aria-selected={false}>
-                <button
-                  type="button"
-                  onClick={() => setQuery(name)}
-                  onKeyDown={(event) => {
-                    const item = event.currentTarget.parentElement;
-                    if (event.key === 'ArrowDown') {
-                      event.preventDefault();
-                      (item?.nextElementSibling?.querySelector('button') as HTMLButtonElement | null)?.focus();
-                    } else if (event.key === 'ArrowUp') {
-                      event.preventDefault();
-                      const previousButton = item?.previousElementSibling?.querySelector('button') as HTMLButtonElement | null;
-                      if (previousButton) previousButton.focus();
-                      else document.getElementById('onboarding-universita')?.focus();
-                    }
-                  }}
-                  className="flex min-h-11 w-full items-center gap-3 px-4 py-2.5 text-left text-[15px] font-bold text-ink hover:bg-mint-mist focus-visible:bg-mint-mist focus-visible:outline-none"
-                >
-                  <GraduationCap size={16} className="shrink-0 text-shutter" aria-hidden />
-                  {name}
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-
-        {typedButUnmatched ? (
-          <p className="text-sm font-semibold text-sage" role="status">
-            {matches.length > 0 ? t('onboarding.universityPick') : t('onboarding.universityNoMatch')}
-          </p>
-        ) : null}
-      </div>
-
-      <div className="mt-6 flex flex-col gap-1.5">
-        <Label htmlFor="onboarding-corso">{t('onboarding.courseLabel')}</Label>
-        <Input
-          id="onboarding-corso"
-          maxLength={100}
-          placeholder={t('onboarding.coursePlaceholder')}
-          value={course}
-          onChange={(event) => setCourse(event.target.value)}
-          data-testid="input-corso"
-        />
-      </div>
-    </StepFrame>
-  );
-}
-
-function ArrivalStep({ data, eyebrow, saving, error, save, back, skip }: StepProps) {
-  const { t, language } = useLanguage();
-  const months = useMemo(() => {
-    const today = new Date();
-    return Array.from({ length: ARRIVAL_MONTHS_SHOWN }, (_, index) => new Date(today.getFullYear(), today.getMonth() + index, 1));
-  }, []);
-  const [arrival, setArrival] = useState<string | 'unknown' | null>(data.arrivo_previsto);
-  const [duration, setDuration] = useState<StayDuration | null>(data.durata_permanenza);
-
-  return (
-    <StepFrame
-      eyebrow={eyebrow}
-      title={t('onboarding.arrivalTitle')}
-      text={t('onboarding.arrivalText')}
-      canContinue={arrival !== null || duration !== null}
-      onSubmit={() =>
-        save({
-          ...(arrival !== null ? { arrivo_previsto: arrival === 'unknown' ? null : arrival } : {}),
-          ...(duration !== null ? { durata_permanenza: duration } : {}),
-        })
-      }
-      back={back}
-      skip={skip}
-      saving={saving}
-      error={error}
-    >
-      <div className="flex flex-col gap-8">
-        <ChipGroup legend={t('onboarding.arrivalMonthLegend')}>
-          {months.map((month) => {
-            const value = toMonthIso(month);
-            return (
-              <ChoiceChip key={value} name="arrivo" value={value} checked={arrival === value} onSelect={() => setArrival(value)}>
-                {formatMonthYear(month, language)}
-              </ChoiceChip>
-            );
-          })}
-          <ChoiceChip name="arrivo" value="unknown" checked={arrival === 'unknown'} onSelect={() => setArrival('unknown')}>
-            {t('onboarding.arrivalUnknown')}
-          </ChoiceChip>
-        </ChipGroup>
-
-        <ChipGroup legend={t('onboarding.durationLegend')}>
-          {ONBOARDING_OPTIONS.stayDurations.map((option) => (
-            <ChoiceChip key={option} name="durata" value={option} checked={duration === option} onSelect={() => setDuration(option)}>
-              {t(DURATION_LABELS[option])}
-            </ChoiceChip>
-          ))}
-        </ChipGroup>
-      </div>
-    </StepFrame>
-  );
-}
-
-function BudgetStep({ data, eyebrow, saving, error, save, back, skip }: StepProps) {
-  const { t, language } = useLanguage();
-  const saved = data.preferenze?.budget_max ?? null;
-  const [budget, setBudget] = useState<number | null>(
-    saved !== null && (ONBOARDING_OPTIONS.budgets as readonly number[]).includes(Number(saved)) ? Number(saved) : null,
-  );
-
-  return (
-    <StepFrame
-      eyebrow={eyebrow}
-      title={t('onboarding.budgetTitle')}
-      text={t('onboarding.budgetText')}
-      canContinue={budget !== null}
-      onSubmit={() => budget !== null && save({ preferenze: { budget_max: budget } })}
-      back={back}
-      skip={skip}
-      saving={saving}
-      error={error}
-    >
-      <fieldset>
-        <legend className="sr-only">{t('onboarding.budgetTitle')}</legend>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {ONBOARDING_OPTIONS.budgets.map((amount) => (
-            <ChoiceChip key={amount} name="budget" value={String(amount)} checked={budget === amount} onSelect={() => setBudget(amount)}>
-              {fill(t('onboarding.budgetUpTo'), { price: formatPrice(amount, language) })}
-            </ChoiceChip>
-          ))}
-        </div>
-      </fieldset>
-    </StepFrame>
-  );
-}
-
-type YesNoAny = 'yes' | 'no' | 'any';
-const fromBoolean = (value: boolean | null | undefined): YesNoAny | null =>
-  value === true ? 'yes' : value === false ? 'no' : null;
-const toBoolean = (value: YesNoAny): boolean | null => (value === 'yes' ? true : value === 'no' ? false : null);
 
 function LifestyleStep({ data, eyebrow, saving, error, save, back, skip }: StepProps) {
   const { t } = useLanguage();
