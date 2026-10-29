@@ -6,14 +6,12 @@ import {
   CalendarDays,
   Check,
   Copy,
-  GraduationCap,
   Instagram,
   KeyRound,
   MessageCircle,
   PhoneCall,
   Share2,
   Users,
-  Wallet,
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { Navbar } from '@/components/layout/navbar';
@@ -21,29 +19,18 @@ import { SiteFooter } from '@/components/layout/site-footer';
 import { TikTokIcon } from '@/components/shared/brand-icons';
 import { useOnboardingRedirect } from '@/components/RequireAuth';
 import { patchAccount } from '@/lib/account-cache';
-import { APP_ROUTES, SOCIAL_PROFILE_URLS, formatMonthYear, formatPrice } from '@/lib/constants';
+import { APP_ROUTES, SOCIAL_PROFILE_URLS } from '@/lib/constants';
 import { COMMUNITY_GROUP_URL, INTERVIEW_BOOKING_URL, OPENING_MONTH } from '@/lib/launch-config';
 import {
-  editStepHref,
   fetchInvite,
-  fetchOnboarding,
   inviteLink,
   type InviteData,
-  type OnboardingData,
-  type OnboardingExtraStep,
 } from '@/lib/onboarding';
 
 // ===================== CONFIGURATION =====================
 
 /** How long "Link copiato" stays on the copy button (ms). */
 const COPIED_FEEDBACK_MS = 2000 as const;
-
-const DURATION_LABELS = {
-  semestre: 'onboarding.duration.semestre',
-  un_anno: 'onboarding.duration.un_anno',
-  piu_anni: 'onboarding.duration.piu_anni',
-  non_so: 'onboarding.duration.non_so',
-} as const;
 
 function fill(template: string, values: Record<string, string | number>) {
   return template.replace(/\{(\w+)\}/g, (match, key: string) => (key in values ? String(values[key]) : match));
@@ -57,21 +44,16 @@ function openingDate(): Date | null {
 
 /**
  * Where a student lands after signing up: the invite link that moves them up
- * the list (the position is only ever shown next to it), their search data to
- * confirm or complete, a way in for owners, and ways to stay in touch.
+ * the list (the position is only ever shown next to it), a way in for owners, and ways to stay in touch.
  */
 export function WaitlistConfirmedPage() {
   const { t, language } = useLanguage();
   const unfinishedOnboarding = useOnboardingRedirect();
-  const [onboarding, setOnboarding] = useState<OnboardingData | null>(null);
   const [invite, setInvite] = useState<InviteData | null>(null);
 
-  // Both hidden when their request fails (e.g. logged out): nothing is guessed.
+  // Hidden when its request fails (e.g. logged out): nothing is guessed.
   useEffect(() => {
     let active = true;
-    fetchOnboarding()
-      .then((data) => active && setOnboarding(data))
-      .catch(() => undefined);
     fetchInvite()
       .then((data) => {
         if (!active) return;
@@ -127,8 +109,6 @@ export function WaitlistConfirmedPage() {
             {invite ? <InviteCard invite={invite} /> : null}
           </div>
         </section>
-
-        {onboarding ? <SearchSummary data={onboarding} /> : null}
 
         {/* Owners never wait in the list: they talk to the team straight away. */}
         <section className="mt-6 grid grid-cols-1 gap-6 rounded-[2rem] bg-sun px-5 py-8 sm:px-10 md:grid-cols-[1fr_auto] md:items-center" data-testid="panel-owners">
@@ -197,57 +177,6 @@ export function WaitlistConfirmedPage() {
 
       <SiteFooter />
     </div>
-  );
-}
-
-/** University, arrival and budget: shown to confirm, each one opens its onboarding question. */
-function SearchSummary({ data }: { data: OnboardingData }) {
-  const { t, language } = useLanguage();
-  const arrival = data.arrivo_previsto
-    ? formatMonthYear(new Date(`${data.arrivo_previsto}T00:00:00`), language)
-    : data.durata_permanenza
-      ? t(DURATION_LABELS[data.durata_permanenza])
-      : null;
-  const budget = data.preferenze?.budget_max != null
-    ? fill(t('onboarding.budgetUpTo'), { price: formatPrice(Number(data.preferenze.budget_max), language) })
-    : null;
-  const tiles: { step: OnboardingExtraStep; icon: ReactNode; label: string; value: string | null }[] = [
-    { step: 'university', icon: <GraduationCap size={18} />, label: t('onboarding.universityLabel'), value: data.universita },
-    { step: 'arrival', icon: <CalendarDays size={18} />, label: t('waitlistConfirmed.searchArrival'), value: arrival },
-    { step: 'budget', icon: <Wallet size={18} />, label: t('waitlistConfirmed.searchBudget'), value: budget },
-  ];
-
-  return (
-    <section className="mt-6 rounded-2xl border border-hairline bg-paper p-5 shadow-rest sm:p-8" data-testid="panel-search-summary">
-      <h2 className="text-lg font-black text-pine">{t('waitlistConfirmed.searchTitle')}</h2>
-      <p className="mt-1.5 max-w-2xl text-[15px] leading-6 text-sage">{t('waitlistConfirmed.searchText')}</p>
-      <ul className="mt-5 grid gap-3 sm:grid-cols-3">
-        {tiles.map((tile) => (
-          <li key={tile.step}>
-            {/* Phones: one compact row (label and value left, "Modifica" right). From sm: a three-line tile. */}
-            <Link
-              href={editStepHref(tile.step, 'waitlist')}
-              className={`flex h-full items-center justify-between gap-3 rounded-xl border px-4 py-3 transition-colors hover:border-shutter hover:bg-mint-mist sm:flex-col sm:items-stretch sm:justify-start sm:gap-1 sm:py-3.5 ${
-                tile.value ? 'border-line bg-cream' : 'border-dashed border-outline bg-paper'
-              }`}
-              data-testid={`link-search-${tile.step}`}
-            >
-              <span className="flex min-w-0 flex-col gap-1">
-                <span className="flex items-center gap-2 text-xs font-extrabold text-sage">
-                  <span className="text-shutter" aria-hidden>{tile.icon}</span>
-                  {tile.label}
-                </span>
-                <span className={`text-[15px] font-black ${tile.value ? 'text-pine' : 'text-shutter'}`}>
-                  {tile.value ?? t('waitlistConfirmed.searchAdd')}
-                </span>
-              </span>
-              {/* Empty tiles keep the line from sm up so the three tiles stay the same height. */}
-              <span className={`shrink-0 text-xs font-bold text-sage ${tile.value ? '' : 'hidden sm:block'}`}>{tile.value ? t('waitlistConfirmed.searchEdit') : ' '}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }
 

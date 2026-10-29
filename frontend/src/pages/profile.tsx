@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'wouter';
-import { Cake, CalendarDays, Camera, GraduationCap, Home, Loader2, Megaphone, Pencil, Quote, Settings, SlidersHorizontal, Wallet } from 'lucide-react';
-import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
+import { Camera, Loader2, Settings, SlidersHorizontal } from 'lucide-react';
+import { API_BASE_PATH, API_ROUTE_PATHS, PROFILE_BIO_MAX_LENGTH_CHARS, USER_PREFERENCE_OPTIONS, type UserPreferences } from '@workspace/api-zod';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n';
 import { AppShell, Avatar } from '@/components/layout/app-shell';
@@ -11,8 +11,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { patchAccount, useAccount } from '@/lib/account-cache';
-import { APP_ROUTES, formatMonthYear, formatPrice } from '@/lib/constants';
-import { editStepHref, fetchOnboarding, type OnboardingData } from '@/lib/onboarding';
+import { APP_ROUTES } from '@/lib/constants';
+import { fetchOnboarding, fromBoolean, isAdult, toBoolean, type OnboardingData, type YesNoAny } from '@/lib/onboarding';
+import { ChipGroup, ChoiceChip } from '@/components/onboarding/choice';
+import { BirthDatePicker } from '@/components/shared/birth-date-picker';
 import { PROFILE_PHOTO_ACCEPT, PhotoReadError, shrinkPhoto, uploadProfilePhoto } from '@/lib/profile-photo';
 
 // ===================== CONFIGURATION =====================
@@ -24,7 +26,16 @@ const PROFILE_TEST_IDS = {
   BUTTON_SAVE_PROFILE: 'button-save-profile',
 } as const;
 
-type ProfileDraft = { nome: string; cognome: string; email: string };
+/** Rows of the "About you" textarea in the edit form. */
+const BIO_TEXTAREA_ROWS = 4 as const;
+/** How the date of birth is written in "The useful bits". */
+const BIRTH_DATE_FORMAT: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
+/** Same text field look as the onboarding "About you" step. */
+const TEXTAREA_CLASS =
+  'w-full resize-none rounded-xl border border-field bg-paper px-3.5 py-3 text-base leading-7 text-ink transition-[border-color,box-shadow] placeholder:text-sage-placeholder focus-visible:border-shutter focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-mint-wash/40';
+
+/** data_nascita is "yyyy-MM-dd" or '' (not set); bio is '' when empty. */
+type ProfileDraft = { nome: string; cognome: string; email: string; data_nascita: string; bio: string };
 
 async function profileError(response: Response): Promise<Error> {
   try {
@@ -43,21 +54,40 @@ function InfoRow({ label, value, loading }: { label: string; value: string; load
       {loading ? (
         <Skeleton className="mt-1.5 h-4 w-20" />
       ) : (
-        <p className="mt-1 break-words text-sm font-extrabold text-pine [overflow-wrap:anywhere]">{value}</p>
+        <p className="mt-1 whitespace-pre-line break-words text-sm font-extrabold text-pine [overflow-wrap:anywhere]">{value}</p>
       )}
     </div>
   );
 }
 
 export function ProfilePage({ owner = false }: { owner?: boolean }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<ProfileDraft>({ nome: '', cognome: '', email: '' });
+  const [draft, setDraft] = useState<ProfileDraft>({ nome: '', cognome: '', email: '', data_nascita: '', bio: '' });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   // Same shared /api/me cache as the header: shown instantly after the first load.
   const { account: profile, loading } = useAccount();
+  // Date of birth, bio and the search answers live in GET /api/me/onboarding.
+  // Loaded once here and shared with "Your preferences" so the page makes one call.
+  const [details, setDetails] = useState<OnboardingData | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    fetchOnboarding()
+      .then((result) => active && setDetails(result))
+      .catch(() => undefined)
+      .finally(() => active && setDetailsLoading(false));
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const birthText = details?.data_nascita
+    ? new Intl.DateTimeFormat(language, BIRTH_DATE_FORMAT).format(new Date(`${details.data_nascita}T00:00:00`))
+    : '—';
 
   const displayName = profile?.full_name?.trim() || profile?.email || 'Utente';
 
@@ -66,6 +96,8 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
       nome: profile?.nome ?? '',
       cognome: profile?.cognome ?? '',
       email: profile?.email ?? '',
+      data_nascita: details?.data_nascita ?? '',
+      bio: details?.bio ?? '',
     });
     setSaveError(null);
     setSaveMessage(null);
@@ -82,6 +114,10 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
     const email = draft.email.trim().toLowerCase();
     if (!nome || !cognome) {
       setSaveError(t('profile.nameRequired'));
+      return;
+    }
+    if (draft.data_nascita && !isAdult(draft.data_nascita)) {
+      setSaveError(t('auth.ageUnder18'));
       return;
     }
 
@@ -104,6 +140,26 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
         lingua?: string | null;
       };
       patchAccount(updatedProfile);
+
+      // Date of birth and bio: only the fields that changed. Skipped when they
+      // never loaded, so a failed load can't wipe the saved bio. A date can be
+      // changed but not removed (the backend requires a valid one).
+      if (details) {
+        const bio = draft.bio.trim();
+        const changes: { data_nascita?: string; bio?: string | null } = {};
+        if (draft.data_nascita && draft.data_nascita !== details.data_nascita) changes.data_nascita = draft.data_nascita;
+        if (bio !== (details.bio ?? '')) changes.bio = bio || null;
+        if (Object.keys(changes).length > 0) {
+          const detailsResponse = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.ME_ONBOARDING}`, {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(changes),
+          });
+          if (!detailsResponse.ok) throw await profileError(detailsResponse);
+          setDetails((await detailsResponse.json()) as OnboardingData);
+        }
+      }
 
       const currentEmail = profile?.email?.trim().toLowerCase() ?? '';
       if (email !== currentEmail) {
@@ -212,7 +268,7 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
                         data-testid="input-profile-last-name"
                       />
                     </div>
-                    <div className="space-y-2 sm:col-span-2">
+                    <div className="space-y-2">
                       <Label htmlFor="profile-email">{t('profile.labelEmail')}</Label>
                       <Input
                         id="profile-email"
@@ -224,6 +280,36 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
                         data-testid="input-profile-email"
                       />
                     </div>
+                    {details ? (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="profile-birth-date">{t('auth.dateOfBirthLabel')}</Label>
+                          <BirthDatePicker
+                            id="profile-birth-date"
+                            value={draft.data_nascita}
+                            onChange={(value) => setDraft((current) => ({ ...current, data_nascita: value }))}
+                            testId="input-profile-birth-date"
+                          />
+                        </div>
+                        <div className="space-y-2 sm:col-span-2">
+                          <Label htmlFor="profile-bio">{t('profile.aboutLabel')}</Label>
+                          <textarea
+                            id="profile-bio"
+                            rows={BIO_TEXTAREA_ROWS}
+                            maxLength={PROFILE_BIO_MAX_LENGTH_CHARS}
+                            placeholder={t('onboarding.aboutPlaceholder')}
+                            value={draft.bio}
+                            onChange={(event) => setDraft((current) => ({ ...current, bio: event.target.value }))}
+                            className={TEXTAREA_CLASS}
+                            aria-describedby="profile-bio-count"
+                            data-testid="input-profile-bio"
+                          />
+                          <p id="profile-bio-count" className="text-right text-xs font-bold tabular-nums text-sage">
+                            {draft.bio.length}/{PROFILE_BIO_MAX_LENGTH_CHARS}
+                          </p>
+                        </div>
+                      </>
+                    ) : null}
                   </div>
                   {saveError && <p className="text-sm font-semibold text-red-700" role="alert">{saveError}</p>}
                   <div className="flex flex-wrap items-center gap-3">
@@ -250,8 +336,15 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
                   <div className="grid grid-cols-2 gap-3 sm:gap-4">
                     <InfoRow label={t('auth.firstNameLabel')} value={profile?.nome || '—'} loading={loading} />
                     <InfoRow label={t('auth.lastNameLabel')} value={profile?.cognome || '—'} loading={loading} />
-                    <div className="col-span-2">
+                    {/* Phones: first and last name share a row; email, date of birth and bio take the full width. */}
+                    <div className="col-span-2 sm:col-span-1">
                       <InfoRow label={t('profile.labelEmail')} value={profile?.email ?? '—'} loading={loading} />
+                    </div>
+                    <div className="col-span-2 sm:col-span-1">
+                      <InfoRow label={t('auth.dateOfBirthLabel')} value={birthText} loading={detailsLoading} />
+                    </div>
+                    <div className="col-span-2">
+                      <InfoRow label={t('profile.aboutLabel')} value={details?.bio || '—'} loading={detailsLoading} />
                     </div>
                   </div>
                   {saveMessage && (
@@ -263,7 +356,7 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
               )}
             </section>
 
-            {!owner ? <SearchDetails /> : null}
+            {!owner && details ? <PreferencesSection data={details} onSaved={setDetails} /> : null}
 
             <LanguageSetting />
           </div>
@@ -340,25 +433,7 @@ function ProfilePhoto({ name, url }: { name: string; url: string | null }) {
   );
 }
 
-// ===================== SEARCH DETAILS =====================
-
-const SOURCE_LABELS = {
-  instagram: 'onboarding.source.instagram',
-  tiktok: 'onboarding.source.tiktok',
-  linkedin: 'onboarding.source.linkedin',
-  amico: 'onboarding.source.amico',
-  google: 'onboarding.source.google',
-  ai: 'onboarding.source.ai',
-  facebook: 'onboarding.source.facebook',
-  altro: 'onboarding.source.altro',
-} as const;
-
-const DURATION_LABELS = {
-  semestre: 'onboarding.duration.semestre',
-  un_anno: 'onboarding.duration.un_anno',
-  piu_anni: 'onboarding.duration.piu_anni',
-  non_so: 'onboarding.duration.non_so',
-} as const;
+// ===================== PREFERENCES =====================
 
 const NOISE_LABELS = {
   silenzioso: 'preferences.noise.silent',
@@ -375,82 +450,157 @@ const SCHEDULE_LABELS = {
   diurno: 'preferences.schedule.day',
   flessibile: 'preferences.schedule.flexible',
 } as const;
+const STUDY_LABELS = {
+  silenzioso: 'preferences.study.quiet',
+  con_musica: 'preferences.study.music',
+  flessibile: 'preferences.study.flexible',
+} as const;
+const YES_NO_LABELS = {
+  yes: 'preferences.yes',
+  no: 'preferences.no',
+  any: 'preferences.noPreference',
+} as const;
+const YES_NO_OPTIONS = ['yes', 'no', 'any'] as const;
+/** A key of the translations (the type `t` accepts). */
+type TextKey = Parameters<ReturnType<typeof useLanguage>['t']>[0];
 
-/** The onboarding answers, each with a link that reopens its question and comes back here. */
-function SearchDetails() {
-  const { t, language } = useLanguage();
-  const [data, setData] = useState<OnboardingData | null>(null);
+/** The six answers as the chips hold them; null = not answered yet. */
+type PreferencesDraft = {
+  pets: YesNoAny | null;
+  smoking: YesNoAny | null;
+  noise: UserPreferences['livello_rumore_preferito'] | null;
+  cleanliness: UserPreferences['ordine_pulizia'] | null;
+  schedule: UserPreferences['orari_sosta'] | null;
+  study: UserPreferences['abitudini_studio'] | null;
+};
 
-  useEffect(() => {
-    let active = true;
-    fetchOnboarding()
-      .then((result) => active && setData(result))
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, []);
+/**
+ * Saved preferences -> chips. Pets and smoking are stored as true/false/null,
+ * so once a preference row exists, null is shown as "No preference".
+ */
+function draftFrom(prefs: UserPreferences | null): PreferencesDraft {
+  const yesNo = (value: boolean | null | undefined) => fromBoolean(value) ?? (prefs ? 'any' : null);
+  return {
+    pets: yesNo(prefs?.animali),
+    smoking: yesNo(prefs?.fumatori),
+    noise: prefs?.livello_rumore_preferito ?? null,
+    cleanliness: prefs?.ordine_pulizia ?? null,
+    schedule: prefs?.orari_sosta ?? null,
+    study: prefs?.abitudini_studio ?? null,
+  };
+}
 
-  if (!data) return null;
+/** One question with its chips; picking a chip only changes the draft until Save. */
+function PreferenceGroup<T extends string>({
+  legend,
+  name,
+  options,
+  labels,
+  value,
+  onChange,
+}: {
+  legend: string;
+  name: string;
+  options: readonly T[];
+  labels: Record<T, TextKey>;
+  value: T | null;
+  onChange: (next: T) => void;
+}) {
+  const { t } = useLanguage();
+  return (
+    <ChipGroup legend={legend}>
+      {options.map((option) => (
+        <ChoiceChip key={option} name={name} value={option} checked={value === option} onSelect={() => onChange(option)}>
+          {t(labels[option])}
+        </ChoiceChip>
+      ))}
+    </ChipGroup>
+  );
+}
 
-  const birth = data.data_nascita
-    ? new Intl.DateTimeFormat(language, { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${data.data_nascita}T00:00:00`))
-    : null;
-  const arrival = [
-    data.arrivo_previsto ? formatMonthYear(new Date(`${data.arrivo_previsto}T00:00:00`), language) : null,
-    data.durata_permanenza ? t(DURATION_LABELS[data.durata_permanenza]) : null,
-  ].filter(Boolean).join(' · ') || null;
-  const budget = data.preferenze?.budget_max != null
-    ? t('onboarding.budgetUpTo').replace('{price}', formatPrice(Number(data.preferenze.budget_max), language))
-    : null;
-  const university = [data.universita, data.corso_di_studio].filter(Boolean).join(' · ') || null;
-  const prefs = data.preferenze;
-  const lifestyle = prefs
-    ? [
-        prefs.animali === true ? t('profile.lifestylePetsYes') : prefs.animali === false ? t('profile.lifestylePetsNo') : null,
-        prefs.fumatori === true ? t('profile.lifestyleSmokingYes') : prefs.fumatori === false ? t('profile.lifestyleSmokingNo') : null,
-        t(NOISE_LABELS[prefs.livello_rumore_preferito]),
-        t(CLEANLINESS_LABELS[prefs.ordine_pulizia]),
-        t(SCHEDULE_LABELS[prefs.orari_sosta]),
-      ].filter(Boolean).join(' · ')
-    : null;
+/** Students' home habits, always editable here (same questions as the onboarding lifestyle screen). */
+function PreferencesSection({ data, onSaved }: { data: OnboardingData; onSaved: (updated: OnboardingData) => void }) {
+  const { t } = useLanguage();
+  const saved = draftFrom(data.preferenze);
+  const [draft, setDraft] = useState<PreferencesDraft>(saved);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
-  const tiles: { step: string; icon: ReactNode; label: string; value: string | null; wide?: boolean }[] = [
-    { step: 'university', icon: <GraduationCap size={16} />, label: t('onboarding.universityLabel'), value: university },
-    { step: 'arrival', icon: <CalendarDays size={16} />, label: t('waitlistConfirmed.searchArrival'), value: arrival },
-    { step: 'budget', icon: <Wallet size={16} />, label: t('waitlistConfirmed.searchBudget'), value: budget },
-    { step: 'lifestyle', icon: <Home size={16} />, label: t('profile.lifestyleLabel'), value: lifestyle },
-    { step: 'birth', icon: <Cake size={16} />, label: t('auth.dateOfBirthLabel'), value: birth },
-    { step: 'source', icon: <Megaphone size={16} />, label: t('profile.sourceLabel'), value: data.fonte_scoperta ? t(SOURCE_LABELS[data.fonte_scoperta]) : null },
-    { step: 'about', icon: <Quote size={16} />, label: t('profile.aboutLabel'), value: data.bio, wide: true },
-  ];
+  const changed = (Object.keys(draft) as (keyof PreferencesDraft)[]).some((key) => draft[key] !== saved[key]);
+
+  function set<K extends keyof PreferencesDraft>(key: K, value: PreferencesDraft[K]) {
+    setDraft((current) => ({ ...current, [key]: value }));
+    setMessage(null);
+    setError(null);
+  }
+
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!changed || saving) return;
+
+    // Only answered questions are sent; the backend validates every value.
+    const preferenze: Partial<UserPreferences> = {};
+    if (draft.pets) preferenze.animali = toBoolean(draft.pets);
+    if (draft.smoking) preferenze.fumatori = toBoolean(draft.smoking);
+    if (draft.noise) preferenze.livello_rumore_preferito = draft.noise;
+    if (draft.cleanliness) preferenze.ordine_pulizia = draft.cleanliness;
+    if (draft.schedule) preferenze.orari_sosta = draft.schedule;
+    if (draft.study) preferenze.abitudini_studio = draft.study;
+
+    setSaving(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.ME_ONBOARDING}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preferenze }),
+      });
+      if (!response.ok) throw new Error(`Request failed (${response.status})`);
+      const updated = (await response.json()) as OnboardingData;
+      onSaved(updated);
+      setDraft(draftFrom(updated.preferenze));
+      setMessage(t('profile.searchSaved'));
+    } catch {
+      // Friendly text only: the technical reason stays out of the page.
+      setError(t('profile.saveError'));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
-    <section className="surface rounded-2xl p-5 sm:p-6" data-testid="panel-profile-search">
-      <h2 className="mb-4 text-xl font-black text-pine">{t('profile.searchTitle')}</h2>
-      <ul className="grid gap-2.5 sm:grid-cols-2">
-        {tiles.map((tile) => (
-          <li key={tile.step} className={tile.wide ? 'sm:col-span-2' : undefined}>
-            <Link
-              href={editStepHref(tile.step, 'profile')}
-              className="group flex h-full items-start gap-3 rounded-xl border border-line bg-cream px-3.5 py-3 transition-colors hover:border-shutter hover:bg-mint-mist"
-              aria-label={`${t('profile.searchEdit')}: ${tile.label}`}
-              data-testid={`link-edit-${tile.step}`}
-            >
-              <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-mint-mist text-shutter group-hover:bg-paper" aria-hidden>
-                {tile.icon}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[11px] font-black uppercase tracking-wider text-sage">{tile.label}</span>
-                <span className={`mt-0.5 line-clamp-2 text-sm font-extrabold leading-5 ${tile.value ? 'text-pine' : 'text-sage'}`}>
-                  {tile.value ?? t('profile.notSet')}
-                </span>
-              </span>
-              <Pencil size={14} className="mt-1 shrink-0 text-sage transition-colors group-hover:text-shutter" aria-hidden />
-            </Link>
-          </li>
-        ))}
-      </ul>
+    <section className="surface rounded-2xl p-5 sm:p-6" data-testid="panel-profile-preferences">
+      <h2 className="mb-5 text-xl font-black text-pine">{t('profile.searchTitle')}</h2>
+      <form onSubmit={save} className="space-y-6" noValidate>
+        <div className="grid gap-6 sm:grid-cols-2">
+          <PreferenceGroup legend={t('onboarding.lifestylePets')} name="profile-animali" options={YES_NO_OPTIONS} labels={YES_NO_LABELS} value={draft.pets} onChange={(v) => set('pets', v)} />
+          <PreferenceGroup legend={t('onboarding.lifestyleSmoking')} name="profile-fumatori" options={YES_NO_OPTIONS} labels={YES_NO_LABELS} value={draft.smoking} onChange={(v) => set('smoking', v)} />
+          <PreferenceGroup legend={t('preferences.noise')} name="profile-rumore" options={USER_PREFERENCE_OPTIONS.noise} labels={NOISE_LABELS} value={draft.noise} onChange={(v) => set('noise', v)} />
+          <PreferenceGroup legend={t('preferences.cleanliness')} name="profile-pulizia" options={USER_PREFERENCE_OPTIONS.cleanliness} labels={CLEANLINESS_LABELS} value={draft.cleanliness} onChange={(v) => set('cleanliness', v)} />
+          <PreferenceGroup legend={t('preferences.schedule')} name="profile-orari" options={USER_PREFERENCE_OPTIONS.schedule} labels={SCHEDULE_LABELS} value={draft.schedule} onChange={(v) => set('schedule', v)} />
+          <PreferenceGroup legend={t('preferences.study')} name="profile-studio" options={USER_PREFERENCE_OPTIONS.studyHabits} labels={STUDY_LABELS} value={draft.study} onChange={(v) => set('study', v)} />
+        </div>
+
+        {error ? <p className="text-sm font-semibold text-red-700" role="alert">{error}</p> : null}
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="submit"
+            disabled={!changed || saving}
+            className="rounded-xl bg-[#085041] px-5 py-3 text-sm font-extrabold text-white transition-colors hover:bg-[#0F6E56] disabled:cursor-not-allowed disabled:opacity-60"
+            data-testid="button-save-preferences"
+          >
+            {saving ? t('profile.saving') : t('profile.save')}
+          </button>
+          {message ? (
+            <p className="text-sm font-semibold text-[#0F6E56]" role="status">
+              {message}
+            </p>
+          ) : null}
+        </div>
+      </form>
     </section>
   );
 }
