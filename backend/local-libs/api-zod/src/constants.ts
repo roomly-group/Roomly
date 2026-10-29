@@ -101,7 +101,7 @@ export const PROFILE_PHOTO_MAX_SIZE_BYTES = 5242880 as const;
 
 /** Answers saved by the signup onboarding (CHECK constraints in migrations/006_onboarding.sql). */
 export const ONBOARDING_OPTIONS = {
-  /** "Come ci hai scoperto?" → `utenti.fonte_scoperta`. */
+  /** "Come ci hai scoperto?" (one or more) → `utenti.fonti_scoperta`, first answer also in `utenti.fonte_scoperta`. */
   sources: ["instagram", "tiktok", "linkedin", "amico", "google", "ai", "facebook", "altro"],
   /** "Per quanto tempo?" → `utenti.durata_permanenza`. */
   stayDurations: ["semestre", "un_anno", "piu_anni", "non_so"],

@@ -1,4 +1,4 @@
-import { Check, Globe } from 'lucide-react';
+import { Globe } from 'lucide-react';
 import { LANGUAGES, useLanguage } from '@/lib/i18n';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -70,40 +70,33 @@ export function LanguageSetting() {
         </span>
       </div>
 
-      {/* Every language visible at once: one tap to switch, no dropdown to open. Native radios underneath. */}
-      <div role="radiogroup" aria-labelledby="language-setting-title" className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-        {LANGUAGES.map((lang) => {
-          const selected = lang.code === language;
-          return (
-            <label
+      {/* A dropdown, like everywhere else in the app (team feedback): one compact field instead of six tiles. */}
+      <Select value={language} onValueChange={(value) => setLanguage(value as typeof language)}>
+        <SelectTrigger
+          aria-labelledby="language-setting-title"
+          className="h-12 w-full gap-3 rounded-xl border-field bg-paper px-3.5 text-[15px] font-extrabold text-pine shadow-none focus:ring-[3px] focus:ring-mint-wash/40 sm:max-w-xs"
+          data-testid={LANGUAGE_SELECTOR_TEST_IDS.SELECT_LANGUAGE_SETTINGS}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent className="rounded-xl border-line bg-paper p-1 shadow-float">
+          {LANGUAGES.map((lang) => (
+            <SelectItem
               key={lang.code}
-              className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-shutter ${
-                selected ? 'border-shutter bg-mint-mist' : 'border-line bg-cream hover:border-outline hover:bg-mint-mist'
-              }`}
+              value={lang.code}
+              className="min-h-11 cursor-pointer rounded-lg text-[15px] font-bold text-pine focus:bg-mint-mist focus:text-pine"
               data-testid={`${LANGUAGE_SELECTOR_TEST_IDS.OPTION_LANGUAGE_SETTINGS_PREFIX}${lang.code}`}
             >
-              <input
-                type="radio"
-                name="language-setting"
-                value={lang.code}
-                checked={selected}
-                onChange={() => setLanguage(lang.code)}
-                className="sr-only"
-              />
-              <span
-                className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[11px] font-black uppercase tracking-wide ${
-                  selected ? 'bg-shutter text-mint-mist' : 'bg-paper text-pine'
-                }`}
-                aria-hidden
-              >
-                {lang.code}
+              <span className="flex items-center gap-3">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-mint-mist text-[11px] font-black uppercase tracking-wide text-pine" aria-hidden>
+                  {lang.code}
+                </span>
+                {lang.label}
               </span>
-              <span className="min-w-0 flex-1 truncate text-sm font-extrabold text-pine">{lang.label}</span>
-              {selected ? <Check size={16} strokeWidth={3} className="shrink-0 text-shutter" aria-hidden /> : null}
-            </label>
-          );
-        })}
-      </div>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </section>
   );
 }

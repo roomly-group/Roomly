@@ -5,7 +5,7 @@ import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { photoUploadLimiter } from "../middleware/rateLimit.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { ensureUtenteRecord } from "../lib/utenti.js";
-import { isValidImage, uploadImageType } from "../lib/image.js";
+import { isValidImage, reencodeAsJpeg, uploadImageType, type PhotoBox } from "../lib/image.js";
 import { PROFILE_PHOTO_BUCKET, signedProfilePhotoUrl } from "../lib/profile-photo.js";
 import { countedInvites, waitlistPosition } from "../lib/waitlist.js";
 import {
@@ -21,18 +21,21 @@ import {
 // The onboarding that follows signup (/onboarding in the frontend): the user
 // answers one question per screen and each answer is saved as they go, so
 // closing the tab never loses progress. Required steps: name, how they found
-// Roomly, date of birth, photo (skippable). Then optional ones: university,
-// arrival, budget, lifestyle, a short introduction.
+// Roomly (one or more answers), date of birth, photo (skippable). Then two
+// optional ones: lifestyle and a short introduction. The profile page edits
+// some of the same fields through this route.
 
 // ===================== CONFIGURATION =====================
 
 /** Cache lifetime of uploaded profile photos (seconds, string required by storage API). */
 const PROFILE_PHOTO_CACHE_CONTROL_MAX_AGE_SECONDS = "31536000" as const;
+/** Stored profile photos: square, at most 640px (the frontend already crops and shrinks to this). */
+const PROFILE_PHOTO_BOX: PhotoBox = { width: 640, height: 640, fit: "cover" };
 /** Oldest accepted date of birth, as an age (years): catches typos like 1092. */
 const MAXIMUM_PLAUSIBLE_AGE_YEARS = 100 as const;
 
 const UTENTE_COLUMNS =
-  "nome, cognome, data_nascita, foto_profilo, bio, corso_di_studio, posizione, fonte_scoperta, " +
+  "nome, cognome, data_nascita, foto_profilo, bio, corso_di_studio, posizione, fonte_scoperta, fonti_scoperta, " +
   "fonte_scoperta_altro, arrivo_previsto, durata_permanenza, onboarding_completato_at, universita(nome)";
 const PREFERENCE_COLUMNS =
   "budget_max, animali, fumatori, livello_rumore_preferito, ordine_pulizia, orari_sosta, abitudini_studio";
@@ -46,6 +49,8 @@ type UtenteRow = {
   corso_di_studio: string | null;
   posizione: number | null;
   fonte_scoperta: string | null;
+  /** Every answer to "Come ci hai scoperto?" (migrations/009); null for rows saved before it. */
+  fonti_scoperta: string[] | null;
   fonte_scoperta_altro: string | null;
   arrivo_previsto: string | null;
   durata_permanenza: string | null;
@@ -93,7 +98,14 @@ const onboardingPatchSchema = z
     nome: z.string().trim().min(1).max(50),
     cognome: z.string().trim().min(1).max(50),
     data_nascita: z.string().refine(isAdultBirthDate),
+    /** Single answer: still accepted from older clients. */
     fonte_scoperta: z.enum(ONBOARDING_OPTIONS.sources),
+    /** One or more answers; duplicates dropped, kept in the order of ONBOARDING_OPTIONS.sources. */
+    fonti_scoperta: z
+      .array(z.enum(ONBOARDING_OPTIONS.sources))
+      .min(1)
+      .max(ONBOARDING_OPTIONS.sources.length)
+      .transform((list) => ONBOARDING_OPTIONS.sources.filter((source) => list.includes(source))),
     fonte_scoperta_altro: optionalText(100),
     universita: optionalText(200),
     corso_di_studio: optionalText(100),
@@ -158,6 +170,7 @@ async function readOnboarding(userId: string) {
     cognome_suggerito: suggested?.cognome ?? "",
     data_nascita: row.data_nascita,
     fonte_scoperta: row.fonte_scoperta,
+    fonti_scoperta: row.fonti_scoperta ?? (row.fonte_scoperta ? [row.fonte_scoperta] : []),
     fonte_scoperta_altro: row.fonte_scoperta_altro,
     foto_profilo_url: photoUrl,
     universita: row.universita?.nome ?? null,
@@ -198,8 +211,19 @@ router.patch(API_ROUTE_PATHS.ME_ONBOARDING, requireAuth, async (req: Authenticat
   }
 
   const { userId } = req;
-  const { universita, preferenze, completato, ...fields } = parsed.data;
+  const { universita, preferenze, completato, fonte_scoperta, fonti_scoperta, ...fields } = parsed.data;
   const update: Record<string, unknown> = { ...fields };
+
+  // "Come ci hai scoperto?": the list goes to fonti_scoperta and its first
+  // answer to fonte_scoperta, so both columns always agree (an old client
+  // sending one answer gets a one-item list). The free text of "altro" is
+  // dropped when "altro" is no longer among the answers.
+  const sources = fonti_scoperta ?? (fonte_scoperta ? [fonte_scoperta] : undefined);
+  if (sources) {
+    update.fonti_scoperta = sources;
+    update.fonte_scoperta = sources[0];
+    if (!sources.includes("altro")) update.fonte_scoperta_altro = null;
+  }
 
   try {
     if (universita !== undefined) {
@@ -220,9 +244,6 @@ router.patch(API_ROUTE_PATHS.ME_ONBOARDING, requireAuth, async (req: Authenticat
         update.universita_id = match.id;
       }
     }
-
-    // A source other than "altro" never keeps the free text of a previous answer.
-    if (fields.fonte_scoperta && fields.fonte_scoperta !== "altro") update.fonte_scoperta_altro = null;
 
     if (Object.keys(update).length > 0) {
       const { error } = await supabaseAdmin
@@ -283,8 +304,16 @@ router.post(
       res.status(400).json({ error: "Non riusciamo a leggere questa foto, provane un'altra" });
       return;
     }
+    // Only freshly encoded pixels are stored, never the uploaded bytes (see reencodeAsJpeg).
+    let photo: Buffer;
+    try {
+      photo = await reencodeAsJpeg(req.body, PROFILE_PHOTO_BOX);
+    } catch {
+      res.status(400).json({ error: "Non riusciamo a leggere questa foto, provane un'altra" });
+      return;
+    }
 
-    const path = `${userId}/${randomUUID()}.${contentType === "image/png" ? "png" : "jpg"}`;
+    const path = `${userId}/${randomUUID()}.jpg`;
     try {
       const { data: previous, error: previousError } = await supabaseAdmin
         .from("utenti")
@@ -295,8 +324,8 @@ router.post(
 
       const { error: uploadError } = await supabaseAdmin.storage
         .from(PROFILE_PHOTO_BUCKET)
-        .upload(path, req.body, {
-          contentType,
+        .upload(path, photo, {
+          contentType: "image/jpeg",
           cacheControl: PROFILE_PHOTO_CACHE_CONTROL_MAX_AGE_SECONDS,
           upsert: false,
         });

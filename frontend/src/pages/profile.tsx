@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'wouter';
-import { Camera, Loader2, Settings, SlidersHorizontal } from 'lucide-react';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { Camera, Loader2, Settings, SlidersHorizontal, X } from 'lucide-react';
 import { API_BASE_PATH, API_ROUTE_PATHS, PROFILE_BIO_MAX_LENGTH_CHARS, USER_PREFERENCE_OPTIONS, type UserPreferences } from '@workspace/api-zod';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n';
@@ -333,12 +334,17 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
                 </form>
               ) : (
                 <>
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
                     <InfoRow label={t('auth.firstNameLabel')} value={profile?.nome || '—'} loading={loading} />
                     <InfoRow label={t('auth.lastNameLabel')} value={profile?.cognome || '—'} loading={loading} />
-                    <InfoRow label={t('profile.labelEmail')} value={profile?.email ?? '—'} loading={loading} />
-                    <InfoRow label={t('auth.dateOfBirthLabel')} value={birthText} loading={detailsLoading} />
-                    <div className="sm:col-span-2">
+                    {/* Phones: first and last name share a row; email, date of birth and bio take the full width. */}
+                    <div className="col-span-2 sm:col-span-1">
+                      <InfoRow label={t('profile.labelEmail')} value={profile?.email ?? '—'} loading={loading} />
+                    </div>
+                    <div className="col-span-2 sm:col-span-1">
+                      <InfoRow label={t('auth.dateOfBirthLabel')} value={birthText} loading={detailsLoading} />
+                    </div>
+                    <div className="col-span-2">
                       <InfoRow label={t('profile.aboutLabel')} value={details?.bio || '—'} loading={detailsLoading} />
                     </div>
                   </div>
@@ -513,20 +519,102 @@ function PreferenceGroup<T extends string>({
   );
 }
 
-/** Students' home habits, always editable here (same questions as the onboarding lifestyle screen). */
+/**
+ * Students' home habits (same questions as the onboarding lifestyle screen).
+ * The page shows the answers; "Modifica" opens them in a panel that slides in
+ * from the right, where they are changed and kept with Salva or dropped with Annulla.
+ */
 function PreferencesSection({ data, onSaved }: { data: OnboardingData; onSaved: (updated: OnboardingData) => void }) {
+  const { t } = useLanguage();
+  const [open, setOpen] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const saved = draftFrom(data.preferenze);
+
+  const answer = <T extends string>(value: T | null, labels: Record<T, TextKey>) => (value ? t(labels[value]) : '—');
+  const rows: { label: string; value: string }[] = [
+    { label: t('onboarding.lifestylePets'), value: answer(saved.pets, YES_NO_LABELS) },
+    { label: t('onboarding.lifestyleSmoking'), value: answer(saved.smoking, YES_NO_LABELS) },
+    { label: t('preferences.noise'), value: answer(saved.noise, NOISE_LABELS) },
+    { label: t('preferences.cleanliness'), value: answer(saved.cleanliness, CLEANLINESS_LABELS) },
+    { label: t('preferences.schedule'), value: answer(saved.schedule, SCHEDULE_LABELS) },
+    { label: t('preferences.study'), value: answer(saved.study, STUDY_LABELS) },
+  ];
+
+  return (
+    <section className="surface rounded-2xl p-5 sm:p-6" data-testid="panel-profile-preferences">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="text-xl font-black text-pine">{t('profile.searchTitle')}</h2>
+        <button
+          type="button"
+          onClick={() => {
+            setMessage(null);
+            setOpen(true);
+          }}
+          className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-outline px-4 text-sm font-extrabold text-pine transition-colors hover:border-shutter hover:bg-mint-mist"
+          data-testid="button-edit-preferences"
+        >
+          <SlidersHorizontal size={16} aria-hidden />
+          {t('profile.preferencesEdit')}
+        </button>
+      </div>
+
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {rows.map((row) => (
+          <div key={row.label} className="min-w-0 rounded-xl bg-mint-mist px-4 py-3">
+            <dt className="text-[11px] font-black uppercase tracking-wider text-sage">{row.label}</dt>
+            <dd className="mt-1 break-words text-sm font-extrabold text-pine">{row.value}</dd>
+          </div>
+        ))}
+      </dl>
+      {message ? (
+        <p className="mt-4 text-sm font-semibold text-shutter" role="status" data-testid="status-preferences-saved">
+          {message}
+        </p>
+      ) : null}
+
+      <PreferencesPanel
+        open={open}
+        onOpenChange={setOpen}
+        data={data}
+        onSaved={(updated) => {
+          onSaved(updated);
+          setMessage(t('profile.searchSaved'));
+          setOpen(false);
+        }}
+      />
+    </section>
+  );
+}
+
+/** The six questions in a panel on the right (full screen on phones). Changes stay a draft until Salva. */
+function PreferencesPanel({
+  open,
+  onOpenChange,
+  data,
+  onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  data: OnboardingData;
+  onSaved: (updated: OnboardingData) => void;
+}) {
   const { t } = useLanguage();
   const saved = draftFrom(data.preferenze);
   const [draft, setDraft] = useState<PreferencesDraft>(saved);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+
+  // Every opening starts from what is saved, never from an abandoned draft.
+  useEffect(() => {
+    if (!open) return;
+    setDraft(draftFrom(data.preferenze));
+    setError(null);
+  }, [open, data.preferenze]);
 
   const changed = (Object.keys(draft) as (keyof PreferencesDraft)[]).some((key) => draft[key] !== saved[key]);
 
   function set<K extends keyof PreferencesDraft>(key: K, value: PreferencesDraft[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
-    setMessage(null);
     setError(null);
   }
 
@@ -545,7 +633,6 @@ function PreferencesSection({ data, onSaved }: { data: OnboardingData; onSaved: 
 
     setSaving(true);
     setError(null);
-    setMessage(null);
     try {
       const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.ME_ONBOARDING}`, {
         method: 'PATCH',
@@ -554,10 +641,7 @@ function PreferencesSection({ data, onSaved }: { data: OnboardingData; onSaved: 
         body: JSON.stringify({ preferenze }),
       });
       if (!response.ok) throw new Error(`Request failed (${response.status})`);
-      const updated = (await response.json()) as OnboardingData;
-      onSaved(updated);
-      setDraft(draftFrom(updated.preferenze));
-      setMessage(t('profile.searchSaved'));
+      onSaved((await response.json()) as OnboardingData);
     } catch {
       // Friendly text only: the technical reason stays out of the page.
       setError(t('profile.saveError'));
@@ -567,36 +651,65 @@ function PreferencesSection({ data, onSaved }: { data: OnboardingData; onSaved: 
   }
 
   return (
-    <section className="surface rounded-2xl p-5 sm:p-6" data-testid="panel-profile-preferences">
-      <h2 className="mb-5 text-xl font-black text-pine">{t('profile.searchTitle')}</h2>
-      <form onSubmit={save} className="space-y-6" noValidate>
-        <div className="grid gap-6 sm:grid-cols-2">
-          <PreferenceGroup legend={t('onboarding.lifestylePets')} name="profile-animali" options={YES_NO_OPTIONS} labels={YES_NO_LABELS} value={draft.pets} onChange={(v) => set('pets', v)} />
-          <PreferenceGroup legend={t('onboarding.lifestyleSmoking')} name="profile-fumatori" options={YES_NO_OPTIONS} labels={YES_NO_LABELS} value={draft.smoking} onChange={(v) => set('smoking', v)} />
-          <PreferenceGroup legend={t('preferences.noise')} name="profile-rumore" options={USER_PREFERENCE_OPTIONS.noise} labels={NOISE_LABELS} value={draft.noise} onChange={(v) => set('noise', v)} />
-          <PreferenceGroup legend={t('preferences.cleanliness')} name="profile-pulizia" options={USER_PREFERENCE_OPTIONS.cleanliness} labels={CLEANLINESS_LABELS} value={draft.cleanliness} onChange={(v) => set('cleanliness', v)} />
-          <PreferenceGroup legend={t('preferences.schedule')} name="profile-orari" options={USER_PREFERENCE_OPTIONS.schedule} labels={SCHEDULE_LABELS} value={draft.schedule} onChange={(v) => set('schedule', v)} />
-          <PreferenceGroup legend={t('preferences.study')} name="profile-studio" options={USER_PREFERENCE_OPTIONS.studyHabits} labels={STUDY_LABELS} value={draft.study} onChange={(v) => set('study', v)} />
-        </div>
+    <DialogPrimitive.Root open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-scrim data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />
+        <DialogPrimitive.Content
+          aria-describedby={undefined}
+          className="fixed inset-y-0 right-0 z-50 flex w-full flex-col bg-paper shadow-float duration-300 data-[state=open]:animate-in data-[state=open]:slide-in-from-right data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right motion-reduce:animate-none sm:max-w-md sm:rounded-l-[20px]"
+          data-testid="panel-edit-preferences"
+        >
+          <form onSubmit={save} className="flex min-h-0 flex-1 flex-col" noValidate>
+            <div className="flex items-center justify-between gap-3 border-b border-line px-6 pb-4 pt-[max(1rem,env(safe-area-inset-top))]">
+              <DialogPrimitive.Title className="text-lg font-black tracking-[-0.03em] text-pine">{t('profile.searchTitle')}</DialogPrimitive.Title>
+              <DialogPrimitive.Close
+                aria-label={t('searchBar.close')}
+                disabled={saving}
+                className="grid h-11 w-11 place-items-center rounded-full text-pine transition-colors hover:bg-mint-mist"
+              >
+                <X size={20} aria-hidden />
+              </DialogPrimitive.Close>
+            </div>
 
-        {error ? <p className="text-sm font-semibold text-red-700" role="alert">{error}</p> : null}
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="submit"
-            disabled={!changed || saving}
-            className="rounded-xl bg-[#085041] px-5 py-3 text-sm font-extrabold text-white transition-colors hover:bg-[#0F6E56] disabled:cursor-not-allowed disabled:opacity-60"
-            data-testid="button-save-preferences"
-          >
-            {saving ? t('profile.saving') : t('profile.save')}
-          </button>
-          {message ? (
-            <p className="text-sm font-semibold text-[#0F6E56]" role="status">
-              {message}
-            </p>
-          ) : null}
-        </div>
-      </form>
-    </section>
+            <div className="flex-1 space-y-7 overflow-y-auto overscroll-contain px-6 py-6">
+              <PreferenceGroup legend={t('onboarding.lifestylePets')} name="profile-animali" options={YES_NO_OPTIONS} labels={YES_NO_LABELS} value={draft.pets} onChange={(v) => set('pets', v)} />
+              <PreferenceGroup legend={t('onboarding.lifestyleSmoking')} name="profile-fumatori" options={YES_NO_OPTIONS} labels={YES_NO_LABELS} value={draft.smoking} onChange={(v) => set('smoking', v)} />
+              <PreferenceGroup legend={t('preferences.noise')} name="profile-rumore" options={USER_PREFERENCE_OPTIONS.noise} labels={NOISE_LABELS} value={draft.noise} onChange={(v) => set('noise', v)} />
+              <PreferenceGroup legend={t('preferences.cleanliness')} name="profile-pulizia" options={USER_PREFERENCE_OPTIONS.cleanliness} labels={CLEANLINESS_LABELS} value={draft.cleanliness} onChange={(v) => set('cleanliness', v)} />
+              <PreferenceGroup legend={t('preferences.schedule')} name="profile-orari" options={USER_PREFERENCE_OPTIONS.schedule} labels={SCHEDULE_LABELS} value={draft.schedule} onChange={(v) => set('schedule', v)} />
+              <PreferenceGroup legend={t('preferences.study')} name="profile-studio" options={USER_PREFERENCE_OPTIONS.studyHabits} labels={STUDY_LABELS} value={draft.study} onChange={(v) => set('study', v)} />
+            </div>
+
+            <div className="border-t border-line px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
+              {error ? (
+                <p className="mb-3 text-sm font-semibold text-terracotta" role="alert">
+                  {error}
+                </p>
+              ) : null}
+              <div className="flex gap-3">
+                <DialogPrimitive.Close
+                  type="button"
+                  disabled={saving}
+                  className="h-12 flex-1 rounded-xl border border-outline px-4 text-[15px] font-extrabold text-pine transition-colors hover:border-shutter hover:bg-mint-mist disabled:opacity-50"
+                  data-testid="button-cancel-preferences"
+                >
+                  {t('profile.cancel')}
+                </DialogPrimitive.Close>
+                <button
+                  type="submit"
+                  disabled={!changed || saving}
+                  className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-shutter px-4 text-[15px] font-extrabold text-mint-mist transition-colors hover:bg-pine disabled:cursor-not-allowed disabled:opacity-50"
+                  data-testid="button-save-preferences"
+                >
+                  {saving ? <Loader2 size={17} className="animate-spin" aria-hidden /> : null}
+                  {saving ? t('profile.saving') : t('profile.save')}
+                </button>
+              </div>
+            </div>
+          </form>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
 

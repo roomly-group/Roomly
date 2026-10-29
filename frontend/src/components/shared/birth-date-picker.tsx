@@ -190,7 +190,7 @@ export function BirthDatePicker({ id, value, onChange, testId }: BirthDatePicker
           sideOffset={8}
           collisionPadding={16}
           onOpenAutoFocus={(event) => event.preventDefault()}
-          className="z-50 w-[328px] max-w-[calc(100vw-2rem)] origin-[var(--radix-popover-content-transform-origin)] rounded-2xl border border-line bg-paper p-3 text-ink shadow-float outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 motion-reduce:animate-none"
+          className="z-50 w-[max(328px,var(--radix-popover-trigger-width))] max-w-[calc(100vw-2rem)] origin-[var(--radix-popover-content-transform-origin)] rounded-2xl border border-line bg-paper p-3 text-ink shadow-float outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 motion-reduce:animate-none"
         >
           {/* Header: where you are, and a way back up to month or year. */}
           <div className="mb-2 flex h-10 items-center justify-between gap-2">

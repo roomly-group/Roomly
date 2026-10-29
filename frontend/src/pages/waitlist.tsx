@@ -108,17 +108,18 @@ export function WaitlistPage() {
 
       <main className="mx-auto w-full max-w-[1320px] flex-1 px-5 pb-16 lg:px-8">
         {/* Hero: the promise, one amber action, and the mechanism shown on a labelled example. */}
-        <section className="relative overflow-hidden rounded-[2rem] bg-mint-wash px-6 py-12 sm:px-10 sm:py-16 lg:px-16 lg:py-20">
+        <section className="relative overflow-hidden rounded-[2rem] bg-mint-wash px-5 py-10 sm:px-10 sm:py-16 lg:px-16 lg:py-20">
 
-          <div className="relative grid items-center gap-12 lg:grid-cols-[1.25fr_1fr]">
+          <div className="relative grid grid-cols-1 items-center gap-12 lg:grid-cols-[1.25fr_1fr]">
             <div className="page-enter">
-              <p className="inline-flex items-center gap-2 rounded-full bg-mint-mist px-3.5 py-1.5 text-xs font-extrabold text-pine">
-                <span className="h-1.5 w-1.5 rounded-full bg-shutter" aria-hidden /> {t('waitlist.badge')}
+              {/* Slightly smaller on phones so the longest translations (it, fr) stay on one line at 360px. */}
+              <p className="inline-flex max-w-full items-center gap-2 rounded-full bg-mint-mist px-3 py-1.5 text-[11px] font-extrabold text-pine sm:px-3.5 sm:text-xs">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-shutter" aria-hidden /> {t('waitlist.badge')}
               </p>
-              <h1 className="display-heading mt-6 max-w-xl text-[clamp(3rem,8vw,4.5rem)] text-pine">{t('waitlist.title')}</h1>
-              <p className="mt-5 max-w-lg text-[17px] leading-7 text-pine-text">{t('waitlist.subtitle')}</p>
+              <h1 className="display-heading mt-5 max-w-xl text-[clamp(3rem,8vw,4.5rem)] text-pine sm:mt-6">{t('waitlist.title')}</h1>
+              <p className="mt-4 max-w-lg text-[17px] leading-7 text-pine-text sm:mt-5">{t('waitlist.subtitle')}</p>
 
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="mt-7 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:items-center">
                 <Link
                   href={APP_ROUTES.REGISTER}
                   className="inline-flex h-[52px] items-center justify-center gap-2 rounded-xl bg-sun px-7 text-[15px] font-black text-ink transition-[background-color,transform] duration-200 hover:bg-sun-hover active:scale-[0.98]"
@@ -153,24 +154,31 @@ export function WaitlistPage() {
         </section>
 
         {/* How it works: a real sequence, so the numbers carry information. */}
-        <section data-reveal className="mt-20" aria-labelledby="waitlist-how">
+        <section data-reveal className="mt-14 sm:mt-20" aria-labelledby="waitlist-how">
           <h2 id="waitlist-how" className={SECTION_TITLE_CLASS}>
             {t('waitlist.howItWorksTitle')}
           </h2>
-          <ol className="relative mt-10 grid gap-10 md:grid-cols-3 md:gap-8">
+          {/* Phones: a vertical timeline (icon left, text right, joined by a line). From md: three columns joined left to right. */}
+          <ol className="relative mt-8 grid gap-7 md:mt-10 md:grid-cols-3 md:gap-8">
             {steps.map((step, index) => {
               const Icon = step.icon;
               return (
                 <li
                   key={step.title}
-                  className={`relative ${index < steps.length - 1 ? 'md:after:absolute md:after:left-16 md:after:right-0 md:after:top-6 md:after:h-px md:after:bg-outline' : ''}`}
+                  className={`relative flex gap-4 md:block ${
+                    index < steps.length - 1
+                      ? 'before:absolute before:-bottom-7 before:left-6 before:top-12 before:w-px before:bg-outline md:before:hidden md:after:absolute md:after:left-16 md:after:right-0 md:after:top-6 md:after:h-px md:after:bg-outline'
+                      : ''
+                  }`}
                 >
-                  <span className="relative grid h-12 w-12 place-items-center rounded-full bg-pine text-mint-mist ring-8 ring-cream">
+                  <span className="relative grid h-12 w-12 shrink-0 place-items-center rounded-full bg-pine text-mint-mist ring-8 ring-cream">
                     <Icon size={20} aria-hidden />
                   </span>
-                  <p className="mt-5 text-xs font-black tabular-nums tracking-[0.15em] text-shutter">0{index + 1}</p>
-                  <h3 className="mt-1 text-lg font-black text-pine">{step.title}</h3>
-                  <p className="mt-2 max-w-sm text-[15px] leading-6 text-sage">{step.text}</p>
+                  <div className="min-w-0 pt-1 md:pt-0">
+                    <p className="text-xs font-black tabular-nums tracking-[0.15em] text-shutter md:mt-5">0{index + 1}</p>
+                    <h3 className="mt-1 text-lg font-black text-pine">{step.title}</h3>
+                    <p className="mt-2 max-w-sm text-[15px] leading-6 text-sage">{step.text}</p>
+                  </div>
                 </li>
               );
             })}
@@ -178,8 +186,8 @@ export function WaitlistPage() {
         </section>
 
         {/* Pine band: the two promises the product actually keeps. */}
-        <section data-reveal className="on-dark relative mt-20 overflow-hidden rounded-[2rem] bg-pine px-6 py-12 text-mint-mist sm:px-10 lg:px-16 lg:py-16">
-          <div className="relative grid gap-12 lg:grid-cols-[1.1fr_1fr]">
+        <section data-reveal className="on-dark relative mt-14 overflow-hidden rounded-[2rem] bg-pine px-5 py-10 text-mint-mist sm:mt-20 sm:px-10 sm:py-12 lg:px-16 lg:py-16">
+          <div className="relative grid grid-cols-1 gap-10 lg:grid-cols-[1.1fr_1fr] lg:gap-12">
             <div>
               <h2 className="display-heading mt-3 max-w-lg text-[clamp(2rem,4.4vw,2.75rem)] text-mint-mist">
                 {t('waitlist.featureHighlightTitle')} <span className="text-mint-wash">{t('waitlist.featureHighlightTitleAlt')}</span>
@@ -202,13 +210,16 @@ export function WaitlistPage() {
                 { icon: MessageCircle, title: t('waitlist.feature3Title'), text: t('waitlist.feature3Text') },
               ].map((feature) => {
                 const Icon = feature.icon;
+                // Phones: icon beside the text, so the copy gets the card's full width.
                 return (
-                  <div key={feature.title} className="rounded-2xl bg-shutter/45 p-6">
-                    <span className="grid h-11 w-11 place-items-center rounded-xl bg-mint-mist text-pine" aria-hidden>
+                  <div key={feature.title} className="flex gap-4 rounded-2xl bg-shutter/45 p-5 sm:block sm:p-6">
+                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-mint-mist text-pine" aria-hidden>
                       <Icon size={20} />
                     </span>
-                    <h3 className="mt-4 text-lg font-black text-mint-mist">{feature.title}</h3>
-                    <p className="mt-1.5 text-sm leading-6 text-mint-wash">{feature.text}</p>
+                    <div className="min-w-0">
+                      <h3 className="text-lg font-black text-mint-mist sm:mt-4">{feature.title}</h3>
+                      <p className="mt-1.5 text-sm leading-6 text-mint-wash">{feature.text}</p>
+                    </div>
                   </div>
                 );
               })}
@@ -217,7 +228,7 @@ export function WaitlistPage() {
         </section>
 
         {/* Why Roomly, and what students away from home look for. */}
-        <section data-reveal className="mt-20 grid gap-12 lg:grid-cols-[1fr_1.3fr]" aria-labelledby="waitlist-why">
+        <section data-reveal className="mt-14 grid grid-cols-1 gap-10 sm:mt-20 lg:grid-cols-[1fr_1.3fr] lg:gap-12" aria-labelledby="waitlist-why">
           <div>
             <h2 id="waitlist-why" className={SECTION_TITLE_CLASS}>
               {t('waitlist.whyRoomlyTitle')}
@@ -239,11 +250,11 @@ export function WaitlistPage() {
               })}
             </ul>
           </div>
-          <ul className="divide-y divide-line self-start rounded-2xl border border-pine/10 bg-paper px-6 shadow-rest sm:px-8">
+          <ul className="divide-y divide-line self-start rounded-2xl border border-pine/10 bg-paper px-5 shadow-rest sm:px-8">
             {reasons.map((reason) => {
               const Icon = reason.icon;
               return (
-                <li key={reason.title} data-reveal className="flex gap-4 py-6">
+                <li key={reason.title} data-reveal className="flex gap-4 py-5 sm:py-6">
                   <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-mint-mist text-shutter" aria-hidden>
                     <Icon size={20} />
                   </span>
@@ -257,7 +268,7 @@ export function WaitlistPage() {
           </ul>
         </section>
 
-        <section data-reveal id="faq" className="mt-20 scroll-mt-8" aria-labelledby="waitlist-faq">
+        <section data-reveal id="faq" className="mt-14 scroll-mt-8 sm:mt-20" aria-labelledby="waitlist-faq">
           <div className="mx-auto max-w-3xl">
             <h2 id="waitlist-faq" className={SECTION_TITLE_CLASS}>
               {t('waitlist.faqTitle')}
@@ -278,14 +289,14 @@ export function WaitlistPage() {
         </section>
 
         {/* Close: back to the one action. */}
-        <section data-reveal className="relative mt-20 overflow-hidden rounded-[2rem] bg-mint-wash px-6 py-14 text-center sm:px-10">
+        <section data-reveal className="relative mt-14 overflow-hidden rounded-[2rem] bg-mint-wash px-5 py-12 text-center sm:mt-20 sm:px-10 sm:py-14">
           <div className="relative">
             <KeyRound size={28} className="mx-auto text-shutter" aria-hidden />
             <h2 className="display-heading mx-auto mt-4 max-w-xl text-[clamp(2rem,4.4vw,2.75rem)] text-pine">{t('waitlist.finalTitle')}</h2>
             <p className="mx-auto mt-4 max-w-md text-[15px] leading-7 text-pine-text">{t('waitlist.finalSubtitle')}</p>
             <Link
               href={APP_ROUTES.REGISTER}
-              className="mt-8 inline-flex h-[52px] items-center justify-center gap-2 rounded-xl bg-sun px-7 text-[15px] font-black text-ink transition-[background-color,transform] duration-200 hover:bg-sun-hover active:scale-[0.98]"
+              className="mt-8 inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-sun px-7 text-[15px] font-black text-ink transition-[background-color,transform] duration-200 hover:bg-sun-hover active:scale-[0.98] sm:w-auto"
               data-testid={WAITLIST_TEST_IDS.LINK_REGISTER_FINAL}
             >
               {t('waitlist.ctaRegister')} <ArrowRight size={17} aria-hidden />

@@ -30,7 +30,10 @@ export type OnboardingData = {
   nome_suggerito: string;
   cognome_suggerito: string;
   data_nascita: string | null;
+  /** First answer to "Come ci hai scoperto?" (null until answered). */
   fonte_scoperta: OnboardingSource | null;
+  /** Every answer to "Come ci hai scoperto?", in the order of ONBOARDING_OPTIONS.sources. */
+  fonti_scoperta: OnboardingSource[];
   fonte_scoperta_altro: string | null;
   foto_profilo_url: string | null;
   universita: string | null;
