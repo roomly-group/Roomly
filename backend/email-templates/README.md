@@ -8,7 +8,13 @@ Supabase sends these emails, so the files here are copies to paste into the dash
 2. Subject: `Conferma la tua email per entrare in Roomly`
 3. Paste the whole content of `confirm-signup.html` into the message body and save.
 
-The logo is loaded from `https://www.roomly.group/email/roomly-logo.png`
+## change-email.html
+
+1. Same place → **Change email address**.
+2. Subject: `Conferma il tuo nuovo indirizzo email · Roomly`
+3. Paste the whole content of `change-email.html` and save.
+
+Both templates: the logo is loaded from `https://www.roomly.group/email/roomly-logo.png`
 (`frontend/public/email/roomly-logo.png`), so the frontend must be deployed first.
 
 Dark mode: Apple Mail, iOS Mail, Outlook and Thunderbird use the template's own dark
