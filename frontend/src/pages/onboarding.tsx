@@ -146,7 +146,7 @@ type OnboardingPatch = Partial<
     | 'nome'
     | 'cognome'
     | 'data_nascita'
-    | 'fonte_scoperta'
+    | 'fonti_scoperta'
     | 'fonte_scoperta_altro'
     | 'bio'
   >
@@ -160,6 +160,7 @@ const PREVIEW_DATA: OnboardingData = {
   cognome_suggerito: 'Rossi',
   data_nascita: null,
   fonte_scoperta: null,
+  fonti_scoperta: [],
   fonte_scoperta_altro: null,
   foto_profilo_url: null,
   universita: null,
@@ -188,6 +189,8 @@ function applyLocally(data: OnboardingData, patch: OnboardingPatch): OnboardingD
   return {
     ...data,
     ...fields,
+    // Like the backend: the first answer also goes to fonte_scoperta.
+    fonte_scoperta: fields.fonti_scoperta ? fields.fonti_scoperta[0] ?? null : data.fonte_scoperta,
     preferenze: preferenze ? ({ ...(data.preferenze ?? {}), ...preferenze } as UserPreferences) : data.preferenze,
     onboarding_completato_at: completato ? data.onboarding_completato_at ?? new Date().toISOString() : data.onboarding_completato_at,
   };
@@ -592,17 +595,31 @@ function NameStep({ data, eyebrow, saving, error, save }: StepProps) {
 
 function SourceStep({ data, eyebrow, saving, error, save, back }: StepProps) {
   const { t } = useLanguage();
-  const [source, setSource] = useState<Source | null>(data.fonte_scoperta);
+  // More than one answer allowed: people often hear of us from a friend AND see us on Instagram.
+  const [sources, setSources] = useState<Source[]>(() =>
+    data.fonti_scoperta.length > 0 ? data.fonti_scoperta : data.fonte_scoperta ? [data.fonte_scoperta] : [],
+  );
   const [other, setOther] = useState(data.fonte_scoperta_altro ?? '');
+  const hasOther = sources.includes('altro');
+
+  function toggle(option: Source) {
+    setSources((current) =>
+      current.includes(option) ? current.filter((item) => item !== option) : [...current, option],
+    );
+  }
 
   return (
     <StepFrame
       eyebrow={eyebrow}
       title={t('onboarding.sourceTitle')}
       text={t('onboarding.sourceText')}
-      canContinue={source !== null}
+      canContinue={sources.length > 0}
       onSubmit={() =>
-        source && save({ fonte_scoperta: source, fonte_scoperta_altro: source === 'altro' ? other.trim() || null : null })
+        save({
+          // Same order as the options on screen, whatever order they were ticked in.
+          fonti_scoperta: ONBOARDING_OPTIONS.sources.filter((option) => sources.includes(option)),
+          fonte_scoperta_altro: hasOther ? other.trim() || null : null,
+        })
       }
       back={back}
       saving={saving}
@@ -614,10 +631,11 @@ function SourceStep({ data, eyebrow, saving, error, save, back }: StepProps) {
           {ONBOARDING_OPTIONS.sources.map((option) => (
             <ChoiceCard
               key={option}
-              name="fonte"
+              name="fonti"
               value={option}
-              checked={source === option}
-              onSelect={() => setSource(option)}
+              multiple
+              checked={sources.includes(option)}
+              onSelect={() => toggle(option)}
               icon={SOURCE_ICONS[option]}
               testId={`choice-source-${option}`}
             >
@@ -627,7 +645,7 @@ function SourceStep({ data, eyebrow, saving, error, save, back }: StepProps) {
         </div>
       </fieldset>
 
-      {source === 'altro' ? (
+      {hasOther ? (
         <div className="mt-6 flex max-w-md flex-col gap-1.5">
           <Label htmlFor="onboarding-fonte-altro">{t('onboarding.sourceOtherLabel')}</Label>
           <Input

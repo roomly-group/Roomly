@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { requireAppAccess, requireAuth } from "../middleware/auth";
 import { readNearbyPlaces, refreshNearbyPlaces } from "../lib/nearby-places.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
-import { isValidImage, uploadImageType } from "../lib/image.js";
+import { isValidImage, reencodeAsJpeg, uploadImageType, type PhotoBox } from "../lib/image.js";
 import { signedProfilePhotoUrl } from "../lib/profile-photo.js";
 import {
   SEARCH_RADIUS_KM,
@@ -37,6 +37,8 @@ import {
 
 // ===================== CONFIGURATION =====================
 
+/** Stored listing photos: only shrunk, never cropped, to at most this box (px). */
+const ROOM_PHOTO_BOX: PhotoBox = { width: 2560, height: 2560, fit: "inside" };
 /** Supabase storage bucket used for listing-room photos. */
 const ROOM_PHOTO_BUCKET = "foto_stanze" as const;
 /** Lifetime of generated signed room-photo URLs (seconds). */
@@ -499,6 +501,13 @@ router.post(
       if (!isValidImage(req.body, contentType)) {
         return res.status(400).json({ error: "Invalid image file" });
       }
+      // Only freshly encoded pixels are stored, never the uploaded bytes (see reencodeAsJpeg).
+      let photoBytes: Buffer;
+      try {
+        photoBytes = await reencodeAsJpeg(req.body, ROOM_PHOTO_BOX);
+      } catch {
+        return res.status(400).json({ error: "Invalid image file" });
+      }
 
       const authedReq = req as typeof req & { userId: string };
       const { data: listing, error: listingError } = await supabaseAdmin
@@ -521,12 +530,11 @@ router.post(
         return res.status(400).json({ error: `A listing can have at most ${ROOM_PHOTO_MAX_COUNT} photos` });
       }
 
-      const extension = contentType === "image/png" ? "png" : "jpg";
-      uploadedPath = `${id}/${randomUUID()}.${extension}`;
+      uploadedPath = `${id}/${randomUUID()}.jpg`;
       const { error: uploadError } = await supabaseAdmin.storage
         .from(ROOM_PHOTO_BUCKET)
-        .upload(uploadedPath, req.body, {
-          contentType,
+        .upload(uploadedPath, photoBytes, {
+          contentType: "image/jpeg",
           cacheControl: ROOM_PHOTO_CACHE_CONTROL_MAX_AGE_SECONDS,
           upsert: false,
         });

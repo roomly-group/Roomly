@@ -1,5 +1,33 @@
+import sharp from "sharp";
+
+// ===================== CONFIGURATION =====================
+
+/** Largest decoded image accepted (pixels): a small file must not unpack into a huge bitmap. */
+const MAX_INPUT_PIXELS = 40_000_000 as const;
+/** Quality of the JPEG written for every stored photo (1-100). */
+const STORED_JPEG_QUALITY = 86 as const;
+
 /** Image types accepted for uploads (listing photos, profile photos). */
 export type UploadImageType = "image/png" | "image/jpeg";
+
+/** How a re-encoded photo is sized: `cover` crops to fill the box, `inside` only shrinks to fit. */
+export type PhotoBox = { width: number; height: number; fit: "cover" | "inside" };
+
+/**
+ * Decodes the upload and writes a brand-new JPEG from its pixels alone, so
+ * nothing else the file carried reaches storage: metadata (EXIF GPS position
+ * included), comments, extra chunks, or a script hidden in a "polyglot" file
+ * that is also a valid JPEG/PNG. Throws when the bytes are not a decodable image.
+ * Run isValidImage first: it is cheaper and rejects the obvious cases.
+ */
+export async function reencodeAsJpeg(file: Buffer, box: PhotoBox): Promise<Buffer> {
+  return sharp(file, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "error" })
+    .rotate() // apply the EXIF orientation before the metadata is dropped
+    .resize({ ...box, withoutEnlargement: true })
+    .flatten({ background: "#ffffff" }) // PNG transparency becomes white
+    .jpeg({ quality: STORED_JPEG_QUALITY, mozjpeg: true })
+    .toBuffer();
+}
 
 /** Normalised Content-Type of an upload, or null when it is not PNG/JPEG. */
 export function uploadImageType(contentTypeHeader: string | undefined): UploadImageType | null {
