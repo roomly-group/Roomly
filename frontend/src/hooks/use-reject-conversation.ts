@@ -14,10 +14,6 @@ export const rejectConversation = async (params: z.infer<typeof RejectConversati
   });
 };
 
-export const getRejectConversationKey = (id: number) => {
-  return [getRejectConversationUrl(id)] as const;
-};
-
 export type RejectConversationMutationResult = NonNullable<Awaited<ReturnType<typeof rejectConversation>>>;
 export type RejectConversationMutationError = ErrorType<unknown>;
 

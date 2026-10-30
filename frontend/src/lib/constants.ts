@@ -66,9 +66,6 @@ export const LISTING_PRICE_PLACEHOLDER = '720' as const;
 /** Left padding for the currency symbol in the listing price input (px). */
 export const LISTING_PRICE_INPUT_PADDING_LEFT_PX = 36 as const;
 
-/** Highest entry delay token used by listing and owner dashboard cards (animation step). */
-export const MAX_PAGE_ENTRY_DELAY_INDEX = 3 as const;
-
 /** Stable selectors shared by listing creation and editing forms. */
 export const LISTING_FORM_TEST_IDS = {
   LINK_BACK_OWNER: 'link-back-owner',
@@ -125,14 +122,6 @@ export const zoneTranslationKeys: Record<
   'Maple Quarter': 'zones.mapleQuarter',
 };
 
-/** Pastel placeholder fills for rooms without photos, picked by listing id so card and detail match. */
-export const gradients = [
-  'from-mint-wash via-mint-mist to-cream',
-  'from-sun/45 via-cream to-mint-mist',
-  'from-mint-mist via-cream to-mint-wash',
-  'from-sun/30 via-cream to-mint-wash/70',
-];
-
 /** Listing grid: 1 → 2 (640px) → 3 (900px) → 4 (1180px) columns; columns drop, rows never reflow. */
 export const LISTING_GRID_CLASS = 'grid gap-x-6 gap-y-10 sm:grid-cols-2 laptop:grid-cols-3 desk:grid-cols-4';
 
@@ -177,12 +166,6 @@ export function formatShortDate(value: string | Date, language: string) {
   const date = typeof value === 'string' ? new Date(value) : value;
   if (Number.isNaN(date.getTime())) return '';
   return new Intl.DateTimeFormat(numberLocale(language), { day: 'numeric', month: 'short' }).format(date);
-}
-
-/** Month and year ("Settembre 2027") in the reader's language, capitalised for use as a label. */
-export function formatMonthYear(date: Date, language: string) {
-  const label = new Intl.DateTimeFormat(numberLocale(language), { month: 'long', year: 'numeric' }).format(date);
-  return label.charAt(0).toLocaleUpperCase(numberLocale(language)) + label.slice(1);
 }
 
 /** Default search radius around a university (km). Mirrors the backend's SEARCH_RADIUS_KM default. */

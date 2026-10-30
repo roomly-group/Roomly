@@ -9,12 +9,6 @@ export const ONBOARDING_EXTRAS_QUERY = 'completa' as const;
 export const ONBOARDING_RETURN_QUERY = 'torna' as const;
 export const ONBOARDING_RETURN_PROFILE = 'profilo' as const;
 
-/** Link that reopens one onboarding question for editing. */
-export function editStepHref(step: string, from: 'profile' | 'waitlist') {
-  const back = from === 'profile' ? `&${ONBOARDING_RETURN_QUERY}=${ONBOARDING_RETURN_PROFILE}` : '';
-  return `/onboarding?${ONBOARDING_EXTRAS_QUERY}=${step}${back}`;
-}
-
 export const ONBOARDING_EXTRA_STEPS = ['lifestyle', 'about'] as const;
 export type OnboardingExtraStep = (typeof ONBOARDING_EXTRA_STEPS)[number];
 

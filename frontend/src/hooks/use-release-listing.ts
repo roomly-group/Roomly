@@ -14,10 +14,6 @@ export const releaseListing = async (params: z.infer<typeof ReleaseListingParams
   });
 };
 
-export const getReleaseListingKey = (id: number) => {
-  return [getReleaseListingUrl(id)] as const;
-};
-
 export type ReleaseListingMutationResult = NonNullable<Awaited<ReturnType<typeof releaseListing>>>;
 export type ReleaseListingMutationError = ErrorType<unknown>;
 

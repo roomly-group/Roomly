@@ -32,10 +32,6 @@ const FAQ_HASH_SCROLL_DELAY_MS = 100 as const;
 const WAITLIST_FAQ_HASH = '#faq' as const;
 /** Browser event used to detect changes to the current URL hash. */
 const HASH_CHANGE_EVENT_NAME = 'hashchange' as const;
-/** Price shown on the labelled example card in the hero (EUR per month). */
-const EXAMPLE_PRICE_EUR = 450 as const;
-/** Distance shown on the labelled example card in the hero (km). */
-const EXAMPLE_DISTANCE_KM = 0.8 as const;
 /** Stable selectors for the waitlist page. */
 const WAITLIST_TEST_IDS = {
   LINK_LOGIN: 'link-waitlist-login',

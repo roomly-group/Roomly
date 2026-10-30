@@ -2,9 +2,8 @@ import { useState, type FormEvent } from 'react';
 import { clearRoleCache } from '@/lib/role-cache';
 import { clearAccountCache } from '@/lib/account-cache';
 import { Link, useLocation } from 'wouter';
-import { KeyRound, Mail, Lock, EyeOff, Eye } from 'lucide-react';
+import { Mail, Lock, EyeOff, Eye } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
-import { Button } from '@/components/shared/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
@@ -14,7 +13,6 @@ import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 import { AuthShell } from '@/components/layout/auth-shell';
 import { TurnstileWidget } from '@/components/shared/turnstile';
 import { OAuthButtons } from '@/components/shared/oauth-buttons';
-import roomlyMark from '@assets/logo_no_background.png';
 
 // ===================== CONFIGURATION =====================
 

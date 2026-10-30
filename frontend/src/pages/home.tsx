@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, GraduationCap, KeyRound, MessageCircle, Search, ShieldCheck, UserPlus } from 'lucide-react';
+import { ArrowRight, GraduationCap, KeyRound, ShieldCheck } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { getListListingsQueryKey, useListListings } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
-import { useFormat } from '@/hooks/use-format';
 import { AppShell } from '@/components/layout/app-shell';
 import { supabase } from '@/lib/supabase';
 import { HeroCards } from '@/components/shared/hero-cards';
@@ -43,7 +42,6 @@ export function Home() {
   const { data, isLoading, isError, refetch } = useListListings(undefined, {
     query: { queryKey: getListListingsQueryKey() },
   });
-  const format = useFormat();
   const listings = useMemo(() => data ?? [], [data]);
   const [isOwner, setIsOwner] = useState(false);
 

@@ -1,13 +1,11 @@
 import { useEffect, useState } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { Search, X } from 'lucide-react';
-import { Link } from 'wouter';
 import { useLanguage } from '@/lib/i18n';
 import { useFormat } from '@/hooks/use-format';
 import { useUniversities } from '@/hooks/use-universities';
 import { sanitizeBudget, useBrowseParams } from '@/hooks/use-browse-params';
 import { LocationSearch } from '@/components/shared/location-search';
-import { APP_ROUTES } from '@/lib/constants';
 
 // ===================== CONFIGURATION =====================
 
@@ -23,7 +21,6 @@ const SEARCH_PILL_TEST_IDS = {
   INPUT_SHEET_UNIVERSITY: 'input-sheet-university',
   INPUT_SHEET_BUDGET: 'input-sheet-budget',
   BUTTON_SHEET_SEARCH: 'button-sheet-search',
-  LINK_COMPACT: 'link-compact-search',
 } as const;
 
 /**
@@ -203,22 +200,5 @@ export function SearchPill() {
         </DialogPrimitive.Portal>
       </DialogPrimitive.Root>
     </>
-  );
-}
-
-/** One-row header shortcut on pages where another action owns the amber: a green orb, never amber. */
-export function CompactSearchPill() {
-  const { t } = useLanguage();
-  return (
-    <Link
-      href={APP_ROUTES.SEARCH}
-      className="hidden h-12 items-center gap-3 rounded-full border border-pine/10 bg-paper pl-5 pr-1.5 shadow-rest transition-shadow hover:shadow-lift xl:flex"
-      data-testid={SEARCH_PILL_TEST_IDS.LINK_COMPACT}
-    >
-      <span className="text-sm font-extrabold text-ink">{t('searchBar.compact')}</span>
-      <span className="grid h-9 w-9 place-items-center rounded-full bg-shutter text-mint-mist" aria-hidden>
-        <Search size={16} strokeWidth={2.6} />
-      </span>
-    </Link>
   );
 }

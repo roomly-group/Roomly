@@ -658,7 +658,6 @@ router.delete(
 router.get(API_ROUTE_PATHS.OWNER_DASHBOARD, requireAuth, async (req: Request, res: Response) => {
   // This endpoint also uses mock data; we'll leave it as is for now.
   // TODO: Implement with real data.
-  const authedReq = req as typeof req & { userId: string; userEmail?: string };
 
   // We would need to fetch the owner's listings from the database.
   // For now, we return mock data.
@@ -934,10 +933,6 @@ router.put(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
       latitude !== undefined &&
       longitude !== undefined &&
       !(latitude === 0 && longitude === 0);
-    const currentHasCoords =
-      currentRow.latitudine !== null &&
-      currentRow.longitudine !== null &&
-      !(Number(currentRow.latitudine) === 0 && Number(currentRow.longitudine) === 0);
 
     if (hasCoords) {
       const latDiff =
