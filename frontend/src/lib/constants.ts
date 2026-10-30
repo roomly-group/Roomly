@@ -27,6 +27,7 @@ export const APP_ROUTES = {
   OWNER_PROFILE: '/owner/profile',
   OWNER_PROFILE_PREFERENCES: '/owner/profile/preferences',
   OWNER_LISTING_EDIT: '/owner/listings/:id/edit',
+  OWNER_CONTRACTS: '/owner/contracts',
   OWNER_DASHBOARD: '/owner',
   WAITLIST: '/waitlist',
   WAITLIST_CONFIRMED: '/waitlist/confirmed',
@@ -166,6 +167,23 @@ export function formatShortDate(value: string | Date, language: string) {
   const date = typeof value === 'string' ? new Date(value) : value;
   if (Number.isNaN(date.getTime())) return '';
   return new Intl.DateTimeFormat(numberLocale(language), { day: 'numeric', month: 'short' }).format(date);
+}
+
+/** A YYYY-MM-DD date read at midday, so no time zone can move it to the day before. */
+const fromIsoDate = (value: string) => new Date(value.length === 10 ? `${value}T12:00:00` : value);
+
+/** "nov 2026": month and year of a contract period. */
+export function formatMonthYear(value: string, language: string) {
+  const date = fromIsoDate(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat(numberLocale(language), { month: 'short', year: 'numeric' }).format(date);
+}
+
+/** "26 novembre 2026": full date for deadlines and contract steps. */
+export function formatLongDate(value: string, language: string) {
+  const date = fromIsoDate(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat(numberLocale(language), { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
 }
 
 /** Default search radius around a university (km). Mirrors the backend's SEARCH_RADIUS_KM default. */

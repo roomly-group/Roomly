@@ -1,3 +1,4 @@
+import { contractTranslations } from './i18n-contracts';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { patchAccount, useAccount } from '@/lib/account-cache';
@@ -63,6 +64,7 @@ function loadStoredLanguage(userId: string): LanguageCode | null {
 
 export const translations = {
   en: {
+    ...contractTranslations.en,
     'nav.findRoom': 'Find a room',
     'nav.messages': 'Messages',
     'nav.myProfile': 'My profile',
@@ -864,6 +866,7 @@ export const translations = {
     'nav.backToHome': 'Back to home',
   },
   it: {
+    ...contractTranslations.it,
     'nav.findRoom': 'Trova una stanza',
     'nav.messages': 'Messaggi',
     'nav.myProfile': 'Il mio profilo',
@@ -1663,6 +1666,7 @@ export const translations = {
     'nav.backToHome': 'Torna alla home',
   },
   es: {
+    ...contractTranslations.es,
     'nav.findRoom': 'Encontrar una habitación',
     'nav.messages': 'Mensajes',
     'nav.myProfile': 'Mi perfil',
@@ -2318,6 +2322,7 @@ export const translations = {
     'listingDetail.openExistingChat': 'Open your existing chat about this room',
   },
     fr: {
+    ...contractTranslations.fr,
     'nav.findRoom': 'Trouver une chambre',
     'nav.messages': 'Messages',
     'nav.myProfile': 'Mon profil',
@@ -2972,6 +2977,7 @@ export const translations = {
     'listingDetail.openExistingChat': 'Open your existing chat about this room',
   },
   de: {
+    ...contractTranslations.de,
     'nav.findRoom': 'Zimmer finden',
     'nav.messages': 'Nachrichten',
     'nav.myProfile': 'Mein Profil',
@@ -3626,6 +3632,7 @@ export const translations = {
     'listingDetail.openExistingChat': 'Open your existing chat about this room',
   },
   pt: {
+    ...contractTranslations.pt,
     'nav.findRoom': 'Encontrar um quarto',
     'nav.messages': 'Mensagens',
     'nav.myProfile': 'Meu perfil',

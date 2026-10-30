@@ -13,6 +13,7 @@ const StudentProfileRoute = lazy(() => import('@/pages/profile').then((m) => ({ 
 const OwnerProfileRoute = lazy(() => import('@/pages/profile').then((m) => ({ default: m.OwnerProfileRoute })));
 const UserPreferencesPage = lazy(() => import('@/pages/user-preferences').then((m) => ({ default: m.UserPreferencesPage })));
 const OwnerDashboard = lazy(() => import('@/pages/owner-dashboard').then((m) => ({ default: m.OwnerDashboard })));
+const OwnerContractsPage = lazy(() => import('@/pages/owner-contracts').then((m) => ({ default: m.OwnerContractsPage })));
 const NewListingPage = lazy(() => import('@/pages/new-listing').then((m) => ({ default: m.NewListingPage })));
 const EditListingPage = lazy(() => import('@/pages/edit-listing').then((m) => ({ default: m.EditListingPage })));
 const WaitlistPage = lazy(() => import('@/pages/waitlist').then((m) => ({ default: m.WaitlistPage })));
@@ -100,6 +101,13 @@ export function Router() {
           <RequireAuth>
             <RequireOwner>
               <EditListingPage />
+            </RequireOwner>
+          </RequireAuth>
+        </Route>
+        <Route path={APP_ROUTES.OWNER_CONTRACTS}>
+          <RequireAuth>
+            <RequireOwner>
+              <OwnerContractsPage />
             </RequireOwner>
           </RequireAuth>
         </Route>

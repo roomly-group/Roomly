@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  FileText,
   LayoutDashboard,
   Menu,
   MessageCircle,
@@ -97,6 +98,7 @@ export function useAppNav() {
     ? [
         { href: APP_ROUTES.OWNER_DASHBOARD, key: 'overview', label: t('nav.overview'), shortLabel: t('nav.overview'), icon: LayoutDashboard },
         { href: APP_ROUTES.OWNER_MESSAGES, key: 'messages', label: t('nav.messages'), shortLabel: t('nav.messages'), icon: MessageCircle },
+        { href: APP_ROUTES.OWNER_CONTRACTS, key: 'contracts', label: t('nav.contracts'), shortLabel: t('nav.contracts'), icon: FileText },
         { href: APP_ROUTES.OWNER_PROFILE, key: 'my-profile', label: t('nav.myProfile'), shortLabel: t('nav.profileShort'), icon: UserRound },
       ]
     : [
@@ -117,7 +119,8 @@ export function useAppNav() {
 
   const isActive = (href: string) =>
     location === href ||
-    (href !== APP_ROUTES.ROOT && location.startsWith(href)) ||
+    // "/owner" is the prefix of every owner page: Panoramica is active only on itself.
+    (href !== APP_ROUTES.ROOT && href !== APP_ROUTES.OWNER_DASHBOARD && location.startsWith(href)) ||
     // Search results and listing pages belong to the "find a room" tab.
     (href === APP_ROUTES.HOME && (location === APP_ROUTES.SEARCH || location.startsWith(APP_ROUTES.LISTINGS)));
 
