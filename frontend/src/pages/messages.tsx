@@ -30,6 +30,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { useToast } from '@/hooks/use-toast';
 import { APP_ROUTES } from '@/lib/constants';
 import { MESSAGE_MAX_LENGTH_CHARS, MESSAGES_PAGE_SIZE, API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
+import { apiErrorCode } from '@/lib/api-error';
 
 // ===================== CONFIGURATION =====================
 
@@ -348,10 +349,16 @@ function ConversationPanel({
     try {
       await action();
       await invalidateActionQueries();
-    } catch {
+    } catch (error) {
+      const code = apiErrorCode(error);
       toast({
         title: t('messages.actionFailed'),
-        description: t('messages.sendError'),
+        description:
+          code === 'has_signed_contract'
+            ? t('dashboard.releaseHasContract')
+            : code === 'not_accepted'
+              ? t('dashboard.releaseNotAccepted')
+              : t('messages.sendError'),
         variant: 'destructive',
       });
     }

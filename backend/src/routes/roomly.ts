@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { requireAppAccess, requireAuth } from "../middleware/auth";
 import { readNearbyPlaces, refreshNearbyPlaces } from "../lib/nearby-places.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
+import { releaseRoom } from "../lib/rooms.js";
 import { isValidImage, reencodeAsJpeg, uploadImageType, type PhotoBox } from "../lib/image.js";
 import { signedProfilePhotoUrl } from "../lib/profile-photo.js";
 import {
@@ -806,23 +807,26 @@ router.get(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
         return res.status(403).json({ error: "Not authorized" });
       }
 
-      // Call the libera_stanza RPC function
-      const { error: rpcError } = await supabaseAdmin.rpc("libera_stanza", {
-        p_stanza_id: id,
-        p_owner_id: authedReq.userId,
-      });
+      // A signed contract still in progress must be ended first (from the
+      // contract page), otherwise the room could be rented twice.
+      const { count: signedCount, error: signedError } = await supabaseAdmin
+        .from("contratti")
+        .select("id", { count: "exact", head: true })
+        .eq("stanza_id", id)
+        .in("stato", ["firmato", "registrato"]);
+      if (signedError) throw signedError;
+      if ((signedCount ?? 0) > 0) {
+        return res.status(409).json({ error: "Room has a signed contract", code: "has_signed_contract" });
+      }
 
+      const rpcError = await releaseRoom(id, authedReq.userId);
       if (rpcError) {
-        // Map error codes to HTTP status
-        if (rpcError.code === "P0001") {
-          // not_owner
-          return res.status(403).json({ error: "Not authorized" });
+        // Error codes raised by public.libera_stanza.
+        if (rpcError.code === "RM001") return res.status(403).json({ error: "Not authorized" });
+        if (rpcError.code === "RM005") return res.status(404).json({ error: "Listing not found" });
+        if (rpcError.code === "RM006") {
+          return res.status(409).json({ error: "Room is not accepted", code: "not_accepted" });
         }
-        if (rpcError.code === "P0006") {
-          // not_accepted
-          return res.status(409).json({ error: "Room is not accepted" });
-        }
-        // For any other error, return 500
         console.error("Error releasing room:", rpcError);
         return res.status(500).json({ error: "Internal server error" });
       }
@@ -1006,6 +1010,18 @@ router.delete(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Requ
 
     if (listingError) throw listingError;
     if (!listing) return res.status(404).json({ error: "Listing not found" });
+
+    // Contracts are kept for the owner's records (and the accountant): a room
+    // with any contract cannot be deleted. Checked first, so nothing else
+    // (photos, chats) is removed when the delete is refused.
+    const { count: contractCount, error: contractsError } = await supabaseAdmin
+      .from("contratti")
+      .select("id", { count: "exact", head: true })
+      .eq("stanza_id", id);
+    if (contractsError) throw contractsError;
+    if ((contractCount ?? 0) > 0) {
+      return res.status(409).json({ error: "Listing has contracts", code: "has_contracts" });
+    }
 
     const { data: photos, error: photosError } = await supabaseAdmin
       .from("stanze_foto")

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { messageLimiter } from "../middleware/rateLimit.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
+import { releaseRoom } from "../lib/rooms.js";
 import {
   API_ROUTE_PATHS,
   CONTRACT_EXPIRING_WINDOW_DAYS,
@@ -397,8 +398,9 @@ router.post(API_ROUTE_PATHS.OWNER_CONTRACT_STATUS, requireAuth, requireOwnerAcco
   if (action === "send_for_signature") update.firma_richiesta_at = new Date().toISOString();
   if (action === "mark_signed" || action === "mark_registered" || action === "mark_ended") {
     if (!date) return res.status(400).json({ error: "Date is required" });
-    // Signing and registration happen in the past or today, never in the future.
-    if (action !== "mark_ended" && date > today) return res.status(400).json({ error: "Date cannot be in the future" });
+    // Signing, registration and the keys being handed back are recorded once
+    // they happened: today or earlier, never in the future.
+    if (date > today) return res.status(400).json({ error: "Date cannot be in the future" });
   }
   if (action === "mark_signed") update.firmato_il = date!;
   if (action === "mark_registered") {
@@ -414,9 +416,18 @@ router.post(API_ROUTE_PATHS.OWNER_CONTRACT_STATUS, requireAuth, requireOwnerAcco
       .eq("id", id.data)
       .eq("proprietario_id", userId)
       .in("stato", transition.from)
-      .select("id");
+      .select("id, stanza_id");
     if (error) throw error;
     if (!data?.length) return res.status(409).json({ error: "Contract cannot change to this step" });
+
+    // An ended contract frees the room, so it can be rented again and the
+    // student can accept another room. RM006 = the room was already freed.
+    if (action === "mark_ended") {
+      const releaseError = await releaseRoom(data[0].stanza_id, userId);
+      if (releaseError && releaseError.code !== "RM006") {
+        console.error("Contract ended but the room could not be freed:", releaseError);
+      }
+    }
     return res.json({ success: true });
   } catch (error) {
     return serverError(res, "Error updating contract:", error);

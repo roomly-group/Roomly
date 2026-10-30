@@ -403,7 +403,7 @@ function ContractDialog({ contract, today, onClose }: { contract: OwnerContractI
     setDate(next === 'mark_ended' && contract && contract.endDate < today ? contract.endDate : today);
   };
 
-  const futureDate = action != null && action !== 'mark_ended' && date > today;
+  const futureDate = action != null && ACTION_DATE_LABELS[action] != null && date > today;
 
   const confirm = async () => {
     if (!contract || !action) return;
@@ -456,6 +456,7 @@ function ContractDialog({ contract, today, onClose }: { contract: OwnerContractI
             <div className="space-y-4 rounded-2xl border border-field p-4">
               <p className="font-black text-pine">{t(ACTION_LABELS[action])}</p>
               {action === 'cancel' && <p className="text-sm leading-6 text-sage">{t('contracts.cancelConfirm')}</p>}
+              {action === 'mark_ended' && <p className="text-sm leading-6 text-sage">{t('contracts.endedFreesRoom')}</p>}
               {dateLabel && (
                 <div className="space-y-2">
                   <Label htmlFor="contract-action-date">{t(dateLabel)}</Label>
@@ -463,7 +464,7 @@ function ContractDialog({ contract, today, onClose }: { contract: OwnerContractI
                     id="contract-action-date"
                     type="date"
                     required
-                    max={action === 'mark_ended' ? undefined : today}
+                    max={today}
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
                     aria-invalid={futureDate || undefined}

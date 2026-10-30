@@ -29,6 +29,7 @@ import { ListingPhotoPlaceholder } from '@/components/shared/listing-card';
 import { useAccount } from '@/lib/account-cache';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { apiErrorCode } from '@/lib/api-error';
 
 // ===================== CONFIGURATION =====================
 
@@ -198,10 +199,16 @@ function OwnerListingRow({
         queryClient.invalidateQueries({ queryKey: getOwnerListingsQueryKey() }),
       ]);
       setIsReleaseDialogOpen(false);
-    } catch {
+    } catch (error) {
+      const code = apiErrorCode(error);
       toast({
         title: t('messages.actionFailed'),
-        description: t('dashboard.releaseFailed'),
+        description:
+          code === 'has_signed_contract'
+            ? t('dashboard.releaseHasContract')
+            : code === 'not_accepted'
+              ? t('dashboard.releaseNotAccepted')
+              : t('dashboard.releaseFailed'),
         variant: 'destructive',
       });
     }
@@ -216,10 +223,10 @@ function OwnerListingRow({
         queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() }),
       ]);
       setIsDeleteDialogOpen(false);
-    } catch {
+    } catch (error) {
       toast({
         title: t('messages.actionFailed'),
-        description: t('dashboard.deleteListingFailed'),
+        description: apiErrorCode(error) === 'has_contracts' ? t('dashboard.deleteHasContracts') : t('dashboard.deleteListingFailed'),
         variant: 'destructive',
       });
     }

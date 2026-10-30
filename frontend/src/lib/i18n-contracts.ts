@@ -4,6 +4,10 @@
 
 export const contractTranslations = {
   en: {
+    'dashboard.deleteHasContracts': 'This room has contracts, so it cannot be deleted. You can hide it from search by editing the listing.',
+    'dashboard.releaseHasContract': 'This room has a signed contract in progress. Mark it as ended in Contracts: the room will be freed automatically.',
+    'dashboard.releaseNotAccepted': 'This room has no accepted request to cancel.',
+    'contracts.endedFreesRoom': 'The room will be available again and the request in the chat will be closed.',
     'nav.contracts': 'Contracts',
     'contracts.title': 'Contracts',
     'contracts.subtitle': 'All the contracts for your rooms, from signing to handing back the keys.',
@@ -92,6 +96,10 @@ export const contractTranslations = {
     'contracts.futureDate': 'The date cannot be in the future.',
   },
   it: {
+    'dashboard.deleteHasContracts': "Questa stanza ha dei contratti, quindi non si può eliminare. Puoi nasconderla dalla ricerca modificando l'annuncio.",
+    'dashboard.releaseHasContract': 'Questa stanza ha un contratto firmato in corso. Segnalo come concluso in Contratti: la stanza verrà liberata in automatico.',
+    'dashboard.releaseNotAccepted': 'Questa stanza non ha una richiesta accettata da annullare.',
+    'contracts.endedFreesRoom': 'La stanza tornerà disponibile e la richiesta in chat verrà chiusa.',
     'nav.contracts': 'Contratti',
     'contracts.title': 'Contratti',
     'contracts.subtitle': 'Tutti i contratti delle tue stanze, dalla firma alla riconsegna delle chiavi.',
@@ -180,6 +188,10 @@ export const contractTranslations = {
     'contracts.futureDate': 'La data non può essere nel futuro.',
   },
   es: {
+    'dashboard.deleteHasContracts': 'Esta habitación tiene contratos, así que no se puede eliminar. Puedes ocultarla de la búsqueda editando el anuncio.',
+    'dashboard.releaseHasContract': 'Esta habitación tiene un contrato firmado en curso. Márcalo como finalizado en Contratos: la habitación se liberará automáticamente.',
+    'dashboard.releaseNotAccepted': 'Esta habitación no tiene ninguna solicitud aceptada que cancelar.',
+    'contracts.endedFreesRoom': 'La habitación volverá a estar disponible y la solicitud del chat se cerrará.',
     'nav.contracts': 'Contratos',
     'contracts.title': 'Contratos',
     'contracts.subtitle': 'Todos los contratos de tus habitaciones, desde la firma hasta la entrega de las llaves.',
@@ -268,6 +280,10 @@ export const contractTranslations = {
     'contracts.futureDate': 'La fecha no puede ser futura.',
   },
   fr: {
+    'dashboard.deleteHasContracts': "Cette chambre a des contrats, elle ne peut donc pas être supprimée. Tu peux la masquer de la recherche en modifiant l'annonce.",
+    'dashboard.releaseHasContract': 'Cette chambre a un contrat signé en cours. Marque-le comme terminé dans Contrats : la chambre sera libérée automatiquement.',
+    'dashboard.releaseNotAccepted': "Cette chambre n'a aucune demande acceptée à annuler.",
+    'contracts.endedFreesRoom': 'La chambre redeviendra disponible et la demande dans la discussion sera close.',
     'nav.contracts': 'Contrats',
     'contracts.title': 'Contrats',
     'contracts.subtitle': 'Tous les contrats de tes chambres, de la signature à la remise des clés.',
@@ -356,6 +372,10 @@ export const contractTranslations = {
     'contracts.futureDate': 'La date ne peut pas être dans le futur.',
   },
   de: {
+    'dashboard.deleteHasContracts': 'Für dieses Zimmer gibt es Verträge, daher kann es nicht gelöscht werden. Du kannst es in der Anzeige aus der Suche ausblenden.',
+    'dashboard.releaseHasContract': 'Für dieses Zimmer läuft ein unterschriebener Vertrag. Markiere ihn unter Verträge als beendet: Das Zimmer wird dann automatisch frei.',
+    'dashboard.releaseNotAccepted': 'Für dieses Zimmer gibt es keine angenommene Anfrage zum Stornieren.',
+    'contracts.endedFreesRoom': 'Das Zimmer wird wieder verfügbar und die Anfrage im Chat wird geschlossen.',
     'nav.contracts': 'Verträge',
     'contracts.title': 'Verträge',
     'contracts.subtitle': 'Alle Verträge deiner Zimmer, von der Unterschrift bis zur Schlüsselrückgabe.',
@@ -444,6 +464,10 @@ export const contractTranslations = {
     'contracts.futureDate': 'Das Datum darf nicht in der Zukunft liegen.',
   },
   pt: {
+    'dashboard.deleteHasContracts': 'Este quarto tem contratos, por isso não pode ser eliminado. Podes escondê-lo da pesquisa editando o anúncio.',
+    'dashboard.releaseHasContract': 'Este quarto tem um contrato assinado em curso. Marca-o como terminado em Contratos: o quarto fica livre automaticamente.',
+    'dashboard.releaseNotAccepted': 'Este quarto não tem nenhum pedido aceite para cancelar.',
+    'contracts.endedFreesRoom': 'O quarto volta a ficar disponível e o pedido no chat será fechado.',
     'nav.contracts': 'Contratos',
     'contracts.title': 'Contratos',
     'contracts.subtitle': 'Todos os contratos dos teus quartos, da assinatura à entrega das chaves.',
