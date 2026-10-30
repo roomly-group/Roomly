@@ -126,5 +126,3 @@ export function ChiSiamoPage() {
     </div>
   );
 }
-
-export default ChiSiamoPage;

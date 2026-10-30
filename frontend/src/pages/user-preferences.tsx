@@ -376,5 +376,3 @@ export function UserPreferencesPage({ owner = false }: { owner?: boolean }) {
     </AppShell>
   );
 }
-
-export default UserPreferencesPage;

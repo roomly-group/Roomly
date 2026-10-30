@@ -182,5 +182,3 @@ export function ProfileMenu({
     </div>
   );
 }
-
-export default ProfileMenu;

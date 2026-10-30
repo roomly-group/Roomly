@@ -34,5 +34,3 @@ export function RoomIllustration({ className }: { className?: string }) {
     </svg>
   );
 }
-
-export default RoomIllustration;

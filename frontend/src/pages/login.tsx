@@ -196,5 +196,3 @@ export function LoginPage() {
     </AuthShell>
   );
 }
-
-export default LoginPage;

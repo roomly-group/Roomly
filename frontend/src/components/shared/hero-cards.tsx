@@ -58,5 +58,3 @@ export function HeroCards() {
     </div>
   );
 }
-
-export default HeroCards;

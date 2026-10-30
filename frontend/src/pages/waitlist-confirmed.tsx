@@ -300,5 +300,3 @@ function SocialLink({ href, icon, label }: { href: string; icon: ReactNode; labe
     </a>
   );
 }
-
-export default WaitlistConfirmedPage;

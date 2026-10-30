@@ -33,5 +33,3 @@ export function StaticPage({
     </div>
   );
 }
-
-export default StaticPage;

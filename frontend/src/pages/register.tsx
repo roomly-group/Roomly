@@ -231,5 +231,3 @@ export function RegisterPage() {
     </AuthShell>
   );
 }
-
-export default RegisterPage;

@@ -198,5 +198,3 @@ export function ContattiPage() {
     </div>
   );
 }
-
-export default ContattiPage;

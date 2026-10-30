@@ -139,5 +139,3 @@ export function ListingMap({
     </div>
   );
 }
-
-export default ListingMap;

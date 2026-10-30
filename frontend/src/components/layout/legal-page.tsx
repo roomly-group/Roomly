@@ -32,5 +32,3 @@ export function LegalPage({ kind, children }: { kind: 'privacy' | 'terms' | 'coo
     </StaticPage>
   );
 }
-
-export default LegalPage;

@@ -119,5 +119,3 @@ function FooterSocial({
     </a>
   );
 }
-
-export default SiteFooter;

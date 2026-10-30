@@ -9,5 +9,3 @@ export function CookiePage() {
     </LegalPage>
   );
 }
-
-export default CookiePage;

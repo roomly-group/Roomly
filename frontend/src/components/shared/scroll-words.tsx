@@ -23,5 +23,3 @@ export function ScrollWords({ text, as: Tag = 'p', className }: { text: string; 
     </Tag>
   );
 }
-
-export default ScrollWords;

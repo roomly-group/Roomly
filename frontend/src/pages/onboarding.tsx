@@ -275,8 +275,6 @@ export function OnboardingPage() {
   );
 }
 
-export default OnboardingPage;
-
 type StepProps = {
   data: OnboardingData;
   eyebrow: string;

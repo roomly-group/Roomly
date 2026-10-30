@@ -305,5 +305,3 @@ export function WaitlistPage() {
     </div>
   );
 }
-
-export default WaitlistPage;

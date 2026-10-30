@@ -626,5 +626,3 @@ export function StudentProfileRoute() {
 export function OwnerProfileRoute() {
   return <ProfilePage owner />;
 }
-
-export default ProfilePage;
