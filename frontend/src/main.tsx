@@ -2,7 +2,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { supabase, urlSessionSynced } from '@/lib/supabase';
-import { APP_ROUTES } from '@/lib/constants';
+import { APP_ROUTES, WAITLIST_FAQ_ANCHOR_URL } from '@/lib/constants';
 import { clearRoleCache } from '@/lib/role-cache';
 import { clearAccountCache } from '@/lib/account-cache';
 import { rememberInviteFromUrl } from '@/lib/onboarding';
@@ -61,9 +61,12 @@ initializeApp().then((session) => {
     clearAccountCache();
     return;
   }
+  // The footer "FAQ" link ("/#faq") is a full page load: logged-in users who
+  // clicked it want to read the FAQ, so they are not sent away.
+  const isFaqLink = `${window.location.pathname}${window.location.hash}` === WAITLIST_FAQ_ANCHOR_URL;
   // Logged in and on a public entry page: go to the onboarding, which sends
   // users who already finished it on to the waitlist confirmation page.
-  if (LOGGED_OUT_ONLY_PATHS.includes(window.location.pathname)) {
+  if (!isFaqLink && LOGGED_OUT_ONLY_PATHS.includes(window.location.pathname)) {
     window.location.href = APP_ROUTES.ONBOARDING;
   }
 }).finally(() => {
