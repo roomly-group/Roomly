@@ -154,3 +154,6 @@ CLAUDE.md
 
 #graphify
 graphify-out
+# Screenshot e log degli strumenti di review/test
+.impeccable/review/
+.playwright-mcp/
