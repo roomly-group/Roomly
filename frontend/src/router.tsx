@@ -24,6 +24,14 @@ const ContattiPage = lazy(() => import('@/pages/contatti').then((m) => ({ defaul
 const PrivacyPage = lazy(() => import('@/pages/privacy').then((m) => ({ default: m.PrivacyPage })));
 const TerminiPage = lazy(() => import('@/pages/termini').then((m) => ({ default: m.TerminiPage })));
 const CookiePage = lazy(() => import('@/pages/cookie').then((m) => ({ default: m.CookiePage })));
+const VerificationPage = lazy(() => import('@/pages/verification').then((m) => ({ default: m.VerificationPage })));
+const AdminDashboardPage = lazy(() => import('@/pages/admin-dashboard').then((m) => ({ default: m.AdminDashboardPage })));
+const AdminVerificationsPage = lazy(() =>
+  import('@/pages/admin-verifications').then((m) => ({ default: m.AdminVerificationsPage })),
+);
+
+/** `?preview` in development shows a page with sample data and no login (pages/onboarding.tsx, pages/verification.tsx). */
+const isDevPreview = () => import.meta.env.DEV && new URLSearchParams(window.location.search).has('preview');
 import { RequireAuth } from '@/components/RequireAuth';
 import { RequireAdmin } from '@/components/RequireAdmin';
 import { RequireOwner } from '@/components/RequireOwner';
@@ -117,6 +125,33 @@ export function Router() {
               <OwnerDashboard />
             </RequireOwner>
           </RequireAuth>
+        </Route>
+        <Route path={APP_ROUTES.VERIFICATION}>
+          {isDevPreview() ? (
+            <VerificationPage />
+          ) : (
+            <RequireAuth>
+              <VerificationPage />
+            </RequireAuth>
+          )}
+        </Route>
+        <Route path={APP_ROUTES.ADMIN_DASHBOARD}>
+          {isDevPreview() ? (
+            <AdminDashboardPage />
+          ) : (
+            <RequireAdmin>
+              <AdminDashboardPage />
+            </RequireAdmin>
+          )}
+        </Route>
+        <Route path={APP_ROUTES.ADMIN_VERIFICATIONS}>
+          {isDevPreview() ? (
+            <AdminVerificationsPage />
+          ) : (
+            <RequireAdmin>
+              <AdminVerificationsPage />
+            </RequireAdmin>
+          )}
         </Route>
         <Route path={APP_ROUTES.WAITLIST} component={WaitlistPage} />
         {/* Only for logged-in users: after logout, the browser back arrow

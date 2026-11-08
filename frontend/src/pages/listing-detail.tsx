@@ -235,10 +235,9 @@ export function ListingDetail() {
       conv.role === 'student' &&
       conv.roomId === listingId
   );
-  const acceptedConversation = conversations?.find(
-    (conv) => conv.role === 'student' && conv.requestStatus === 'accettata',
-  );
-  const canRequest = Boolean(listing?.available) && !isOwnListing && !existingListingConversation && !acceptedConversation;
+  // An accepted request on another room does not block new ones: only an active
+  // rental contract does, and the backend answers that with a 409 (see below).
+  const canRequest = Boolean(listing?.available) && !isOwnListing && !existingListingConversation;
 
   const getStartConversationErrorMessage = () => {
     const error: unknown = startConversation.error;
@@ -254,7 +253,7 @@ export function ListingDetail() {
         : '';
 
     if (status === 409) {
-      if (backendError === 'Student already has an accepted chat') {
+      if (backendError === 'Student already has an active contract') {
         return t('listingDetail.alreadyHaveRoom');
       }
       if (backendError === 'Too many pending requests for this room') {
@@ -396,17 +395,6 @@ export function ListingDetail() {
         data-testid={DETAIL_TEST_IDS.LINK_EDIT_OWN}
       >
         <PenLine size={16} aria-hidden /> {t('dashboard.editListing')}
-      </Link>
-    </div>
-  ) : acceptedConversation ? (
-    <div>
-      <p className="text-sm leading-6 text-ink">{t('listingDetail.alreadyHaveRoom')}</p>
-      <Link
-        href={`${APP_ROUTES.MESSAGES}/${acceptedConversation.id}`}
-        className="mt-3 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-mint-mist text-sm font-extrabold text-pine transition-colors hover:bg-mint-wash"
-        data-testid={LISTING_DETAIL_TEST_IDS.LINK_ACCEPTED_CHAT}
-      >
-        <MessageCircle size={16} aria-hidden /> {t('listingDetail.goToChat')}
       </Link>
     </div>
   ) : existingListingConversation ? (
@@ -655,9 +643,12 @@ export function ListingDetail() {
                 <Avatar name={listing.owner} size="lg" src={listing.ownerPhotoUrl} />
                 <div className="min-w-0">
                   <p className="truncate text-lg font-black text-pine">{listing.owner}</p>
-                  <p className="mt-0.5 flex items-center gap-1.5 text-sm font-bold text-sage">
-                    <CircleCheck size={14} className="text-shutter" aria-hidden /> {t('listingDetail.identityChecked')}
-                  </p>
+                  {/* Only owners with an approved identity verification (routes/verification.ts). */}
+                  {listing.ownerVerified ? (
+                    <p className="mt-0.5 flex items-center gap-1.5 text-sm font-bold text-sage" data-testid="badge-owner-verified">
+                      <CircleCheck size={14} className="text-shutter" aria-hidden /> {t('listingDetail.identityChecked')}
+                    </p>
+                  ) : null}
                   <p className="mt-0.5 text-sm text-sage">{t('listingDetail.noReviews')}</p>
                 </div>
               </div>
@@ -698,9 +689,9 @@ export function ListingDetail() {
             <Link href={editHref} className="flex h-12 shrink-0 items-center rounded-xl bg-mint-mist px-5 text-sm font-extrabold text-pine">
               {t('dashboard.editListing')}
             </Link>
-          ) : acceptedConversation || existingListingConversation ? (
+          ) : existingListingConversation ? (
             <Link
-              href={`${APP_ROUTES.MESSAGES}/${(acceptedConversation ?? existingListingConversation)!.id}`}
+              href={`${APP_ROUTES.MESSAGES}/${existingListingConversation.id}`}
               className="flex h-12 shrink-0 items-center rounded-xl bg-mint-mist px-5 text-sm font-extrabold text-pine"
             >
               {t('listingDetail.goToChat')}

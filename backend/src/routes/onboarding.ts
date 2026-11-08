@@ -8,8 +8,11 @@ import { ensureUtenteRecord } from "../lib/utenti.js";
 import { isValidImage, reencodeAsJpeg, uploadImageType, type PhotoBox } from "../lib/image.js";
 import { PROFILE_PHOTO_BUCKET, signedProfilePhotoUrl } from "../lib/profile-photo.js";
 import { countedInvites, waitlistPosition } from "../lib/waitlist.js";
+import { changesLockedIdentity } from "../lib/verification.js";
 import {
   API_ROUTE_PATHS,
+  IDENTITY_LOCKED_CODE,
+  IDENTITY_LOCKED_MESSAGE,
   MINIMUM_SIGNUP_AGE_YEARS,
   WAITLIST_INVITE_BONUS,
   ONBOARDING_OPTIONS,
@@ -213,6 +216,19 @@ router.patch(API_ROUTE_PATHS.ME_ONBOARDING, requireAuth, async (req: Authenticat
   const { userId } = req;
   const { universita, preferenze, completato, fonte_scoperta, fonti_scoperta, ...fields } = parsed.data;
   const update: Record<string, unknown> = { ...fields };
+
+  // After the identity check, name, surname and date of birth are the ones on the document.
+  try {
+    const { nome, cognome, data_nascita } = fields;
+    if (await changesLockedIdentity(userId, { nome, cognome, data_nascita })) {
+      res.status(409).json({ error: IDENTITY_LOCKED_MESSAGE, code: IDENTITY_LOCKED_CODE });
+      return;
+    }
+  } catch (lockError) {
+    console.error("Failed to check identity lock:", lockError);
+    res.status(500).json({ error: "Impossibile salvare, riprova tra poco" });
+    return;
+  }
 
   // "Come ci hai scoperto?": the list goes to fonti_scoperta and its first
   // answer to fonte_scoperta, so both columns always agree (an old client

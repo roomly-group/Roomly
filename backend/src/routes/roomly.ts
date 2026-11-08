@@ -6,6 +6,7 @@ import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { releaseRoom } from "../lib/rooms.js";
 import { isValidImage, reencodeAsJpeg, uploadImageType, type PhotoBox } from "../lib/image.js";
 import { signedProfilePhotoUrl } from "../lib/profile-photo.js";
+import { isUserVerified } from "../lib/verification.js";
 import {
   SEARCH_RADIUS_KM,
   boundingBox,
@@ -122,6 +123,8 @@ const mapRoomRowToListing = async (
     : coverPhoto?.url ? await createRoomPhotoSignedUrl(coverPhoto.url) : null;
   // The owner's profile photo, only on the listing page (cards don't show the owner).
   const ownerPhotoUrl = includeGallery ? await signedProfilePhotoUrl(row.utenti?.foto_profilo) : null;
+  // "Identità verificata" on the listing page only for owners with an approved verification.
+  const ownerVerified = includeGallery ? await isUserVerified(row.proprietario_id) : false;
 
   return {
     id: row.id,
@@ -131,6 +134,7 @@ const mapRoomRowToListing = async (
     price: Number(row.prezzo ?? 0),
     owner: ownerName,
     ...(ownerPhotoUrl ? { ownerPhotoUrl } : {}),
+    ...(includeGallery ? { ownerVerified } : {}),
     rating: 0,
     photos: photos.length,
     ...(coverPhotoUrl ? { coverPhotoUrl } : {}),

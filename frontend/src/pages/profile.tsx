@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'wouter';
-import { Camera, Loader2, Settings, SlidersHorizontal } from 'lucide-react';
+import { BadgeCheck, Camera, Clock, Loader2, Lock, Settings, ShieldCheck, SlidersHorizontal } from 'lucide-react';
 import { API_BASE_PATH, API_ROUTE_PATHS, PROFILE_BIO_MAX_LENGTH_CHARS, USER_PREFERENCE_OPTIONS, type UserPreferences } from '@workspace/api-zod';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n';
@@ -16,6 +16,7 @@ import { fetchOnboarding, fromBoolean, isAdult, toBoolean, type OnboardingData, 
 import { ChipGroup, ChoiceChip } from '@/components/onboarding/choice';
 import { BirthDatePicker } from '@/components/shared/birth-date-picker';
 import { PROFILE_PHOTO_ACCEPT, PhotoReadError, shrinkPhoto, uploadProfilePhoto } from '@/lib/profile-photo';
+import { useMyVerification } from '@/hooks/use-verification';
 
 // ===================== CONFIGURATION =====================
 
@@ -73,6 +74,10 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
   // Loaded once here and shared with "Your preferences" so the page makes one call.
   const [details, setDetails] = useState<OnboardingData | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(true);
+  // Under review or verified: name, surname and date of birth are the ones checked
+  // against the document, so they are read-only (the backend refuses changes too).
+  const verification = useMyVerification();
+  const identityLocked = verification.data?.identityLocked === true;
 
   useEffect(() => {
     let active = true;
@@ -221,6 +226,7 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
                 </Link>
               </>
             ) : null}
+            <VerificationCard query={verification} />
           </aside>
 
           <div className="space-y-5">
@@ -243,6 +249,12 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
               </div>
               {editing ? (
                 <form onSubmit={saveProfile} className="space-y-5" data-testid="form-profile-edit">
+                  {identityLocked ? (
+                    <p className="flex items-start gap-2 rounded-xl bg-mint-mist px-4 py-3 text-sm font-bold text-pine" role="note" data-testid="note-identity-locked">
+                      <Lock size={16} className="mt-0.5 shrink-0" aria-hidden />
+                      {t('verification.lockedNote')}
+                    </p>
+                  ) : null}
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="profile-first-name">{t('auth.firstNameLabel')}</Label>
@@ -253,6 +265,9 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
                         onChange={(event) => setDraft((current) => ({ ...current, nome: event.target.value }))}
                         autoComplete="given-name"
                         required
+                        readOnly={identityLocked}
+                        aria-readonly={identityLocked}
+                        className={identityLocked ? 'cursor-not-allowed bg-cream text-sage' : undefined}
                         data-testid="input-profile-first-name"
                       />
                     </div>
@@ -265,6 +280,9 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
                         onChange={(event) => setDraft((current) => ({ ...current, cognome: event.target.value }))}
                         autoComplete="family-name"
                         required
+                        readOnly={identityLocked}
+                        aria-readonly={identityLocked}
+                        className={identityLocked ? 'cursor-not-allowed bg-cream text-sage' : undefined}
                         data-testid="input-profile-last-name"
                       />
                     </div>
@@ -284,12 +302,23 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
                       <>
                         <div className="space-y-2">
                           <Label htmlFor="profile-birth-date">{t('auth.dateOfBirthLabel')}</Label>
-                          <BirthDatePicker
-                            id="profile-birth-date"
-                            value={draft.data_nascita}
-                            onChange={(value) => setDraft((current) => ({ ...current, data_nascita: value }))}
-                            testId="input-profile-birth-date"
-                          />
+                          {identityLocked ? (
+                            <Input
+                              id="profile-birth-date"
+                              value={birthText}
+                              readOnly
+                              aria-readonly
+                              className="cursor-not-allowed bg-cream text-sage"
+                              data-testid="input-profile-birth-date"
+                            />
+                          ) : (
+                            <BirthDatePicker
+                              id="profile-birth-date"
+                              value={draft.data_nascita}
+                              onChange={(value) => setDraft((current) => ({ ...current, data_nascita: value }))}
+                              testId="input-profile-birth-date"
+                            />
+                          )}
                         </div>
                         <div className="space-y-2 sm:col-span-2">
                           <Label htmlFor="profile-bio">{t('profile.aboutLabel')}</Label>
@@ -363,6 +392,50 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
         </div>
       </div>
     </AppShell>
+  );
+}
+
+// ===================== IDENTITY VERIFICATION =====================
+
+/** Where the user stands with the identity check, and the way to /verifica. */
+function VerificationCard({ query }: { query: ReturnType<typeof useMyVerification> }) {
+  const { t } = useLanguage();
+  const { data, isLoading, isError } = query;
+  if (isError) return null;
+
+  const status = data?.verified ? 'verified' : data?.attempt?.status ?? 'none';
+  const label =
+    status === 'verified'
+      ? t('verification.profileVerified')
+      : status === 'in_attesa'
+        ? t('verification.profilePending')
+        : status === 'rifiutata'
+          ? t('verification.profileRejected')
+          : t('verification.profileNotVerified');
+  const Icon = status === 'verified' ? BadgeCheck : status === 'in_attesa' ? Clock : ShieldCheck;
+
+  return (
+    <div className="mt-5 border-t border-[#e1ebe4] pt-5 text-left" data-testid="panel-profile-verification">
+      <p className="text-xs font-extrabold uppercase tracking-[0.08em] text-sage">{t('verification.profileTitle')}</p>
+      {isLoading ? (
+        <Skeleton className="mt-2 h-5 w-32" />
+      ) : (
+        <p className={`mt-1.5 flex items-center gap-1.5 text-sm font-black ${status === 'verified' ? 'text-shutter' : 'text-pine'}`}>
+          <Icon size={16} aria-hidden />
+          {label}
+        </p>
+      )}
+      {/* Once verified there is nothing left to do on /verifica: no button. */}
+      {status === 'verified' || isLoading ? null : (
+        <Link
+          href={APP_ROUTES.VERIFICATION}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-[#0850411a] px-4 py-2.5 text-sm font-extrabold text-[#085041] transition-colors hover:border-[#08504140] hover:bg-[#E1F5EE]"
+          data-testid="link-verification"
+        >
+          {status === 'in_attesa' ? t('verification.profileOpen') : t('verification.profileStart')}
+        </Link>
+      )}
+    </div>
   );
 }
 

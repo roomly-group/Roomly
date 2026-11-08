@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { chatReadLimiter, messageLimiter } from "../middleware/rateLimit.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
+import { ACTIVE_CONTRACT_ERROR, studentHasActiveContract } from "../lib/active-contract.js";
 import {
   ListConversationsResponse,
   ListMessagesResponse,
@@ -290,16 +291,9 @@ router.post(API_ROUTE_PATHS.CONVERSATIONS, requireAuth, messageLimiter, async (r
       return res.status(409).json({ error: "Room not available" });
     }
 
-    // Check if student already has an accettata chat (any room)
-    const { data: acceptedChats, error: acceptedError } = await supabaseAdmin
-      .from("conversazioni")
-      .select("id")
-      .eq("studente_id", userId)
-      .eq("stato_richiesta", "accettata")
-      .limit(1);
-    if (acceptedError) throw acceptedError;
-    if (acceptedChats && acceptedChats.length > 0) {
-      return res.status(409).json({ error: "Student already has an accepted chat" });
+    // The only limit: a running rental contract. Accepted requests do not block new ones.
+    if (await studentHasActiveContract(userId)) {
+      return res.status(409).json({ error: ACTIVE_CONTRACT_ERROR });
     }
 
     // Check if room has more than MAX_PENDING_REQUESTS_PER_ROOM chats with stato_richiesta = 'in_attesa'
@@ -530,16 +524,10 @@ router.post(API_ROUTE_PATHS.CONVERSATION_ACCEPT, requireAuth, messageLimiter, as
       return res.status(409).json({ error: "Room not available" });
     }
 
-    // Lo studente può avere una sola stanza accettata alla volta.
-    const { data: studentAccepted, error: acceptedError } = await supabaseAdmin
-      .from("conversazioni")
-      .select("id")
-      .eq("studente_id", ctx.studente_id)
-      .eq("stato_richiesta", "accettata")
-      .limit(1);
-    if (acceptedError) throw acceptedError;
-    if ((studentAccepted ?? []).length > 0) {
-      return res.status(409).json({ error: "Student already has an accepted chat" });
+    // Lo studente con un contratto d'affitto attivo non può prendere un'altra stanza.
+    // Le richieste già accettate su altre stanze non contano.
+    if (await studentHasActiveContract(ctx.studente_id)) {
+      return res.status(409).json({ error: ACTIVE_CONTRACT_ERROR });
     }
 
     if (!(await transitionPending(id.data, "accettata"))) {
@@ -572,24 +560,16 @@ router.post(API_ROUTE_PATHS.CONVERSATION_ACCEPT, requireAuth, messageLimiter, as
       return res.status(409).json({ error: "Room not available" });
     }
 
-    // Pulizia (non bloccante): le altre richieste sulla stanza vengono rifiutate
-    // e le altre richieste in attesa dello studente annullate.
-    const [othersOnRoom, othersOfStudent] = await Promise.all([
-      supabaseAdmin
-        .from("conversazioni")
-        .update({ stato_richiesta: "rifiutata" })
-        .eq("stanza_id", ctx.stanza_id)
-        .neq("id", id.data)
-        .eq("stato_richiesta", "in_attesa"),
-      supabaseAdmin
-        .from("conversazioni")
-        .update({ stato_richiesta: "annullata" })
-        .eq("studente_id", ctx.studente_id)
-        .neq("id", id.data)
-        .eq("stato_richiesta", "in_attesa"),
-    ]);
+    // Pulizia (non bloccante): le altre richieste sulla stanza vengono rifiutate.
+    // Le altre richieste dello studente restano aperte: il limite scatta solo
+    // con un contratto attivo, non con una richiesta accettata.
+    const othersOnRoom = await supabaseAdmin
+      .from("conversazioni")
+      .update({ stato_richiesta: "rifiutata" })
+      .eq("stanza_id", ctx.stanza_id)
+      .neq("id", id.data)
+      .eq("stato_richiesta", "in_attesa");
     if (othersOnRoom.error) console.error("Failed to reject other requests:", othersOnRoom.error);
-    if (othersOfStudent.error) console.error("Failed to cancel student's other requests:", othersOfStudent.error);
 
     await postSystemMessage(id.data, userId, "Richiesta accettata");
     return res.json({ success: true });

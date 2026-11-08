@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { clearRoleCache, peekLastKnownRole, peekRoleCache } from '@/lib/role-cache';
 import { clearAccountCache, useAccount } from '@/lib/account-cache';
 import { Link, useLocation } from 'wouter';
-import { ArrowRight, Home, ListOrdered, LogOut, Mail, Menu, UserRound } from 'lucide-react';
+import { ArrowRight, Home, ListOrdered, LogOut, Mail, Menu, ShieldCheck, UserRound } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n';
 import { Avatar } from '@/components/shared/avatar';
@@ -154,6 +154,18 @@ export function ProfileMenu({
             >
               {backTarget.icon}
               {t(backTarget.label)}
+            </Link>
+          ) : null}
+
+          {(peekRoleCache() ?? peekLastKnownRole())?.role === 'admin' ? (
+            <Link
+              href={APP_ROUTES.ADMIN_DASHBOARD}
+              onClick={() => setMenuOpen(false)}
+              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-pine/10 py-2.5 text-sm font-bold text-pine transition-colors hover:bg-mint-mist"
+              data-testid="link-admin-dashboard"
+            >
+              <ShieldCheck size={15} />
+              {t('nav.adminDashboard')}
             </Link>
           ) : null}
 

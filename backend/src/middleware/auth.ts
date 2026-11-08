@@ -72,6 +72,27 @@ export async function requireAuth(
   next();
 }
 
+// Admin-only routes (/api/admin/*): checks `utenti.admin` on every call, no
+// cache, so removing the flag takes effect at once. Mount after requireAuth.
+export async function requireAdmin(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const { userId } = req as AuthenticatedRequest;
+  const { data, error } = await supabaseAdmin.from("utenti").select("admin").eq("id", userId).maybeSingle();
+  if (error) {
+    console.error("Error checking admin account:", error);
+    res.status(500).json({ error: "Internal server error" });
+    return;
+  }
+  if (data?.admin !== true) {
+    res.status(403).json({ error: "Not authorized" });
+    return;
+  }
+  next();
+}
+
 /** How long an admin/owner check stays cached per user (ms). */
 const APP_ACCESS_CACHE_TTL_MS = 60_000 as const;
 const appAccessCache = new Map<string, { allowed: boolean; expires: number }>();

@@ -4,6 +4,7 @@ import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { messageLimiter } from "../middleware/rateLimit.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { releaseRoom } from "../lib/rooms.js";
+import { ACTIVE_CONTRACT_ERROR, studentHasActiveContract } from "../lib/active-contract.js";
 import {
   API_ROUTE_PATHS,
   CONTRACT_EXPIRING_WINDOW_DAYS,
@@ -343,6 +344,10 @@ router.post(API_ROUTE_PATHS.OWNER_CONTRACTS, requireAuth, requireOwnerAccount, m
     if (owned.stato_richiesta !== "accettata") {
       return res.status(409).json({ error: "Request is not accepted" });
     }
+    // One running rental per student: no new contract while another is active.
+    if (await studentHasActiveContract(owned.studente_id)) {
+      return res.status(409).json({ error: ACTIVE_CONTRACT_ERROR });
+    }
 
     const { data, error } = await supabaseAdmin
       .from("contratti")
@@ -410,6 +415,20 @@ router.post(API_ROUTE_PATHS.OWNER_CONTRACT_STATUS, requireAuth, requireOwnerAcco
   if (action === "mark_ended") update.concluso_il = date!;
 
   try {
+    // Signing makes the contract active: the student must not have another one running.
+    if (action === "mark_signed") {
+      const { data: contract, error: contractError } = await supabaseAdmin
+        .from("contratti")
+        .select("studente_id")
+        .eq("id", id.data)
+        .eq("proprietario_id", userId)
+        .maybeSingle();
+      if (contractError) throw contractError;
+      if (contract && (await studentHasActiveContract(contract.studente_id, id.data))) {
+        return res.status(409).json({ error: ACTIVE_CONTRACT_ERROR });
+      }
+    }
+
     const { data, error } = await supabaseAdmin
       .from("contratti")
       .update(update)

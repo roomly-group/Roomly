@@ -38,6 +38,8 @@ export interface Listing {
   owner: string;
   /** Foto profilo del proprietario, URL firmato (solo nel dettaglio annuncio). */
   ownerPhotoUrl?: string;
+  /** Il proprietario ha una verifica d'identità approvata (solo nel dettaglio annuncio). */
+  ownerVerified?: boolean;
   rating: number;
   photos: number;
   coverPhotoUrl?: string;

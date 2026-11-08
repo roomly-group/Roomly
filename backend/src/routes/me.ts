@@ -4,9 +4,12 @@ import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { ensureUtenteRecord } from "../lib/utenti.js";
 import { signedProfilePhotoUrl } from "../lib/profile-photo.js";
 import { waitlistPosition } from "../lib/waitlist.js";
+import { changesLockedIdentity } from "../lib/verification.js";
 import {
   API_ROUTE_PATHS,
   DEFAULT_USER_PREFERENCES,
+  IDENTITY_LOCKED_CODE,
+  IDENTITY_LOCKED_MESSAGE,
   SUPPORTED_LANGUAGE_CODES,
   USER_PREFERENCE_OPTIONS,
 } from "@workspace/api-zod";
@@ -84,6 +87,18 @@ router.patch(API_ROUTE_PATHS.ME_PROFILE, requireAuth, async (req: AuthenticatedR
 
   if (!parsedProfile.success) {
     res.status(400).json({ error: "Nome e cognome devono contenere da 1 a 50 caratteri" });
+    return;
+  }
+
+  // After the identity check, name and surname are the ones on the document.
+  try {
+    if (await changesLockedIdentity(req.userId, parsedProfile.data)) {
+      res.status(409).json({ error: IDENTITY_LOCKED_MESSAGE, code: IDENTITY_LOCKED_CODE });
+      return;
+    }
+  } catch (lockError) {
+    console.error("Failed to check identity lock:", lockError);
+    res.status(500).json({ error: "Impossibile salvare il profilo" });
     return;
   }
 

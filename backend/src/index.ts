@@ -2,6 +2,7 @@ import "dotenv/config";
 
 import app from "./app.js";
 import { logger } from "./lib/logger.js";
+import { scheduleVerificationPurge } from "./lib/verification.js";
 
 const rawPort = process.env["PORT"];
 
@@ -24,4 +25,6 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+  // Deletes identity-verification files Roomly may no longer keep (lib/verification.ts).
+  scheduleVerificationPurge();
 });
