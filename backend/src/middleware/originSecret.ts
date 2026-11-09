@@ -17,10 +17,12 @@ const ORIGIN_SECRET_REJECT_STATUS = 403 as const;
 const ORIGIN_SECRET_REJECT_MESSAGE = "Forbidden" as const;
 /**
  * Header where Vercel writes the real visitor IP when it forwards a request.
- * Measured in production: X-Forwarded-For only holds Vercel's and Railway's
- * own IPs, and a visitor-sent X-Forwarded-For is dropped by Vercel.
+ * Measured in production (Nov 2026), sending fake values through the site:
+ * - x-vercel-proxied-for: always the real visitor IP (fake values replaced 28/28).
+ * - x-vercel-forwarded-for: NOT safe, a fake value got through 8 times out of 18.
+ * - X-Forwarded-For: only Vercel's and Railway's own IPs, never the visitor.
  */
-const VERCEL_CLIENT_IP_HEADER = "x-vercel-forwarded-for" as const;
+const VERCEL_CLIENT_IP_HEADER = "x-vercel-proxied-for" as const;
 
 // Only log the "secret missing" warning once, not on every request.
 let missingSecretWarned = false;
