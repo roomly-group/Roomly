@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { createRequestAuthClient, supabaseAuthClient } from "../lib/supabase-auth.js";
-import { loginLimiter, refreshLimiter, signupLimiter } from "../middleware/rateLimit.js";
+import { loginEmailLimiter, loginLimiter, refreshLimiter, signupLimiter, verifyLimiter } from "../middleware/rateLimit.js";
 import { logger } from "../lib/logger.js";
 import { isAllowedOrigin } from "../lib/origins.js";
 import { API_ROUTE_PATHS, CSRF_TOKEN_COOKIE_NAME } from "@workspace/api-zod";
@@ -24,6 +24,10 @@ const REFRESH_TOKEN_COOKIE_MAX_AGE_SECONDS = 2592000 as const;
 const CSRF_TOKEN_RANDOM_BYTES = 32 as const;
 /** Frontend page the signup confirmation email links to (mirrors APP_ROUTES.ONBOARDING). */
 const ONBOARDING_APP_PATH = '/onboarding' as const;
+/** Supabase auth error code returned when the Turnstile CAPTCHA token is invalid/expired/reused. */
+const SUPABASE_CAPTCHA_FAILED_CODE = 'captcha_failed' as const;
+/** Friendly message shown when the CAPTCHA (security check) is missing or expired. */
+const CAPTCHA_ERROR_MESSAGE = 'Verifica di sicurezza mancante o scaduta' as const;
 
 const router: IRouter = Router();
 
@@ -88,7 +92,9 @@ function setCsrfCookie(res: Response, token: string, options: { maxAge?: number 
 }
 
 // Login endpoint
-router.post(API_ROUTE_PATHS.LOGIN, loginLimiter, async (req: Request, res: Response) => {
+// loginLimiter: per IP+email. loginEmailLimiter: per email from any IP,
+// counting only wrong passwords (401), see middleware/rateLimit.ts.
+router.post(API_ROUTE_PATHS.LOGIN, loginLimiter, loginEmailLimiter, async (req: Request, res: Response) => {
 const { password, captchaToken } = req.body as { password?: string; captchaToken?: string };
   // Trim/lowercase defensively: a leading/trailing space from copy-paste or
   // browser autofill makes Supabase treat it as a different address (or, for
@@ -110,7 +116,7 @@ const { password, captchaToken } = req.body as { password?: string; captchaToken
   // route (or Supabase directly with the anon key) unchecked by anything
   // but the rate limiter.
   if (!captchaToken) {
-    return res.status(400).json({ error: 'Verifica di sicurezza mancante o scaduta' });
+    return res.status(400).json({ error: CAPTCHA_ERROR_MESSAGE });
   }
 
   try {
@@ -126,6 +132,7 @@ const { password, captchaToken } = req.body as { password?: string; captchaToken
     });
 
     if (authError || !authData.session) {
+      const authErrorCode = (authError as { code?: string } | null)?.code;
       // Log the REAL reason server-side only. Supabase distinguishes wrong
       // password / user not found / email not confirmed / etc, but we still
       // return one generic message to the client on purpose (so a failed
@@ -133,9 +140,15 @@ const { password, captchaToken } = req.body as { password?: string; captchaToken
       // "email not confirmed" and "wrong password" were indistinguishable
       // from the outside, including to us when debugging a support report.
       logger.warn(
-        { email, authErrorCode: (authError as { code?: string } | null)?.code, authErrorMessage: authError?.message },
+        { email, authErrorCode, authErrorMessage: authError?.message },
         'Login failed',
       );
+      // Bad CAPTCHA: Supabase never checked the password. Answer 400 (not 401)
+      // so it does not count toward the per-email limit: otherwise anyone
+      // could lock a user out by sending fake CAPTCHA tokens with their email.
+      if (authErrorCode === SUPABASE_CAPTCHA_FAILED_CODE) {
+        return res.status(400).json({ error: CAPTCHA_ERROR_MESSAGE });
+      }
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
@@ -207,7 +220,7 @@ router.post(API_ROUTE_PATHS.REFRESH, refreshLimiter, async (req: Request, res: R
 });
 
 // Verify endpoint - checks if cookie is valid and returns session data
-router.post(API_ROUTE_PATHS.VERIFY, async (req: Request, res: Response) => {
+router.post(API_ROUTE_PATHS.VERIFY, verifyLimiter, async (req: Request, res: Response) => {
   const token = req.cookies?.[ACCESS_TOKEN_COOKIE_NAME];
   const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME];
 

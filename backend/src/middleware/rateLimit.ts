@@ -19,6 +19,16 @@ const REFRESH_RATE_LIMIT_MAX_REQUESTS = 20 as const;
 const MESSAGE_RATE_LIMIT_MAX_REQUESTS = 30 as const;
 /** Maximum chat-read requests allowed per window. */
 const CHAT_READ_RATE_LIMIT_MAX_REQUESTS = 120 as const;
+/** Maximum WRONG-PASSWORD logins allowed per email address per window, from any IP. */
+const LOGIN_EMAIL_RATE_LIMIT_MAX_FAILURES = 10 as const;
+/** Maximum session-check (/verify) requests allowed per IP per window. */
+const VERIFY_RATE_LIMIT_MAX_REQUESTS = 120 as const;
+/**
+ * Status code the login route returns ONLY when Supabase checked the password
+ * and refused it. CAPTCHA failures and missing fields use other codes, so they
+ * never count toward the per-email limit (see loginEmailLimiter).
+ */
+const LOGIN_WRONG_PASSWORD_STATUS = 401 as const;
 
 /**
  * Extracts and normalizes IP address for use in rate limiting keys.
@@ -28,11 +38,17 @@ const extractIP = (req: Request): string => {
   return ipKeyGenerator(req.ip || req.socket.remoteAddress || '');
 };
 
+/** Normalizes the login email the same way routes/auth.ts does (trim + lowercase). */
+const normalizeLoginEmail = (req: Request): string => {
+  const email = req.body?.email;
+  return typeof email === 'string' ? email.trim().toLowerCase() : '';
+};
+
 /**
  * Rate limiter for login endpoint.
- * Allows 5 requests per 15 minutes per IP and email combination.
- * This prevents brute-force attacks on passwords and also throttles
- * distributed attacks against a single account.
+ * Allows LOGIN_RATE_LIMIT_MAX_REQUESTS requests per 15 minutes per IP and
+ * email combination. This prevents brute-force attacks on passwords from one
+ * IP. Attacks spread over many IPs are stopped by loginEmailLimiter below.
  */
 export const loginLimiter = rateLimit({
   windowMs: RATE_LIMIT_WINDOW_15_MINUTES_MS, // 15 minutes
@@ -42,12 +58,61 @@ export const loginLimiter = rateLimit({
   keyGenerator: (req: Request) => {
     // Use IP and email (if available) as the key
     const ip = extractIP(req);
-    const email = req.body?.email?.toLowerCase().trim() || '';
+    const email = normalizeLoginEmail(req);
     return `${ip}:${email}`;
   },
   handler: (_req: Request, res: Response) => {
     res.status(429).json({
       error: 'Too many login attempts, please try again later.',
+    });
+  },
+});
+
+/**
+ * Per-account login limiter: LOGIN_EMAIL_RATE_LIMIT_MAX_FAILURES wrong
+ * passwords per 15 minutes per email, whatever IP they come from. Stops
+ * credential stuffing / brute force spread across many IPs or proxies.
+ *
+ * Only real wrong-password answers (401) count. Requests with a missing or
+ * invalid CAPTCHA get a 400 and are not counted, so nobody can lock a
+ * student out of their account just by spamming their email: every counted
+ * attempt needs a solved CAPTCHA. Successful logins and blocked (429)
+ * requests are not counted either.
+ */
+export const loginEmailLimiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW_15_MINUTES_MS, // 15 minutes
+  max: LOGIN_EMAIL_RATE_LIMIT_MAX_FAILURES,
+  standardHeaders: true,
+  legacyHeaders: false,
+  // No email in the body: the route answers 400 anyway, nothing to count.
+  skip: (req: Request) => normalizeLoginEmail(req) === '',
+  keyGenerator: (req: Request) => `login-email:${normalizeLoginEmail(req)}`,
+  // Count a request only when the password was actually checked and refused.
+  skipSuccessfulRequests: true,
+  requestWasSuccessful: (_req: Request, res: Response) => res.statusCode !== LOGIN_WRONG_PASSWORD_STATUS,
+  handler: (_req: Request, res: Response) => {
+    res.status(429).json({
+      error: 'Too many login attempts, please try again later.',
+    });
+  },
+});
+
+/**
+ * Rate limiter for the session check (/verify).
+ * Allows VERIFY_RATE_LIMIT_MAX_REQUESTS requests per 15 minutes per IP.
+ * The frontend calls it once per full page load and after login/register;
+ * the limit is generous because many students can share one campus Wi-Fi IP,
+ * but it stops scripts from hammering Supabase through this endpoint.
+ */
+export const verifyLimiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW_15_MINUTES_MS, // 15 minutes
+  max: VERIFY_RATE_LIMIT_MAX_REQUESTS,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => extractIP(req),
+  handler: (_req: Request, res: Response) => {
+    res.status(429).json({
+      error: 'Too many requests, please try again later.',
     });
   },
 });

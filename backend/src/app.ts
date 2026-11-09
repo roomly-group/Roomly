@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 import router from "./routes/index.js";
 import { logger } from "./lib/logger.js";
 import { isAllowedOrigin } from "./lib/origins.js";
+import { requireOriginSecret } from "./middleware/originSecret.js";
 import { API_BASE_PATH } from "@workspace/api-zod";
 
 // ===================== CONFIGURATION =====================
@@ -30,13 +31,18 @@ const CSP_SOURCES = {
 const CORS_ALLOWED_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] as const;
 /** HTTP headers enabled for cross-origin API requests. */
 const CORS_ALLOWED_HEADERS = ["Content-Type", "Authorization", "X-Requested-With"] as const;
+/**
+ * Number of proxies between the visitor and this server: Vercel's rewrite
+ * (it replaces X-Forwarded-For with the real visitor IP) + Railway's edge.
+ * Express then takes req.ip from that position in X-Forwarded-For and ignores
+ * anything further left, which a client could have faked.
+ * Never set this to `true`: then req.ip is the left-most, client-controlled value.
+ */
+const TRUST_PROXY_HOPS = 2 as const;
 
 const app: Express = express();
 
-// Trust proxy headers if behind a reverse proxy (e.g., Nginx, AWS ELB, Heroku)
-// Set to true to trust the proxy, or specify an array of trusted IPs.
-// If not behind a proxy, set to false.
-app.set('trust proxy', true);
+app.set('trust proxy', TRUST_PROXY_HOPS);
 
 app.use(
   pinoHttp({
@@ -57,6 +63,8 @@ app.use(
     },
   }),
 );
+// Reject requests that skip Vercel and hit the Railway URL directly (see middleware/originSecret.ts).
+app.use(requireOriginSecret);
 // Apply CORS middleware with restricted origins (see lib/origins.ts)
 app.use(cors({
   origin: (origin, callback) => {
