@@ -1,5 +1,6 @@
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { type Request, type Response } from 'express';
+import { getClientIp } from './originSecret.js';
 
 // ===================== CONFIGURATION =====================
 
@@ -31,12 +32,12 @@ const VERIFY_RATE_LIMIT_MAX_REQUESTS = 120 as const;
 const LOGIN_WRONG_PASSWORD_STATUS = 401 as const;
 
 /**
- * Extracts and normalizes IP address for use in rate limiting keys.
+ * Extracts and normalizes the visitor IP for use in rate limiting keys
+ * (where it comes from: getClientIp in middleware/originSecret.ts).
  * Properly handles IPv6 addresses using the ipKeyGenerator helper.
- * req.ip is the visitor IP written by Vercel (see TRUST_PROXY_SETTING in app.ts).
  */
 const extractIP = (req: Request): string => {
-  return ipKeyGenerator(req.ip || req.socket.remoteAddress || '');
+  return ipKeyGenerator(getClientIp(req));
 };
 
 /** Normalizes the login email the same way routes/auth.ts does (trim + lowercase). */

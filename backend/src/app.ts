@@ -7,7 +7,6 @@ import router from "./routes/index.js";
 import { logger } from "./lib/logger.js";
 import { isAllowedOrigin } from "./lib/origins.js";
 import { requireOriginSecret } from "./middleware/originSecret.js";
-import { logIpHeaders } from "./middleware/ipDiagnostic.js"; // TEMPORARY (RMY-01)
 import { API_BASE_PATH } from "@workspace/api-zod";
 
 // ===================== CONFIGURATION =====================
@@ -33,26 +32,21 @@ const CORS_ALLOWED_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
 /** HTTP headers enabled for cross-origin API requests. */
 const CORS_ALLOWED_HEADERS = ["Content-Type", "Authorization", "X-Requested-With"] as const;
 /**
- * How req.ip (the IP every rate limiter keys on) is read: `true` = the
- * left-most X-Forwarded-For entry.
+ * Number of X-Forwarded-For entries Railway's edge adds: the IP that connected
+ * to Railway + the edge's own IP (measured in production). With 2, req.ip is
+ * whoever connected to Railway, and anything a client wrote further left is
+ * ignored, so it cannot be faked.
  *
- * Why this is safe here: Vercel OVERWRITES X-Forwarded-For with the real
- * visitor IP (whatever the visitor sent is dropped), and requireOriginSecret
- * rejects any request that did not come through Vercel. So the left-most entry
- * is always written by Vercel, never by the client.
- *
- * Why not a hop count: Railway adds a variable number of internal proxy hops
- * after Vercel. With a fixed count (tried: 2) req.ip landed on a proxy IP
- * shared by many users, so everyone shared the same rate-limit counters.
- *
- * Depends on ORIGIN_SECRET being set: without it, direct requests to Railway
- * could fake X-Forwarded-For again (requireOriginSecret logs a warning).
+ * Behind Vercel that "whoever" is a Vercel server, not the visitor: the real
+ * visitor IP comes from Vercel's own header instead (see getClientIp in
+ * middleware/originSecret.ts). req.ip is the fallback (local dev, or
+ * ORIGIN_SECRET missing). Never set `true`: that trusts client-written values.
  */
-const TRUST_PROXY_SETTING = true as const;
+const TRUST_PROXY_HOPS = 2 as const;
 
 const app: Express = express();
 
-app.set('trust proxy', TRUST_PROXY_SETTING);
+app.set('trust proxy', TRUST_PROXY_HOPS);
 
 app.use(
   pinoHttp({
@@ -75,8 +69,6 @@ app.use(
 );
 // Reject requests that skip Vercel and hit the Railway URL directly (see middleware/originSecret.ts).
 app.use(requireOriginSecret);
-// TEMPORARY (RMY-01): logs which header carries the visitor IP. Remove with middleware/ipDiagnostic.ts.
-app.use(logIpHeaders);
 // Apply CORS middleware with restricted origins (see lib/origins.ts)
 app.use(cors({
   origin: (origin, callback) => {

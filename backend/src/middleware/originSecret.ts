@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { isIP } from "net";
 import type { NextFunction, Request, Response } from "express";
 import { API_BASE_PATH, API_ROUTE_PATHS } from "@workspace/api-zod";
 import { logger } from "../lib/logger.js";
@@ -14,9 +15,19 @@ const ORIGIN_SECRET_EXEMPT_PATHS: readonly string[] = [`${API_BASE_PATH}${API_RO
 /** Status and message for requests that did not come through Vercel. */
 const ORIGIN_SECRET_REJECT_STATUS = 403 as const;
 const ORIGIN_SECRET_REJECT_MESSAGE = "Forbidden" as const;
+/**
+ * Header where Vercel writes the real visitor IP when it forwards a request.
+ * Measured in production: X-Forwarded-For only holds Vercel's and Railway's
+ * own IPs, and a visitor-sent X-Forwarded-For is dropped by Vercel.
+ */
+const VERCEL_CLIENT_IP_HEADER = "x-vercel-forwarded-for" as const;
 
 // Only log the "secret missing" warning once, not on every request.
 let missingSecretWarned = false;
+
+// Requests whose secret matched, i.e. that really came through Vercel.
+// A WeakSet so entries disappear with the request object.
+const requestsFromVercel = new WeakSet<Request>();
 
 /** SHA-256 digest, so timingSafeEqual always compares two values of equal length. */
 const digest = (value: string): Buffer => crypto.createHash("sha256").update(value).digest();
@@ -26,9 +37,9 @@ const digest = (value: string): Buffer => crypto.createHash("sha256").update(val
  * Vercel. Vercel sets the secret header on every /api request it rewrites to
  * Railway (replacing any value the visitor sent), so only Vercel knows it.
  *
- * Why it matters: the rate limiters read the client IP from X-Forwarded-For,
- * which is only trustworthy when the request really passed through Vercel and
- * Railway's edge. A direct call could fake that header and dodge every limit.
+ * Why it matters: the rate limiters key on the visitor IP from Vercel's header
+ * (see getClientIp), which is only trustworthy when the request really passed
+ * through Vercel. A direct call could fake that header and dodge every limit.
  *
  * Only enforced in production (local dev goes through the Vite proxy, which
  * does not add the header). If ORIGIN_SECRET is not set in production the
@@ -44,7 +55,7 @@ export function requireOriginSecret(req: Request, res: Response, next: NextFunct
     if (!missingSecretWarned) {
       missingSecretWarned = true;
       logger.warn(
-        `${ORIGIN_SECRET_ENV_NAME} is not set: direct requests to the backend are NOT blocked and rate limits can be bypassed.`,
+        `${ORIGIN_SECRET_ENV_NAME} is not set: direct requests to the backend are NOT blocked and rate limits cannot tell visitors apart.`,
       );
     }
     return next();
@@ -53,8 +64,25 @@ export function requireOriginSecret(req: Request, res: Response, next: NextFunct
   const receivedSecret = req.headers[ORIGIN_SECRET_HEADER];
   // Constant-time comparison so the secret cannot be guessed byte by byte from response timings.
   if (typeof receivedSecret === "string" && crypto.timingSafeEqual(digest(receivedSecret), digest(expectedSecret))) {
+    requestsFromVercel.add(req);
     return next();
   }
 
   return res.status(ORIGIN_SECRET_REJECT_STATUS).json({ error: ORIGIN_SECRET_REJECT_MESSAGE });
+}
+
+/**
+ * The visitor IP used by the rate limiters.
+ * - Request verified as coming from Vercel: the IP Vercel wrote in its own
+ *   header (the visitor cannot set it, Vercel replaces it).
+ * - Otherwise (local dev, or ORIGIN_SECRET missing): req.ip, i.e. whoever
+ *   connected to Railway (see TRUST_PROXY_HOPS in app.ts), which cannot be faked.
+ */
+export function getClientIp(req: Request): string {
+  const vercelClientIp = req.headers[VERCEL_CLIENT_IP_HEADER];
+  if (requestsFromVercel.has(req) && typeof vercelClientIp === "string") {
+    const firstIp = vercelClientIp.split(",")[0]?.trim() ?? "";
+    if (isIP(firstIp)) return firstIp;
+  }
+  return req.ip || req.socket.remoteAddress || "";
 }
