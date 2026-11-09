@@ -33,6 +33,7 @@ const LOGIN_WRONG_PASSWORD_STATUS = 401 as const;
 /**
  * Extracts and normalizes IP address for use in rate limiting keys.
  * Properly handles IPv6 addresses using the ipKeyGenerator helper.
+ * req.ip is the visitor IP written by Vercel (see TRUST_PROXY_SETTING in app.ts).
  */
 const extractIP = (req: Request): string => {
   return ipKeyGenerator(req.ip || req.socket.remoteAddress || '');

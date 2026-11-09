@@ -32,17 +32,26 @@ const CORS_ALLOWED_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
 /** HTTP headers enabled for cross-origin API requests. */
 const CORS_ALLOWED_HEADERS = ["Content-Type", "Authorization", "X-Requested-With"] as const;
 /**
- * Number of proxies between the visitor and this server: Vercel's rewrite
- * (it replaces X-Forwarded-For with the real visitor IP) + Railway's edge.
- * Express then takes req.ip from that position in X-Forwarded-For and ignores
- * anything further left, which a client could have faked.
- * Never set this to `true`: then req.ip is the left-most, client-controlled value.
+ * How req.ip (the IP every rate limiter keys on) is read: `true` = the
+ * left-most X-Forwarded-For entry.
+ *
+ * Why this is safe here: Vercel OVERWRITES X-Forwarded-For with the real
+ * visitor IP (whatever the visitor sent is dropped), and requireOriginSecret
+ * rejects any request that did not come through Vercel. So the left-most entry
+ * is always written by Vercel, never by the client.
+ *
+ * Why not a hop count: Railway adds a variable number of internal proxy hops
+ * after Vercel. With a fixed count (tried: 2) req.ip landed on a proxy IP
+ * shared by many users, so everyone shared the same rate-limit counters.
+ *
+ * Depends on ORIGIN_SECRET being set: without it, direct requests to Railway
+ * could fake X-Forwarded-For again (requireOriginSecret logs a warning).
  */
-const TRUST_PROXY_HOPS = 2 as const;
+const TRUST_PROXY_SETTING = true as const;
 
 const app: Express = express();
 
-app.set('trust proxy', TRUST_PROXY_HOPS);
+app.set('trust proxy', TRUST_PROXY_SETTING);
 
 app.use(
   pinoHttp({
