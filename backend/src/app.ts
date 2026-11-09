@@ -7,6 +7,7 @@ import router from "./routes/index.js";
 import { logger } from "./lib/logger.js";
 import { isAllowedOrigin } from "./lib/origins.js";
 import { requireOriginSecret } from "./middleware/originSecret.js";
+import { logIpHeaders } from "./middleware/ipDiagnostic.js"; // TEMPORARY (RMY-01)
 import { API_BASE_PATH } from "@workspace/api-zod";
 
 // ===================== CONFIGURATION =====================
@@ -69,6 +70,8 @@ app.use(
 );
 // Reject requests that skip Vercel and hit the Railway URL directly (see middleware/originSecret.ts).
 app.use(requireOriginSecret);
+// TEMPORARY (RMY-01): logs IP headers of marked test requests. Remove with middleware/ipDiagnostic.ts.
+app.use(logIpHeaders);
 // Apply CORS middleware with restricted origins (see lib/origins.ts)
 app.use(cors({
   origin: (origin, callback) => {
