@@ -298,6 +298,18 @@ export function Navbar() {
     );
   }
 
+  // Landing page while logged in (e.g. opened from the footer FAQ link): show
+  // the account menu, not the sign-up link, so the user can see they are still
+  // logged in and get back to their main page from the menu.
+  if (account) {
+    return (
+      <div className="flex items-center justify-between gap-3">
+        {logo}
+        <ProfileMenu profileHref={APP_ROUTES.PROFILE} />
+      </div>
+    );
+  }
+
   // Guest / waitlist landing page (default).
   return (
     <div className="flex items-center justify-between gap-3">

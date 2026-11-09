@@ -14,6 +14,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
+import { useAccount } from '@/lib/account-cache';
 import { SiteFooter } from '@/components/layout/site-footer';
 import { Navbar } from '@/components/layout/navbar';
 import { HeroCards } from '@/components/shared/hero-cards';
@@ -47,6 +48,8 @@ const SECTION_TITLE_CLASS = 'display-heading text-[clamp(2rem,4.4vw,2.75rem)] te
 export function WaitlistPage() {
   const { t } = useLanguage();
   const [waitlistCount, setWaitlistCount] = useState<number | null>(null);
+  // Logged-in account (null for guests): hides the sign-up actions below.
+  const { account } = useAccount();
 
   // Real sign-up count only: when the endpoint fails nothing is shown, never a made-up number.
   useEffect(() => {
@@ -115,6 +118,10 @@ export function WaitlistPage() {
               <h1 className="display-heading mt-5 max-w-xl text-[clamp(3rem,8vw,4.5rem)] text-pine sm:mt-6">{t('waitlist.title')}</h1>
               <p className="mt-4 max-w-lg text-[17px] leading-7 text-pine-text sm:mt-5">{t('waitlist.subtitle')}</p>
 
+              {/* Sign-up / login actions are for guests only: a logged-in user reaching
+                  this page (e.g. from the footer FAQ link) already has an account. */}
+              {!account && (
+              <>
               <div className="mt-7 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:items-center">
                 <Link
                   href={APP_ROUTES.REGISTER}
@@ -132,6 +139,8 @@ export function WaitlistPage() {
                 </Link>
               </div>
               <p className="mt-4 text-sm text-pine-text">{t('waitlist.ctaNote')}</p>
+              </>
+              )}
 
               {showCount && (
                 <p className="mt-6 text-sm font-bold text-pine" data-testid={WAITLIST_TEST_IDS.TEXT_SOCIAL_PROOF}>
@@ -284,7 +293,8 @@ export function WaitlistPage() {
           </div>
         </section>
 
-        {/* Close: back to the one action. */}
+        {/* Close: back to the one action (sign-up), so guests only. */}
+        {!account && (
         <section data-reveal className="relative mt-14 overflow-hidden rounded-[2rem] bg-mint-wash px-5 py-12 text-center sm:mt-20 sm:px-10 sm:py-14">
           <div className="relative">
             <KeyRound size={28} className="mx-auto text-shutter" aria-hidden />
@@ -299,6 +309,7 @@ export function WaitlistPage() {
             </Link>
           </div>
         </section>
+        )}
       </main>
 
       <SiteFooter />

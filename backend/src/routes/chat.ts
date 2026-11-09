@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Response } from "express";
 import { z } from "zod";
-import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
+import { requireAppAccess, requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { chatReadLimiter, messageLimiter } from "../middleware/rateLimit.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { ACTIVE_CONTRACT_ERROR, studentHasActiveContract } from "../lib/active-contract.js";
@@ -246,8 +246,10 @@ router.get(API_ROUTE_PATHS.CONVERSATIONS, requireAuth, chatReadLimiter, async (r
  * POST /api/conversations
  * Avvia (o riapre) la chat con il proprietario di un annuncio e invia il
  * primo messaggio. Usato dal pulsante "Scrivi a…" nel dettaglio annuncio.
+ * Prima del lancio solo admin e owner (requireAppAccess, come per gli annunci):
+ * uno studente non può aprire chat chiamando l'API a mano.
  */
-router.post(API_ROUTE_PATHS.CONVERSATIONS, requireAuth, messageLimiter, async (req, res) => {
+router.post(API_ROUTE_PATHS.CONVERSATIONS, requireAuth, requireAppAccess, messageLimiter, async (req, res) => {
   const { userId } = req as AuthenticatedRequest;
   const parsed = StartConversationBody.safeParse(req.body);
   if (!parsed.success) {
