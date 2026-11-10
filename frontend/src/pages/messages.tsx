@@ -19,7 +19,7 @@ import { useDeleteConversation } from '@/hooks/use-delete-conversation';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useReleaseListing } from '@/hooks/use-release-listing';
 import { getOwnerListingsQueryKey } from '@/hooks/use-list-owner-listings';
-import { normalizeMessages } from '@/lib/chat-messages';
+import { isDeletedMessage, normalizeMessages, participantName } from '@/lib/chat-messages';
 import { useLanguage } from '@/lib/i18n';
 import { AppShell, Avatar } from '@/components/layout/app-shell';
 import { Button } from '@/components/shared/button';
@@ -100,7 +100,10 @@ function TimeAgo({ value }: { value: string }) {
 }
 
 function MessageBubble({ message, viewerRole }: { message: Message; viewerRole: 'owner' | 'student' }) {
+  const { t } = useLanguage();
   const mine = message.sender === viewerRole;
+  // Its author deleted their account: the text is gone, only a placeholder is shown.
+  const deleted = isDeletedMessage(message);
   const isSystem = message.kind === 'system';
   if (isSystem) {
     return (
@@ -116,7 +119,9 @@ function MessageBubble({ message, viewerRole }: { message: Message; viewerRole: 
           mine ? 'rounded-br-md bg-[#0F6E56] text-[#E1F5EE]' : 'rounded-bl-md bg-[#E1F5EE] text-[#085041]'
         }`}
       >
-        <p className="whitespace-pre-wrap break-words">{message.body}</p>
+        <p className={`whitespace-pre-wrap break-words ${deleted ? 'italic opacity-80' : ''}`}>
+          {deleted ? t('messages.deletedMessage') : message.body}
+        </p>
         <p className={`mt-1 text-[10px] font-bold ${mine ? 'text-[#9FE1CB]' : 'text-[#527067]'}`}>
           <TimeAgo value={message.sentAt} />
         </p>
@@ -191,11 +196,11 @@ function ConversationList({
             }`}
             data-testid={`${MESSAGE_TEST_IDS.CONVERSATION_LINK_PREFIX}${conversation.id}`}
           >
-            <Avatar name={conversation.participant} />
+            <Avatar name={participantName(conversation, t('messages.deletedUser'))} />
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <h3 className="truncate text-sm font-black text-[#085041]">{conversation.participant}</h3>
+                  <h3 className="truncate text-sm font-black text-[#085041]">{participantName(conversation, t('messages.deletedUser'))}</h3>
                   <p className="truncate text-xs font-bold text-[#0F6E56]">{conversation.listingTitle}</p>
                   <span className={`mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${colorBg} ${colorText}`}>
                     {statusText}
@@ -554,10 +559,10 @@ function ConversationPanel({
             >
               <ChevronLeft size={20} />
             </Link>
-            {conversation && <Avatar name={conversation.participant} size="sm" />}
+            {conversation && <Avatar name={participantName(conversation, t('messages.deletedUser'))} size="sm" />}
             <div>
               <h2 className="font-black text-[#085041]">
-                {conversation?.participant ?? t('messages.conversationFallback')}
+                {conversation ? participantName(conversation, t('messages.deletedUser')) : t('messages.conversationFallback')}
               </h2>
               <p className="text-xs font-bold text-[#527067]">
                 {conversation?.listingTitle ?? t('messages.roomlyMessagesFallback')}

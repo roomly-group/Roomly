@@ -25,6 +25,7 @@ export const API_ROUTE_PATHS = {
   OWNER_CONTRACT_STATUS: "/owner/contracts/:id/status",
   ME_ROLE: "/me/role",
   ME: "/me",
+  ME_EXPORT: "/me/export",
   ME_PROFILE: "/me/profile",
   ME_LANGUAGE: "/me/language",
   ME_PREFERENCES: "/me/preferences",

@@ -1,6 +1,7 @@
 import { contractTranslations } from './i18n-contracts';
 import { verificationTranslations } from './i18n-verification';
 import { adminTranslations } from './i18n-admin';
+import { accountTranslations } from './i18n-account';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { patchAccount, useAccount } from '@/lib/account-cache';
@@ -67,6 +68,7 @@ function loadStoredLanguage(userId: string): LanguageCode | null {
 export const translations = {
   en: {
     ...contractTranslations.en,
+    ...accountTranslations.en,
     ...verificationTranslations.en,
     ...adminTranslations.en,
     'nav.findRoom': 'Find a room',
@@ -871,6 +873,7 @@ export const translations = {
   },
   it: {
     ...contractTranslations.it,
+    ...accountTranslations.it,
     ...verificationTranslations.it,
     ...adminTranslations.it,
     'nav.findRoom': 'Trova una stanza',
@@ -1673,6 +1676,7 @@ export const translations = {
   },
   es: {
     ...contractTranslations.es,
+    ...accountTranslations.es,
     ...verificationTranslations.es,
     'nav.findRoom': 'Encontrar una habitación',
     'nav.messages': 'Mensajes',
@@ -2330,6 +2334,7 @@ export const translations = {
   },
     fr: {
     ...contractTranslations.fr,
+    ...accountTranslations.fr,
     ...verificationTranslations.fr,
     'nav.findRoom': 'Trouver une chambre',
     'nav.messages': 'Messages',
@@ -2986,6 +2991,7 @@ export const translations = {
   },
   de: {
     ...contractTranslations.de,
+    ...accountTranslations.de,
     ...verificationTranslations.de,
     'nav.findRoom': 'Zimmer finden',
     'nav.messages': 'Nachrichten',
@@ -3642,6 +3648,7 @@ export const translations = {
   },
   pt: {
     ...contractTranslations.pt,
+    ...accountTranslations.pt,
     ...verificationTranslations.pt,
     'nav.findRoom': 'Encontrar um quarto',
     'nav.messages': 'Mensagens',

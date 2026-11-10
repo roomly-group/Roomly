@@ -1,16 +1,36 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Link } from 'wouter';
-import { BadgeCheck, Camera, Clock, Loader2, Lock, Settings, ShieldCheck, SlidersHorizontal } from 'lucide-react';
-import { API_BASE_PATH, API_ROUTE_PATHS, PROFILE_BIO_MAX_LENGTH_CHARS, USER_PREFERENCE_OPTIONS, type UserPreferences } from '@workspace/api-zod';
+import { Link, useLocation } from 'wouter';
+import { BadgeCheck, Camera, Clock, Database, Download, Loader2, Lock, Settings, ShieldCheck, SlidersHorizontal, Trash2 } from 'lucide-react';
+import {
+  ACCOUNT_DELETE_CONFIRMATION,
+  ACCOUNT_DELETE_ERROR_CODES,
+  API_BASE_PATH,
+  API_ROUTE_PATHS,
+  PROFILE_BIO_MAX_LENGTH_CHARS,
+  USER_PREFERENCE_OPTIONS,
+  type UserPreferences,
+} from '@workspace/api-zod';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/lib/i18n';
 import { AppShell, Avatar } from '@/components/layout/app-shell';
 import { PageIntro } from '@/components/shared/page-intro';
+import { Button } from '@/components/shared/button';
 import { LanguageSetting } from '@/components/language-selector';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { patchAccount, useAccount } from '@/lib/account-cache';
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { clearRoleCache } from '@/lib/role-cache';
+import { clearAccountCache, patchAccount, useAccount } from '@/lib/account-cache';
 import { APP_ROUTES } from '@/lib/constants';
 import { fetchOnboarding, fromBoolean, isAdult, toBoolean, type OnboardingData, type YesNoAny } from '@/lib/onboarding';
 import { ChipGroup, ChoiceChip } from '@/components/onboarding/choice';
@@ -34,6 +54,20 @@ const BIRTH_DATE_FORMAT: Intl.DateTimeFormatOptions = { day: 'numeric', month: '
 /** Same text field look as the onboarding "About you" step. */
 const TEXTAREA_CLASS =
   'w-full resize-none rounded-xl border border-field bg-paper px-3.5 py-3 text-base leading-7 text-ink transition-[border-color,box-shadow] placeholder:text-sage-placeholder focus-visible:border-shutter focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-mint-wash/40';
+/** Destructive (Terracotta) button, same shape as the shared Button (DESIGN.md "button-destructive"). */
+const DESTRUCTIVE_BUTTON_CLASS =
+  'inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-terracotta px-5 py-2.5 text-sm font-extrabold text-paper transition-all duration-200 hover:bg-terracotta/90 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50';
+/** Name of the downloaded data file when the server does not send one. */
+const EXPORT_FALLBACK_FILE_NAME = 'roomly-my-data.json' as const;
+/** Stable test selectors of the "Your data" section. */
+const ACCOUNT_DATA_TEST_IDS = {
+  SECTION: 'section-account-data',
+  BUTTON_EXPORT: 'button-export-data',
+  BUTTON_DELETE: 'button-delete-account',
+  INPUT_CONFIRM: 'input-delete-confirm',
+  BUTTON_CONFIRM_DELETE: 'button-confirm-delete-account',
+  BUTTON_REAUTH: 'button-delete-reauth',
+} as const;
 
 /** data_nascita is "yyyy-MM-dd" or '' (not set); bio is '' when empty. */
 type ProfileDraft = { nome: string; cognome: string; email: string; data_nascita: string; bio: string };
@@ -388,10 +422,278 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
             {!owner && details ? <PreferencesSection data={details} onSaved={setDetails} /> : null}
 
             <LanguageSetting />
+
+            {/* Kept last on purpose: download your data, then delete the account. */}
+            <AccountDataSection />
           </div>
         </div>
       </div>
     </AppShell>
+  );
+}
+
+// ===================== YOUR DATA (EXPORT + ACCOUNT DELETION) =====================
+
+/** Why a deletion did not go through; each one has its own friendly message. */
+type DeleteProblem = 'reauth' | 'contracts' | 'tooMany' | 'generic';
+
+/** `code` of a JSON error response, if any. */
+async function responseErrorCode(response: Response): Promise<string | undefined> {
+  try {
+    const body = (await response.json()) as { code?: unknown };
+    return typeof body.code === 'string' ? body.code : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Upper case without accents, so "loschen" matches "LÖSCHEN" and "elimina" matches "ELIMINA". */
+const normalizeConfirmWord = (value: string) =>
+  value.trim().normalize('NFD').replace(/\p{M}/gu, '').toUpperCase();
+
+/** File name from a `Content-Disposition: attachment; filename="..."` header. */
+function attachmentFileName(header: string | null): string {
+  const match = header?.match(/filename="?([^";]+)"?/i);
+  return match?.[1] ?? EXPORT_FALLBACK_FILE_NAME;
+}
+
+/** Ends the session in this browser: in-memory Supabase session and cached profile/role. */
+async function endLocalSession() {
+  await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+  clearRoleCache();
+  clearAccountCache();
+}
+
+/**
+ * "Your data", at the bottom of the profile: download a copy of everything
+ * Roomly stores about the user (GET /api/me/export), then delete the account
+ * (DELETE /api/me). Deleting asks to type a word first, and the backend also
+ * requires a login from the last few minutes.
+ */
+function AccountDataSection() {
+  const { t } = useLanguage();
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteProblem, setDeleteProblem] = useState<DeleteProblem | null>(null);
+
+  const confirmWord = t('account.deleteConfirmWord');
+  const confirmed = normalizeConfirmWord(confirmText) === normalizeConfirmWord(confirmWord);
+  const [confirmLabelBefore, confirmLabelAfter] = t('account.deleteConfirmLabel').split('{word}');
+
+  async function downloadData() {
+    setExporting(true);
+    setExportError(null);
+    try {
+      const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.ME_EXPORT}`, { credentials: 'include' });
+      if (!response.ok) {
+        setExportError(response.status === 429 ? t('account.deleteTooMany') : t('account.exportError'));
+        return;
+      }
+      // Save the JSON through a temporary link, then free the memory it used.
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = attachmentFileName(response.headers.get('Content-Disposition'));
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setExportError(t('account.exportError'));
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  function openDialog() {
+    setConfirmText('');
+    setDeleteProblem(null);
+    setDialogOpen(true);
+  }
+
+  async function deleteAccount(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!confirmed || deleting) return;
+
+    setDeleting(true);
+    setDeleteProblem(null);
+    try {
+      const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.ME}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: ACCOUNT_DELETE_CONFIRMATION }),
+      });
+
+      if (response.ok) {
+        // The backend already cleared the session cookies.
+        await endLocalSession();
+        toast({ title: t('account.deleted') });
+        setLocation(APP_ROUTES.ROOT);
+        return;
+      }
+
+      const code = await responseErrorCode(response);
+      setDeleteProblem(
+        code === ACCOUNT_DELETE_ERROR_CODES.REAUTH_REQUIRED
+          ? 'reauth'
+          : code === ACCOUNT_DELETE_ERROR_CODES.HAS_CONTRACTS
+            ? 'contracts'
+            : response.status === 429
+              ? 'tooMany'
+              : 'generic',
+      );
+    } catch {
+      setDeleteProblem('generic');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  // Log out completely and open the login page: the next login is "fresh"
+  // and lets the user delete the account.
+  async function logInAgain() {
+    await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.LOGOUT}`, { method: 'POST', credentials: 'include' }).catch(() => undefined);
+    await endLocalSession();
+    setLocation(APP_ROUTES.LOGIN);
+  }
+
+  const problemText: Record<DeleteProblem, string> = {
+    reauth: t('account.deleteReauth'),
+    contracts: t('account.deleteHasContracts'),
+    tooMany: t('account.deleteTooMany'),
+    generic: t('account.deleteError'),
+  };
+
+  return (
+    <section className="surface rounded-2xl p-5 sm:p-6" aria-labelledby="account-data-title" data-testid={ACCOUNT_DATA_TEST_IDS.SECTION}>
+      <h2 id="account-data-title" className="mb-5 flex items-center gap-2 text-xl font-black text-pine">
+        <Database size={18} className="text-shutter" aria-hidden />
+        {t('account.title')}
+      </h2>
+
+      {/* Download a copy of the data (GDPR right of access and portability). */}
+      <div>
+        <h3 className="text-[15px] font-black text-pine">{t('account.exportTitle')}</h3>
+        <p className="mt-1 text-sm leading-6 text-sage">{t('account.exportText')}</p>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => void downloadData()}
+          disabled={exporting}
+          className="mt-4 min-h-12 w-full px-5 sm:w-auto"
+          data-testid={ACCOUNT_DATA_TEST_IDS.BUTTON_EXPORT}
+        >
+          {exporting ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <Download size={16} aria-hidden />}
+          {exporting ? t('account.exporting') : t('account.exportButton')}
+        </Button>
+        {exportError ? (
+          <p className="mt-3 text-sm font-semibold text-terracotta" role="alert">
+            {exportError}
+          </p>
+        ) : null}
+      </div>
+
+      {/* Delete the account (GDPR right to erasure). */}
+      <div className="mt-6 border-t border-line pt-6">
+        <h3 className="text-[15px] font-black text-pine">{t('account.deleteTitle')}</h3>
+        <p className="mt-1 text-sm leading-6 text-sage">{t('account.deleteText')}</p>
+        <button
+          type="button"
+          onClick={openDialog}
+          className={`mt-4 w-full sm:w-auto ${DESTRUCTIVE_BUTTON_CLASS}`}
+          data-testid={ACCOUNT_DATA_TEST_IDS.BUTTON_DELETE}
+        >
+          <Trash2 size={16} aria-hidden />
+          {t('account.deleteButton')}
+        </button>
+      </div>
+
+      <AlertDialog open={dialogOpen} onOpenChange={(open) => !deleting && setDialogOpen(open)}>
+        <AlertDialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] overflow-y-auto rounded-2xl bg-paper sm:max-w-md">
+          <form onSubmit={deleteAccount} className="space-y-4" noValidate>
+            <AlertDialogHeader className="text-left">
+              <AlertDialogTitle className="text-xl font-black text-pine">{t('account.deleteDialogTitle')}</AlertDialogTitle>
+              <AlertDialogDescription className="text-sm leading-6 text-ink">{t('account.deleteDialogIntro')}</AlertDialogDescription>
+            </AlertDialogHeader>
+
+            <ul className="list-disc space-y-1 pl-5 text-sm leading-6 text-ink">
+              <li>{t('account.deleteDialogProfile')}</li>
+              <li>{t('account.deleteDialogListings')}</li>
+              <li>{t('account.deleteDialogVerification')}</li>
+            </ul>
+            <p className="text-sm leading-6 text-sage">{t('account.deleteDialogChats')}</p>
+            <p className="rounded-xl bg-mint-mist px-4 py-3 text-sm font-bold text-pine">{t('account.deleteDialogExportHint')}</p>
+
+            <div className="space-y-2">
+              <Label htmlFor="delete-account-confirm">
+                {confirmLabelBefore}
+                <span className="font-black text-terracotta">{confirmWord}</span>
+                {confirmLabelAfter}
+              </Label>
+              <Input
+                id="delete-account-confirm"
+                value={confirmText}
+                onChange={(event) => {
+                  setConfirmText(event.target.value);
+                  setDeleteProblem(null);
+                }}
+                autoComplete="off"
+                autoCapitalize="characters"
+                spellCheck={false}
+                disabled={deleting}
+                aria-describedby={deleteProblem ? 'delete-account-problem' : undefined}
+                data-testid={ACCOUNT_DATA_TEST_IDS.INPUT_CONFIRM}
+              />
+            </div>
+
+            {deleteProblem ? (
+              <div id="delete-account-problem" className="rounded-xl bg-terracotta-mist px-4 py-3 text-sm font-semibold text-terracotta" role="alert">
+                <p>{problemText[deleteProblem]}</p>
+                {deleteProblem === 'reauth' ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void logInAgain()}
+                    className="mt-3 min-h-11 bg-paper"
+                    data-testid={ACCOUNT_DATA_TEST_IDS.BUTTON_REAUTH}
+                  >
+                    {t('account.deleteReauthButton')}
+                  </Button>
+                ) : null}
+                {deleteProblem === 'contracts' ? (
+                  <Link href={APP_ROUTES.CONTACT} className="mt-2 inline-block font-extrabold text-pine underline underline-offset-2">
+                    {t('account.deleteContactLink')}
+                  </Link>
+                ) : null}
+              </div>
+            ) : null}
+
+            <AlertDialogFooter className="gap-2 sm:space-x-0">
+              <AlertDialogCancel disabled={deleting} className="min-h-12 rounded-xl">
+                {t('common.cancel')}
+              </AlertDialogCancel>
+              <button
+                type="submit"
+                disabled={!confirmed || deleting}
+                className={DESTRUCTIVE_BUTTON_CLASS}
+                data-testid={ACCOUNT_DATA_TEST_IDS.BUTTON_CONFIRM_DELETE}
+              >
+                {deleting ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <Trash2 size={16} aria-hidden />}
+                {deleting ? t('account.deleting') : t('account.deleteConfirm')}
+              </button>
+            </AlertDialogFooter>
+          </form>
+        </AlertDialogContent>
+      </AlertDialog>
+    </section>
   );
 }
 

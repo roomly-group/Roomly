@@ -206,6 +206,28 @@ export const chatReadLimiter = rateLimit({
   },
 });
 
+/** Account deletions + data exports allowed per user per 15 minutes (requests). */
+const ACCOUNT_DATA_RATE_LIMIT_MAX_REQUESTS = 5 as const;
+
+/**
+ * Rate limiter for DELETE /api/me and GET /api/me/export. Both read or delete
+ * every row and file of a user, so one account may not hammer them.
+ * Keyed by user; mount after requireAuth.
+ */
+export const accountDataLimiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW_15_MINUTES_MS, // 15 minutes
+  max: ACCOUNT_DATA_RATE_LIMIT_MAX_REQUESTS,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const userId = (req as Request & { userId?: string }).userId;
+    return userId ? `account:${userId}` : extractIP(req);
+  },
+  handler: (_req: Request, res: Response) => {
+    res.status(429).json({ error: 'Too many requests, please try again later.' });
+  },
+});
+
 /** Profile-photo uploads allowed per user per window (uploads). */
 const PHOTO_UPLOAD_RATE_LIMIT_MAX_REQUESTS = 10 as const;
 

@@ -34,7 +34,7 @@ const PROCESSORS_EN = [
 const privacy: Record<Lang, LegalDoc> = {
   it: {
     title: 'Informativa sulla privacy',
-    updated: 'Ultimo aggiornamento: 23 ottobre 2026',
+    updated: 'Ultimo aggiornamento: 10 novembre 2026',
     intro:
       'Questa informativa spiega quali dati personali tratta Roomly, perché, su quale base giuridica e quali diritti hai, ai sensi degli artt. 13 e 14 del Regolamento (UE) 2016/679 ("GDPR") e del D.Lgs. 196/2003 come modificato dal D.Lgs. 101/2018.',
     sections: [
@@ -110,6 +110,7 @@ const privacy: Record<Lang, LegalDoc> = {
         title: '9. I tuoi diritti',
         paragraphs: [
           `In qualsiasi momento puoi esercitare i diritti previsti dagli artt. 15-22 GDPR scrivendo a ${EMAIL}: accesso, rettifica, cancellazione, limitazione, portabilità dei dati e opposizione al trattamento basato sul legittimo interesse. Risponderemo entro un mese.`,
+          `Puoi anche fare da solo, dalla sezione "I tuoi dati" in fondo al tuo profilo: "Scarica i miei dati" ti dà una copia dei tuoi dati in un file leggibile (JSON); "Elimina il mio account" cancella subito account, profilo, preferenze, annunci con le loro foto e chat, e i documenti della verifica dell’identità. Per sicurezza devi aver effettuato l’accesso da pochi minuti. Nelle chat sulle stanze di altri proprietari, il proprietario vedrà "Utente eliminato" al posto del tuo nome e i tuoi messaggi verranno rimossi. Se hai un contratto d’affitto su Roomly non annullato, l’eliminazione automatica non è disponibile: scrivi a ${EMAIL} e ti aiutiamo, conservando solo quanto richiesto dalla legge.`,
           'Se ritieni che il trattamento violi il GDPR, puoi proporre reclamo al Garante per la protezione dei dati personali (www.garanteprivacy.it) o all’autorità del Paese UE in cui risiedi.',
         ],
       },
@@ -131,7 +132,7 @@ const privacy: Record<Lang, LegalDoc> = {
   },
   en: {
     title: 'Privacy Policy',
-    updated: 'Last updated: 23 October 2026',
+    updated: 'Last updated: 10 November 2026',
     intro:
       'This notice explains which personal data Roomly processes, why, on what legal basis and which rights you have, under Articles 13 and 14 of Regulation (EU) 2016/679 ("GDPR") and Italian Legislative Decree 196/2003 as amended. The Italian version prevails.',
     sections: [
@@ -203,6 +204,7 @@ const privacy: Record<Lang, LegalDoc> = {
         title: '9. Your rights',
         paragraphs: [
           `You can exercise your rights under Articles 15-22 GDPR at any time by writing to ${EMAIL}: access, rectification, erasure, restriction, data portability and objection to processing based on legitimate interest. We reply within one month.`,
+          `You can also do it yourself, from "Your data" at the bottom of your profile: "Download my data" gives you a copy of your data in a readable file (JSON); "Delete my account" immediately deletes your account, profile, preferences, listings with their photos and chats, and your identity check documents. For your safety you must have logged in within the last few minutes. In chats about other owners’ rooms, the owner will see "Deleted user" instead of your name and your messages will be removed. If you have a rental contract on Roomly that is not cancelled, automatic deletion is not available: write to ${EMAIL} and we will help you, keeping only what the law requires.`,
           'You can lodge a complaint with the Italian Data Protection Authority (www.garanteprivacy.it) or with the authority of the EU country where you live.',
         ],
       },

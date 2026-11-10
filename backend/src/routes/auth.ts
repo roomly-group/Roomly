@@ -10,8 +10,8 @@ import crypto from 'crypto';
 
 // ===================== CONFIGURATION =====================
 
-/** Cookie key carrying the authenticated access token. */
-const ACCESS_TOKEN_COOKIE_NAME = 'sb-token' as const;
+/** Cookie key carrying the authenticated access token (exported for DELETE /api/me). */
+export const ACCESS_TOKEN_COOKIE_NAME = 'sb-token' as const;
 /** Cookie key carrying the refresh token. */
 const REFRESH_TOKEN_COOKIE_NAME = 'sb-refresh-token' as const;
 /** Path scope shared by authentication and CSRF cookies. */
@@ -71,7 +71,8 @@ function setRefreshCookie(res: Response, refreshToken: string, options: { maxAge
   res.cookie(REFRESH_TOKEN_COOKIE_NAME, refreshToken, opts);
 }
 
-function clearAuthCookies(res: Response) {
+// Exported for DELETE /api/me (routes/me.ts), which logs the user out after deleting the account.
+export function clearAuthCookies(res: Response) {
   const base = { path: AUTH_COOKIE_PATH, httpOnly: true, secure: isProd, sameSite: 'lax' as const };
   res.clearCookie(ACCESS_TOKEN_COOKIE_NAME, base);
   res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, base);

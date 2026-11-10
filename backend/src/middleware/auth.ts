@@ -97,6 +97,16 @@ export async function requireAdmin(
 const APP_ACCESS_CACHE_TTL_MS = 60_000 as const;
 const appAccessCache = new Map<string, { allowed: boolean; expires: number }>();
 
+/**
+ * Drops every cached token and access check of one user. Called right after
+ * an account is deleted: otherwise its tokens would keep passing requireAuth
+ * for up to TOKEN_CACHE_TTL_MS.
+ */
+export function forgetUser(userId: string): void {
+  for (const [token, entry] of tokenCache) if (entry.userId === userId) tokenCache.delete(token);
+  appAccessCache.delete(userId);
+}
+
 // Pre-launch, the listings part of the app is open only to admins and owners
 // (the frontend gates the same pages with RequireAdmin allowOwner). Without
 // this, anyone could page through /api/listings and collect owner names,

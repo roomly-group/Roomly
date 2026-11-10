@@ -162,7 +162,8 @@ export const ListConversationsResponseItem = zod.object({
   "role": zod.enum(['student', 'owner']).optional(),
   "requestStatus": zod.string(),
   "roomId": zod.number(),
-  "roomStatus": zod.string()
+  "roomStatus": zod.string(),
+  "participantDeleted": zod.boolean().optional()
 })
 export const ListConversationsResponse = zod.array(ListConversationsResponseItem)
 

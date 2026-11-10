@@ -10,6 +10,7 @@ import {
   SendMessageBody,
   SendMessageResponse,
   API_ROUTE_PATHS,
+  DELETED_MESSAGE_TYPE,
   MESSAGE_MAX_LENGTH_CHARS,
   MESSAGES_PAGE_SIZE,
 } from "@workspace/api-zod";
@@ -33,20 +34,23 @@ const StartConversationBody = z.object({
 
 type PersonRow = { nome_utente?: string | null; nome?: string | null; cognome?: string | null } | null;
 
+// studente_id / mittente_id are null once that user deleted their account
+// (migrations/016_elimina_account.sql): the chat stays for the owner.
 type ConversationRow = {
   id: number;
   stanza_id: number;
+  studente_id: string | null;
   updated_at: string;
   stato_richiesta: string;
   stanza?: { titolo?: string | null; proprietario_id: string; stato: string } | null;
   partecipanti?: Array<{ utente_id: string; utente?: PersonRow }> | null;
-  messaggi?: Array<{ testo: string; mittente_id: string; created_at: string }> | null;
+  messaggi?: Array<{ testo: string; mittente_id: string | null; created_at: string; tipo: string }> | null;
 };
 
 type MessageRow = {
   id: number;
   conversazione_id: number;
-  mittente_id: string;
+  mittente_id: string | null;
   testo: string;
   created_at: string;
   letto?: boolean;
@@ -59,11 +63,12 @@ type MessageRow = {
 const CONVERSATION_SELECT = `
   id,
   stanza_id,
+  studente_id,
   updated_at,
   stato_richiesta,
   stanza:stanza_id(titolo, proprietario_id, stato),
   partecipanti:conversazioni_utenti(utente_id, utente:utente_id(nome_utente, nome, cognome)),
-  messaggi(testo, mittente_id, created_at)
+  messaggi(testo, mittente_id, created_at, tipo)
 `;
 
 const displayName = (person: PersonRow | undefined): string => {
@@ -96,10 +101,14 @@ const roleOf = (conversation: ConversationRow, userId: string): "student" | "own
 const toConversation = (row: ConversationRow, userId: string, unreadCount: number) => {
   const other = (row.partecipanti ?? []).find((p) => p.utente_id !== userId);
   const last = row.messaggi?.[0];
-  const preview = last?.testo ?? "";
+  // A deleted user's text was wiped: no preview for it.
+  const preview = last && last.tipo !== DELETED_MESSAGE_TYPE ? last.testo : "";
+  const role = roleOf(row, userId);
   return {
     id: row.id,
-    role: roleOf(row, userId),
+    role,
+    // The student deleted their account: the UI shows "Deleted user".
+    participantDeleted: role === "owner" && row.studente_id === null,
     participant: displayName(other?.utente),
     listingTitle: row.stanza?.titolo ?? "",
     preview: preview.length > MESSAGE_PREVIEW_LENGTH_CHARS ? `${preview.slice(0, MESSAGE_PREVIEW_LENGTH_CHARS - 1)}…` : preview,
@@ -128,7 +137,8 @@ async function conversationResponseFor(conversationId: number, userId: string) {
 const toMessage = (row: MessageRow, ownerId: string | undefined) => ({
   id: row.id,
   conversationId: row.conversazione_id,
-  body: row.testo,
+  // tipo "eliminato": its author deleted their account, the UI shows "Message deleted".
+  body: row.tipo === DELETED_MESSAGE_TYPE ? "" : row.testo,
   // Ruolo di chi ha scritto nella conversazione: la UI lo confronta col ruolo
   // con cui l'utente sta guardando la chat (studente / proprietario).
   sender: row.mittente_id === ownerId ? "owner" : "student",
@@ -459,7 +469,7 @@ router.post(API_ROUTE_PATHS.CONVERSATION_MESSAGES, requireAuth, messageLimiter, 
 type RequestContext = {
   id: number;
   stanza_id: number;
-  studente_id: string;
+  studente_id: string | null;
   stato_richiesta: string;
   stanza: { proprietario_id: string; stato: string } | null;
 };
@@ -519,7 +529,8 @@ router.post(API_ROUTE_PATHS.CONVERSATION_ACCEPT, requireAuth, messageLimiter, as
     if (!found) return res.status(404).json({ error: "Conversation not found" });
     const { ctx, isOwner } = found;
     if (!isOwner) return res.status(403).json({ error: "Not authorized" });
-    if (ctx.stato_richiesta !== "in_attesa") {
+    // No student: they deleted their account (their requests were cancelled too).
+    if (ctx.stato_richiesta !== "in_attesa" || !ctx.studente_id) {
       return res.status(409).json({ error: "Request is not pending" });
     }
     if (ctx.stanza?.stato !== "disponibile") {

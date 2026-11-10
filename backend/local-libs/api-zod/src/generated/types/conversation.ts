@@ -23,4 +23,6 @@ export interface Conversation {
   roomId: number;
   /** Stato della stanza: disponibile, affittata, etc. */
   roomStatus: string;
+  /** True when the other person deleted their account (the UI shows "Deleted user"). */
+  participantDeleted?: boolean;
 }

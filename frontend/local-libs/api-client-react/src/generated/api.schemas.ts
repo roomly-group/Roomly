@@ -119,6 +119,8 @@ export interface Conversation {
   requestStatus: 'in_attesa' | 'accettata' | 'rifiutata' | 'annullata';
   roomId: number;
   roomStatus: string;
+  /** True when the other person deleted their account (shown as "Deleted user"). */
+  participantDeleted?: boolean;
 }
 
 export interface StartConversationInput {
@@ -139,7 +141,8 @@ export interface Message {
   sender: string;
   sentAt: string;
   kind?: 'user' | 'system' | 'text';
-  tipo?: 'testo' | 'sistema';
+  /** 'eliminato': the author deleted their account, the text was removed. */
+  tipo?: 'testo' | 'sistema' | 'eliminato';
 }
 
 export interface MessageInput {

@@ -1,11 +1,22 @@
 import { Router, type IRouter } from "express";
-import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
+import { forgetUser, requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
+import { accountDataLimiter } from "../middleware/rateLimit.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { ensureUtenteRecord } from "../lib/utenti.js";
 import { signedProfilePhotoUrl } from "../lib/profile-photo.js";
 import { waitlistPosition } from "../lib/waitlist.js";
 import { changesLockedIdentity } from "../lib/verification.js";
 import {
+  ACCOUNT_DELETE_REAUTH_MAX_AGE_SECONDS,
+  buildAccountExport,
+  deleteAccount,
+  hasOpenContracts,
+  secondsSinceLastSignIn,
+} from "../lib/account.js";
+import { ACCESS_TOKEN_COOKIE_NAME, clearAuthCookies } from "./auth.js";
+import {
+  ACCOUNT_DELETE_CONFIRMATION,
+  ACCOUNT_DELETE_ERROR_CODES,
   API_ROUTE_PATHS,
   DEFAULT_USER_PREFERENCES,
   IDENTITY_LOCKED_CODE,
@@ -202,6 +213,76 @@ router.put(API_ROUTE_PATHS.ME_PREFERENCES, requireAuth, async (req: Authenticate
   }
 
   res.json(data);
+});
+
+// ===================== PERSONAL DATA (GDPR) =====================
+
+/** Name of the downloaded export file; the date (YYYY-MM-DD) is appended. */
+const EXPORT_FILE_NAME_PREFIX = "roomly-my-data-" as const;
+/** Spaces used to indent the export JSON, so people can read it. */
+const EXPORT_JSON_INDENT = 2 as const;
+
+/**
+ * GET /api/me/export
+ * Downloads everything Roomly stores about the caller as one JSON file
+ * (right of access and portability, GDPR Art. 15 and 20).
+ */
+router.get(API_ROUTE_PATHS.ME_EXPORT, requireAuth, accountDataLimiter, async (req, res) => {
+  const { userId } = req as AuthenticatedRequest;
+  try {
+    const data = await buildAccountExport(userId);
+    res.set("Cache-Control", "no-store");
+    res.attachment(`${EXPORT_FILE_NAME_PREFIX}${new Date().toISOString().slice(0, 10)}.json`);
+    res.type("application/json");
+    res.send(JSON.stringify(data, null, EXPORT_JSON_INDENT));
+  } catch (error) {
+    console.error("Failed to export account data:", error);
+    res.status(500).json({ error: "Impossibile preparare i tuoi dati" });
+  }
+});
+
+/**
+ * DELETE /api/me   body: { confirm: ACCOUNT_DELETE_CONFIRMATION }
+ * Deletes the caller's account and data (right to erasure, GDPR Art. 17).
+ * Allowed only within ACCOUNT_DELETE_REAUTH_MAX_AGE_SECONDS of a real login,
+ * so a stolen or forgotten session cannot delete an account. Refused (409)
+ * while the user has a contract that is not cancelled.
+ */
+router.delete(API_ROUTE_PATHS.ME, requireAuth, accountDataLimiter, async (req, res) => {
+  const { userId } = req as AuthenticatedRequest;
+
+  if ((req.body as { confirm?: unknown } | undefined)?.confirm !== ACCOUNT_DELETE_CONFIRMATION) {
+    res.status(400).json({ error: "Conferma mancante", code: ACCOUNT_DELETE_ERROR_CODES.CONFIRMATION_REQUIRED });
+    return;
+  }
+
+  const token = req.cookies?.[ACCESS_TOKEN_COOKIE_NAME] as string | undefined;
+  const sinceLogin = token ? secondsSinceLastSignIn(token) : null;
+  if (sinceLogin === null || sinceLogin > ACCOUNT_DELETE_REAUTH_MAX_AGE_SECONDS) {
+    res.status(403).json({ error: "Accedi di nuovo per eliminare l'account", code: ACCOUNT_DELETE_ERROR_CODES.REAUTH_REQUIRED });
+    return;
+  }
+
+  try {
+    // Checked before touching any file, so a refused deletion changes nothing.
+    // public.elimina_account checks again inside its transaction.
+    if (await hasOpenContracts(userId)) {
+      res.status(409).json({ error: "Hai un contratto attivo", code: ACCOUNT_DELETE_ERROR_CODES.HAS_CONTRACTS });
+      return;
+    }
+
+    if ((await deleteAccount(userId)) === "has_contracts") {
+      res.status(409).json({ error: "Hai un contratto attivo", code: ACCOUNT_DELETE_ERROR_CODES.HAS_CONTRACTS });
+      return;
+    }
+
+    forgetUser(userId);
+    clearAuthCookies(res);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Failed to delete account:", error);
+    res.status(500).json({ error: "Impossibile eliminare l'account, riprova" });
+  }
 });
 
 export default router;

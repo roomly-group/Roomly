@@ -6,6 +6,7 @@ import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { releaseRoom } from "../lib/rooms.js";
 import { isValidImage, reencodeAsJpeg, uploadImageType, type PhotoBox } from "../lib/image.js";
 import { signedProfilePhotoUrl } from "../lib/profile-photo.js";
+import { ROOM_PHOTO_BUCKET, createRoomPhotoSignedUrl, getRoomPhotoPath } from "../lib/room-photos.js";
 import { isUserVerified } from "../lib/verification.js";
 import {
   SEARCH_RADIUS_KM,
@@ -41,10 +42,6 @@ import {
 
 /** Stored listing photos: only shrunk, never cropped, to at most this box (px). */
 const ROOM_PHOTO_BOX: PhotoBox = { width: 2560, height: 2560, fit: "inside" };
-/** Supabase storage bucket used for listing-room photos. */
-const ROOM_PHOTO_BUCKET = "foto_stanze" as const;
-/** Lifetime of generated signed room-photo URLs (seconds). */
-const ROOM_PHOTO_URL_TTL_SECONDS = 3600 as const;
 /** Maximum university matches retrieved for zone resolution (records). */
 const UNIVERSITY_MATCH_LIMIT = 10 as const;
 /** Cache lifetime used for uploaded room photos (seconds, string required by storage API). */
@@ -69,37 +66,6 @@ type RoomRow = {
 } & Partial<RoomFeatureColumns>; // tipologia_proprieta, taglio_appartamento, mobili_inclusi, spese_incluse, elettrodomestici, arredi, servizi...
 
 const router: IRouter = Router();
-
-const getRoomPhotoPath = (storedUrl: string): string | null => {
-  const markers = [
-    `/object/public/${ROOM_PHOTO_BUCKET}/`,
-    `/object/sign/${ROOM_PHOTO_BUCKET}/`,
-  ];
-  const marker = markers.find((candidate) => storedUrl.includes(candidate));
-  if (!marker) return storedUrl.startsWith("http") ? null : storedUrl;
-
-  try {
-    return decodeURIComponent(storedUrl.slice(storedUrl.indexOf(marker) + marker.length).split("?", 1)[0]);
-  } catch {
-    return null;
-  }
-};
-
-const createRoomPhotoSignedUrl = async (storedUrl: string): Promise<string | null> => {
-  const path = getRoomPhotoPath(storedUrl);
-  if (!path) return null;
-
-  const { data, error } = await supabaseAdmin.storage
-    .from(ROOM_PHOTO_BUCKET)
-    .createSignedUrl(path, ROOM_PHOTO_URL_TTL_SECONDS);
-
-  if (error) {
-    console.warn("Failed to sign room photo URL:", error.message);
-    return null;
-  }
-
-  return data.signedUrl;
-};
 
 const mapRoomRowToListing = async (
   row: RoomRow,
