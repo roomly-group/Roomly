@@ -3,7 +3,7 @@ import { clearRoleCache, peekLastKnownRole, peekRoleCache } from '@/lib/role-cac
 import { clearAccountCache, useAccount } from '@/lib/account-cache';
 import { Link, useLocation } from 'wouter';
 import { ArrowRight, Home, ListOrdered, LogOut, Mail, Menu, ShieldCheck, UserRound } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { clearAuthSession, getAuthSession } from '@/lib/auth-session';
 import { useLanguage } from '@/lib/i18n';
 import { Avatar } from '@/components/shared/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -50,14 +50,8 @@ export function ProfileMenu({
 
   useEffect(() => {
     if (accountLoading || account) return;
-    let cancelled = false;
     // Fallback: at least show the auth email if /api/me isn't available.
-    void supabase.auth.getSession().then(({ data }) => {
-      if (!cancelled) setFallbackEmail(data.session?.user.email ?? null);
-    });
-    return () => {
-      cancelled = true;
-    };
+    setFallbackEmail(getAuthSession()?.user.email ?? null);
   }, [account, accountLoading]);
 
   useEffect(() => {
@@ -72,9 +66,8 @@ export function ProfileMenu({
 
   async function handleLogout() {
     await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.LOGOUT}`, { method: 'POST', credentials: 'include' });
-    // Drop the in-memory Supabase session too: otherwise auto-refresh keeps
-    // running and its TOKEN_REFRESHED handler re-creates the session cookies.
-    await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+    // Forget the user in this tab too (also stops the scheduled cookie refresh).
+    clearAuthSession();
     clearRoleCache();
     clearAccountCache();
     setLocation(logoutRedirect);

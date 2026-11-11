@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 import { useLanguage } from '@/lib/i18n';
-import { supabase } from '@/lib/supabase';
-import { APP_ROUTES } from '@/lib/constants';
 import { GoogleColorIcon } from '@/components/shared/brand-icons';
+
+// ===================== CONFIGURATION =====================
+
+/** Origin of our Supabase project: the only place the Google button may send the browser. */
+const SUPABASE_ORIGIN = new URL(import.meta.env.VITE_SUPABASE_URL).origin;
 
 // Whether Google is switched on in Supabase (Authentication → Sign In / Providers),
 // read once per page load from Supabase's public settings endpoint.
@@ -49,13 +53,20 @@ export function OAuthButtons() {
       return;
     }
     setPending(true);
-    // Leaves the page for Google, which sends the user back to the onboarding
-    // with the session in the URL (handled in lib/supabase.ts).
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}${APP_ROUTES.ONBOARDING}` },
-    });
-    if (oauthError) {
+    // The backend starts a PKCE login: it keeps the secret verifier in an
+    // HttpOnly cookie and gives back the Supabase URL. Google then sends the
+    // user back to the onboarding with a one-time `?code=` (no tokens in the
+    // URL), which lib/auth-session.ts trades for session cookies.
+    try {
+      const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.OAUTH_GOOGLE}`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const { url } = (response.ok ? await response.json() : {}) as { url?: unknown };
+      // Only ever leave for our own Supabase project, never for an unexpected address.
+      if (typeof url !== 'string' || new URL(url).origin !== SUPABASE_ORIGIN) throw new Error('Unexpected OAuth URL');
+      window.location.assign(url);
+    } catch {
       setPending(false);
       setError(t('auth.oauthError'));
     }

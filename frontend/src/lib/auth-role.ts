@@ -1,5 +1,4 @@
-import type { User } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
+import { getAuthSession, type AuthUser } from '@/lib/auth-session';
 import { getRoleInflight, peekRoleCache, setRoleCache, setRoleInflight } from '@/lib/role-cache';
 import { APP_ROUTES } from '@/lib/constants';
 import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
@@ -30,7 +29,7 @@ async function fetchRoleFromBackend(): Promise<RoleResponse | null> {
   }
 }
 
-async function fetchRole(user: User | null | undefined): Promise<RoleResponse> {
+async function fetchRole(user: AuthUser | null | undefined): Promise<RoleResponse> {
   if (!user) return DEFAULT_ROLE;
 
   // Cache fresca: niente getSession e niente rete.
@@ -40,8 +39,7 @@ async function fetchRole(user: User | null | undefined): Promise<RoleResponse> {
   const pending = getRoleInflight();
   if (pending) return (await pending) ?? DEFAULT_ROLE;
 
-  const { data } = await supabase.auth.getSession();
-  if (!data.session) return DEFAULT_ROLE;
+  if (!getAuthSession()) return DEFAULT_ROLE;
 
   const request = fetchRoleFromBackend().then((result) => {
     if (result) setRoleCache(result);
@@ -52,16 +50,16 @@ async function fetchRole(user: User | null | undefined): Promise<RoleResponse> {
   return (await request) ?? DEFAULT_ROLE;
 }
 
-export async function getRoleInfo(user: User | null | undefined): Promise<RoleResponse> {
+export async function getRoleInfo(user: AuthUser | null | undefined): Promise<RoleResponse> {
   return fetchRole(user);
 }
 
-export async function getUserRole(user: User | null | undefined): Promise<UserRole> {
+export async function getUserRole(user: AuthUser | null | undefined): Promise<UserRole> {
   const { role } = await fetchRole(user);
   return role;
 }
 
-export async function getIsOwner(user: User | null | undefined): Promise<boolean> {
+export async function getIsOwner(user: AuthUser | null | undefined): Promise<boolean> {
   const { owner } = await fetchRole(user);
   return owner;
 }
@@ -74,7 +72,7 @@ export function mainPageFor(role: { role: UserRole; owner: boolean } | null): st
   return role && (role.role === 'admin' || role.owner) ? APP_ROUTES.HOME : APP_ROUTES.WAITLIST_CONFIRMED;
 }
 
-export async function postAuthRoute(user: User | null | undefined): Promise<string> {
+export async function postAuthRoute(user: AuthUser | null | undefined): Promise<string> {
   const role = await getUserRole(user);
   // The onboarding forwards users who already finished it to WAITLIST_CONFIRMED.
   return role === 'admin' ? APP_ROUTES.HOME : APP_ROUTES.ONBOARDING;

@@ -6,12 +6,16 @@ import {
   ACCOUNT_DELETE_ERROR_CODES,
   API_BASE_PATH,
   API_ROUTE_PATHS,
+  EMAIL_CHANGE_ERROR_CODES,
+  EMAIL_CHANGE_METHODS,
   PROFILE_BIO_MAX_LENGTH_CHARS,
   USER_PREFERENCE_OPTIONS,
+  type EmailChangeMethod,
   type UserPreferences,
 } from '@workspace/api-zod';
-import { supabase } from '@/lib/supabase';
+import { clearAuthSession } from '@/lib/auth-session';
 import { useLanguage } from '@/lib/i18n';
+import { TurnstileWidget } from '@/components/shared/turnstile';
 import { AppShell, Avatar } from '@/components/layout/app-shell';
 import { PageIntro } from '@/components/shared/page-intro';
 import { Button } from '@/components/shared/button';
@@ -31,7 +35,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { clearRoleCache } from '@/lib/role-cache';
 import { clearAccountCache, patchAccount, useAccount } from '@/lib/account-cache';
-import { APP_ROUTES } from '@/lib/constants';
+import { APP_ROUTES, PASSWORD_FIELD_PLACEHOLDER } from '@/lib/constants';
 import { fetchOnboarding, fromBoolean, isAdult, toBoolean, type OnboardingData, type YesNoAny } from '@/lib/onboarding';
 import { ChipGroup, ChoiceChip } from '@/components/onboarding/choice';
 import { BirthDatePicker } from '@/components/shared/birth-date-picker';
@@ -69,8 +73,46 @@ const ACCOUNT_DATA_TEST_IDS = {
   BUTTON_REAUTH: 'button-delete-reauth',
 } as const;
 
+/** Longest one-time code Supabase can email (digits). */
+const EMAIL_CODE_MAX_LENGTH = 10 as const;
+/** Stable test selectors of the email-change check (password or emailed code). */
+const EMAIL_CHANGE_TEST_IDS = {
+  SECTION: 'email-change-check',
+  INPUT_PASSWORD: 'input-profile-email-password',
+  INPUT_CODE: 'input-profile-email-code',
+  BUTTON_SEND_CODE: 'button-send-email-code',
+} as const;
+
 /** data_nascita is "yyyy-MM-dd" or '' (not set); bio is '' when empty. */
 type ProfileDraft = { nome: string; cognome: string; email: string; data_nascita: string; bio: string };
+
+type Translate = ReturnType<typeof useLanguage>['t'];
+
+/** Plain-language reason for a refused email change (PATCH /api/me/email or POST /api/me/email/code). */
+async function emailChangeErrorText(response: Response, t: Translate, fallback: string): Promise<string> {
+  let code: unknown;
+  try {
+    code = ((await response.json()) as { code?: unknown }).code;
+  } catch {
+    // No JSON body: fall back to the status below.
+  }
+  switch (code) {
+    case EMAIL_CHANGE_ERROR_CODES.WRONG_PASSWORD:
+      return t('profile.emailWrongPassword');
+    case EMAIL_CHANGE_ERROR_CODES.WRONG_CODE:
+      return t('profile.emailWrongCode');
+    case EMAIL_CHANGE_ERROR_CODES.CAPTCHA_FAILED:
+      return t('auth.captchaRequired');
+    case EMAIL_CHANGE_ERROR_CODES.EMAIL_IN_USE:
+      return t('profile.emailInUse');
+    case EMAIL_CHANGE_ERROR_CODES.INVALID_EMAIL:
+      return t('profile.emailInvalid');
+    case EMAIL_CHANGE_ERROR_CODES.TOO_MANY_REQUESTS:
+      return t('profile.emailTooMany');
+    default:
+      return response.status === 429 ? t('profile.emailTooMany') : fallback;
+  }
+}
 
 async function profileError(response: Response): Promise<Error> {
   try {
@@ -112,6 +154,19 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
   // against the document, so they are read-only (the backend refuses changes too).
   const verification = useMyVerification();
   const identityLocked = verification.data?.identityLocked === true;
+  // Email change needs proof it's really the user: their current password,
+  // or (accounts without one, signed up with Google) a code sent by email.
+  // Both go with a Turnstile check, which Supabase requires.
+  const [emailMethod, setEmailMethod] = useState<EmailChangeMethod | null>(null);
+  const [emailPassword, setEmailPassword] = useState('');
+  const [emailCode, setEmailCode] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  // Bumped to remount Turnstile for a fresh single-use token after each attempt.
+  const [turnstileKey, setTurnstileKey] = useState(0);
+  const currentEmail = profile?.email?.trim().toLowerCase() ?? '';
+  const emailChanged = editing && draft.email.trim().toLowerCase() !== currentEmail;
 
   useEffect(() => {
     let active = true;
@@ -140,7 +195,57 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
     });
     setSaveError(null);
     setSaveMessage(null);
+    resetEmailCheck();
     setEditing(true);
+    // Which proof the email change needs (asked once per page).
+    if (!emailMethod) {
+      fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.ME_EMAIL}`, { credentials: 'include' })
+        .then((response) => (response.ok ? (response.json() as Promise<{ method?: unknown }>) : null))
+        .then((body) => {
+          if (body?.method === EMAIL_CHANGE_METHODS.PASSWORD || body?.method === EMAIL_CHANGE_METHODS.CODE) {
+            setEmailMethod(body.method);
+          }
+        })
+        .catch(() => undefined);
+    }
+  }
+
+  function resetEmailCheck() {
+    setEmailPassword('');
+    setEmailCode('');
+    setCodeSent(false);
+    setCaptchaToken(null);
+    setTurnstileKey((key) => key + 1);
+  }
+
+  // Accounts without a password: email a one-time code to the current address.
+  async function sendEmailCode() {
+    setSaveError(null);
+    if (!captchaToken) {
+      setSaveError(t('auth.captchaRequired'));
+      return;
+    }
+    setSendingCode(true);
+    try {
+      const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.ME_EMAIL_CODE}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ captchaToken }),
+      });
+      if (!response.ok) {
+        setSaveError(await emailChangeErrorText(response, t, t('profile.codeSendError')));
+        return;
+      }
+      setCodeSent(true);
+    } catch {
+      setSaveError(t('profile.codeSendError'));
+    } finally {
+      // The Turnstile token was used: get a fresh one in case they ask for a new code.
+      setSendingCode(false);
+      setCaptchaToken(null);
+      setTurnstileKey((key) => key + 1);
+    }
   }
 
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
@@ -158,6 +263,25 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
     if (draft.data_nascita && !isAdult(draft.data_nascita)) {
       setSaveError(t('auth.ageUnder18'));
       return;
+    }
+    // Email change: check the proof is filled in before saving anything.
+    if (email !== currentEmail) {
+      if (!emailMethod) {
+        setSaveError(t('profile.emailChangeError'));
+        return;
+      }
+      if (emailMethod === EMAIL_CHANGE_METHODS.PASSWORD && !emailPassword) {
+        setSaveError(t('profile.emailPasswordRequired'));
+        return;
+      }
+      if (emailMethod === EMAIL_CHANGE_METHODS.CODE && !emailCode.trim()) {
+        setSaveError(t('profile.emailCodeRequired'));
+        return;
+      }
+      if (emailMethod === EMAIL_CHANGE_METHODS.PASSWORD && !captchaToken) {
+        setSaveError(t('auth.captchaRequired'));
+        return;
+      }
     }
 
     setSaving(true);
@@ -200,20 +324,37 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
         }
       }
 
-      const currentEmail = profile?.email?.trim().toLowerCase() ?? '';
       if (email !== currentEmail) {
-        const { data, error } = await supabase.auth.updateUser({ email });
-        if (error) {
-          setSaveError(`${t('profile.nameSavedEmailFailed')} ${error.message}`);
+        // The backend checks the password (or code) and asks Supabase for the
+        // change; the session tokens never pass through this page.
+        const emailResponse = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.ME_EMAIL}`, {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(
+            emailMethod === EMAIL_CHANGE_METHODS.PASSWORD
+              ? { email, password: emailPassword, captchaToken }
+              : { email, code: emailCode.trim() },
+          ),
+        });
+        if (!emailResponse.ok) {
+          // The Turnstile token is single-use: get a fresh one for the next try.
+          setCaptchaToken(null);
+          setTurnstileKey((key) => key + 1);
+          setSaveError(
+            `${t('profile.nameSavedEmailFailed')} ${await emailChangeErrorText(emailResponse, t, t('profile.emailChangeError'))}`,
+          );
           return;
         }
 
-        if (data.user.email?.toLowerCase() === email) {
+        const result = (await emailResponse.json()) as { pending?: boolean };
+        if (result.pending === false) {
           patchAccount({ email });
           setSaveMessage(t('profile.saved'));
         } else {
           setSaveMessage(t('profile.emailConfirmationSent'));
         }
+        resetEmailCheck();
       } else {
         setSaveMessage(t('profile.saved'));
       }
@@ -332,6 +473,66 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
                         data-testid="input-profile-email"
                       />
                     </div>
+                    {emailChanged ? (
+                      // Shown only while the email differs from the current one.
+                      <div className="space-y-3 rounded-xl bg-mint-mist px-4 py-4 sm:col-span-2" data-testid={EMAIL_CHANGE_TEST_IDS.SECTION}>
+                        <p className="flex items-start gap-2 text-sm font-bold text-pine">
+                          <Lock size={16} className="mt-0.5 shrink-0" aria-hidden />
+                          {emailMethod === EMAIL_CHANGE_METHODS.CODE
+                            ? t('profile.emailCodeHint').replace('{email}', profile?.email ?? '')
+                            : t('profile.emailPasswordHint')}
+                        </p>
+                        {emailMethod === EMAIL_CHANGE_METHODS.PASSWORD ? (
+                          <div className="space-y-2">
+                            <Label htmlFor="profile-email-password">{t('profile.currentPasswordLabel')}</Label>
+                            <Input
+                              id="profile-email-password"
+                              type="password"
+                              value={emailPassword}
+                              onChange={(event) => setEmailPassword(event.target.value)}
+                              autoComplete="current-password"
+                              placeholder={PASSWORD_FIELD_PLACEHOLDER}
+                              data-testid={EMAIL_CHANGE_TEST_IDS.INPUT_PASSWORD}
+                            />
+                          </div>
+                        ) : null}
+                        {emailMethod === EMAIL_CHANGE_METHODS.CODE && codeSent ? (
+                          <div className="space-y-2">
+                            <Label htmlFor="profile-email-code">{t('profile.codeLabel')}</Label>
+                            <Input
+                              id="profile-email-code"
+                              inputMode="numeric"
+                              autoComplete="one-time-code"
+                              maxLength={EMAIL_CODE_MAX_LENGTH}
+                              value={emailCode}
+                              onChange={(event) => setEmailCode(event.target.value.replace(/\D/g, ''))}
+                              data-testid={EMAIL_CHANGE_TEST_IDS.INPUT_CODE}
+                            />
+                            <p className="text-xs font-bold text-sage" role="status">{t('profile.codeSent')}</p>
+                          </div>
+                        ) : null}
+                        {emailMethod ? (
+                          <TurnstileWidget
+                            key={turnstileKey}
+                            onVerify={setCaptchaToken}
+                            onExpire={() => setCaptchaToken(null)}
+                            onError={() => setCaptchaToken(null)}
+                          />
+                        ) : null}
+                        {emailMethod === EMAIL_CHANGE_METHODS.CODE ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => void sendEmailCode()}
+                            disabled={sendingCode || saving || !captchaToken}
+                            data-testid={EMAIL_CHANGE_TEST_IDS.BUTTON_SEND_CODE}
+                          >
+                            {sendingCode ? <Loader2 size={16} className="animate-spin" aria-hidden /> : null}
+                            {codeSent ? t('profile.resendCode') : t('profile.sendCode')}
+                          </Button>
+                        ) : null}
+                      </div>
+                    ) : null}
                     {details ? (
                       <>
                         <div className="space-y-2">
@@ -457,9 +658,9 @@ function attachmentFileName(header: string | null): string {
   return match?.[1] ?? EXPORT_FALLBACK_FILE_NAME;
 }
 
-/** Ends the session in this browser: in-memory Supabase session and cached profile/role. */
+/** Ends the session in this browser: the logged-in user and cached profile/role. */
 async function endLocalSession() {
-  await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+  clearAuthSession();
   clearRoleCache();
   clearAccountCache();
 }

@@ -45,7 +45,7 @@ import {
 import { AppShell, Avatar } from '@/components/layout/app-shell';
 import { ListingPhotoPlaceholder } from '@/components/shared/listing-card';
 import { QueryError } from '@/components/shared/query-error';
-import { supabase } from '@/lib/supabase';
+import { getAuthSession } from '@/lib/auth-session';
 import { cn } from '@/lib/utils';
 import { MESSAGE_MAX_LENGTH_CHARS } from '@workspace/api-zod';
 
@@ -204,13 +204,7 @@ export function ListingDetail() {
   const startConversation = useStartConversation();
 
   useEffect(() => {
-    let active = true;
-    void supabase.auth.getSession().then(({ data }) => {
-      if (active) setCurrentUserId(data.session?.user.id ?? null);
-    });
-    return () => {
-      active = false;
-    };
+    setCurrentUserId(getAuthSession()?.user.id ?? null);
   }, []);
 
   // The search this page was opened from, for the back link and the university to measure from.

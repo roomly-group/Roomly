@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Redirect } from 'wouter';
 import { getRoleInfo, UserRole } from '@/lib/auth-role';
 import { peekLastKnownRole, peekRoleCache } from '@/lib/role-cache';
-import { supabase } from '@/lib/supabase';
+import { getAuthSession } from '@/lib/auth-session';
 import { APP_ROUTES } from '@/lib/constants';
 import { useLanguage } from '@/lib/i18n';
 
@@ -28,8 +28,7 @@ export function RequireAdmin({
     let cancelled = false;
     async function loadRole() {
       try {
-        const { data } = await supabase.auth.getSession();
-        const user = data?.session?.user;
+        const user = getAuthSession()?.user;
         if (!user) {
           if (!cancelled) {
             setRole('user'); // treat as normal user if no session

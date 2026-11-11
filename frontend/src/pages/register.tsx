@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { AuthShell } from '@/components/layout/auth-shell';
 import { TurnstileWidget } from '@/components/shared/turnstile';
 import { OAuthButtons } from '@/components/shared/oauth-buttons';
-import { supabase } from '@/lib/supabase';
+import { restoreSession } from '@/lib/auth-session';
 import { postAuthRoute } from '@/lib/auth-role';
 import { APP_ROUTES, PASSWORD_FIELD_PLACEHOLDER, SHARED_TEST_IDS } from '@/lib/constants';
 import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
@@ -87,16 +87,8 @@ export function RegisterPage() {
 
       if (body.user) {
         // Email confirmation disabled in Supabase: the account is already
-        // logged in. Restore the session from the cookies, as /login does.
-        const verifyResponse = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.VERIFY}`, {
-          method: 'POST',
-          credentials: 'include',
-        });
-        if (!verifyResponse.ok) throw new Error(t('auth.registerError'));
-
-        const { session } = await verifyResponse.json();
-        const { error: setSessionError } = await supabase.auth.setSession(session);
-        if (setSessionError) throw setSessionError;
+        // logged in. Read the session from the cookies, as /login does.
+        if (!(await restoreSession())) throw new Error(t('auth.registerError'));
         clearRoleCache();
         clearAccountCache();
 

@@ -1,39 +1,28 @@
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import { ErrorBoundary } from '@/components/error-boundary';
-import { supabase, urlSessionSynced } from '@/lib/supabase';
-import { APP_ROUTES, WAITLIST_FAQ_ANCHOR_URL } from '@/lib/constants';
+import { consumeAuthRedirect, getAuthSession, restoreSession } from '@/lib/auth-session';
+import { APP_ROUTES, AUTH_LINK_FAILED_QUERY, WAITLIST_FAQ_ANCHOR_URL } from '@/lib/constants';
 import { clearRoleCache } from '@/lib/role-cache';
 import { clearAccountCache } from '@/lib/account-cache';
 import { rememberInviteFromUrl } from '@/lib/onboarding';
-import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 import './index.css';
 
 async function initializeApp() {
   try {
-    // Back from Google or the confirmation email: the session came in the
-    // URL and is now in our cookies too, so the user is logged in.
-    if (await urlSessionSynced) {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) return data.session;
-    }
+    // Back from Google or an email link (`?code=`): the backend turned the
+    // code into session cookies, so the user is logged in.
+    const redirect = await consumeAuthRedirect();
+    if (redirect === 'signed_in') return getAuthSession();
 
-    // Check if we have a valid session cookie and restore Supabase session
-    const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.VERIFY}`, {
-      method: 'POST',
-      credentials: 'include',
-    });
-
-    if (response.ok) {
-      const { session } = await response.json();
-      if (session) {
-        await supabase.auth.setSession(session);
-        return session;
-      }
+    // Otherwise read the session from the HttpOnly cookies, if any.
+    const session = await restoreSession();
+    // The link could not log them in (other browser, expired, already used):
+    // show the login page, which explains it in plain words.
+    if (!session && redirect === 'failed') {
+      window.history.replaceState(null, '', `${APP_ROUTES.LOGIN}?${AUTH_LINK_FAILED_QUERY}`);
     }
-    // If not ok or no session, supabase.auth.getSession() will return null
-    // which is fine - auth checks will handle this appropriately
-    return null;
+    return session;
   } catch (error) {
     console.error('Failed to initialize app session:', error);
     // Continue anyway - auth checks will handle unauthenticated state

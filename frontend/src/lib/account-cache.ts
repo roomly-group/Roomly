@@ -1,5 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getAuthSession } from '@/lib/auth-session';
 import { storage } from '@/lib/storage';
 import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 
@@ -69,8 +69,7 @@ export function loadAccount({ force = false }: { force?: boolean } = {}): Promis
   inflight = (async () => {
     let account: Account | null = snapshot.account;
     try {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
+      if (!getAuthSession()) {
         account = null;
       } else {
         const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.ME}`, { credentials: 'include' });

@@ -52,6 +52,12 @@ export const SOCIAL_PROFILE_URLS = {
   TIKTOK: 'https://www.tiktok.com/@roomlygroup',
 } as const;
 
+/**
+ * Query flag on /login set when a Google or email link could not log the user
+ * in (e.g. opened in another browser): the login page then explains why.
+ */
+export const AUTH_LINK_FAILED_QUERY = 'link=failed' as const;
+
 /** Mask displayed in password and confirmation fields (placeholder text). */
 export const PASSWORD_FIELD_PLACEHOLDER = '••••••••' as const;
 

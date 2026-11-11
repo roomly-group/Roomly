@@ -1,6 +1,7 @@
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { type Request, type Response } from 'express';
 import { getClientIp } from './originSecret.js';
+import { EMAIL_CHANGE_ERROR_CODES } from '@workspace/api-zod';
 
 // ===================== CONFIGURATION =====================
 
@@ -246,5 +247,45 @@ export const photoUploadLimiter = rateLimit({
   },
   handler: (_req: Request, res: Response) => {
     res.status(429).json({ error: 'Troppi caricamenti, riprova tra un minuto.' });
+  },
+});
+
+/** Google-login starts and code exchanges allowed per IP per window (requests). */
+const OAUTH_RATE_LIMIT_MAX_REQUESTS = 30 as const;
+
+/**
+ * Rate limiter for POST /api/oauth/google and POST /api/oauth/exchange.
+ * A real login uses one of each; this only stops scripts from hammering them.
+ */
+export const oauthLimiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW_15_MINUTES_MS, // 15 minutes
+  max: OAUTH_RATE_LIMIT_MAX_REQUESTS,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => `oauth:${extractIP(req)}`,
+  handler: (_req: Request, res: Response) => {
+    res.status(429).json({ error: 'Too many requests, please try again later.' });
+  },
+});
+
+/** Email-change attempts (password or code checks, code emails) allowed per user per window. */
+const EMAIL_CHANGE_RATE_LIMIT_MAX_REQUESTS = 5 as const;
+
+/**
+ * Rate limiter for PATCH /api/me/email and POST /api/me/email/code: each call
+ * checks a password or code, or sends an email, so one account may not
+ * guess passwords or flood an inbox through them. Keyed by user; mount after requireAuth.
+ */
+export const emailChangeLimiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW_15_MINUTES_MS, // 15 minutes
+  max: EMAIL_CHANGE_RATE_LIMIT_MAX_REQUESTS,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const userId = (req as Request & { userId?: string }).userId;
+    return userId ? `email-change:${userId}` : extractIP(req);
+  },
+  handler: (_req: Request, res: Response) => {
+    res.status(429).json({ error: 'Too many requests, please try again later.', code: EMAIL_CHANGE_ERROR_CODES.TOO_MANY_REQUESTS });
   },
 });

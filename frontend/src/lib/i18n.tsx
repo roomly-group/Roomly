@@ -3,7 +3,7 @@ import { verificationTranslations } from './i18n-verification';
 import { adminTranslations } from './i18n-admin';
 import { accountTranslations } from './i18n-account';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getAuthSession } from '@/lib/auth-session';
 import { patchAccount, useAccount } from '@/lib/account-cache';
 import { API_BASE_PATH, API_ROUTE_PATHS, SUPPORTED_LANGUAGE_CODES } from '@workspace/api-zod';
 
@@ -365,6 +365,22 @@ export const translations = {
     'profile.saved': 'Your profile has been updated.',
     'profile.emailConfirmationSent': 'Check your inbox to confirm the email change.',
     'profile.nameSavedEmailFailed': 'Your name was saved, but the email could not be changed:',
+    'profile.emailPasswordHint': 'To change your email, confirm it’s you with your current password.',
+    'profile.emailCodeHint': 'You sign in with Google. To change your email, we’ll send a code to {email} to confirm it’s you.',
+    'profile.currentPasswordLabel': 'Current password',
+    'profile.sendCode': 'Send code',
+    'profile.resendCode': 'Send a new code',
+    'profile.codeLabel': 'Code from the email',
+    'profile.codeSent': 'Code sent. Check your inbox (and the spam folder).',
+    'profile.codeSendError': 'We couldn’t send the code. Please try again.',
+    'profile.emailPasswordRequired': 'Enter your current password to change your email.',
+    'profile.emailCodeRequired': 'Send yourself a code and type it in to change your email.',
+    'profile.emailWrongPassword': 'The password is not correct.',
+    'profile.emailWrongCode': 'The code is wrong or has expired. Ask for a new one.',
+    'profile.emailInUse': 'This email is already used by another account.',
+    'profile.emailInvalid': 'This email address doesn’t look right.',
+    'profile.emailTooMany': 'Too many attempts. Wait a few minutes and try again.',
+    'profile.emailChangeError': 'We couldn’t change your email right now. Please try again later.',
     'profile.saveError': 'Could not save your profile. Please try again.',
     'preferences.open': 'Personalise your room search',
     'preferences.eyebrow': 'Your preferences',
@@ -779,6 +795,7 @@ export const translations = {
     'auth.orDivider': 'or',
     'auth.oauthGoogleUnavailable': "Google sign-in isn't switched on yet. Use your email for now.",
     'auth.oauthError': 'Something went wrong. Please try again.',
+    'auth.linkFailedNote': 'We couldn’t log you in from that link. It may have expired or been opened in a different browser. If you were confirming your email, it’s confirmed: just log in below.',
     'auth.checkEmailTitle': 'Check your email',
     'auth.checkEmailSubtitle': "One last step to confirm it's really you.",
     'auth.checkEmailSentTo': 'We sent a confirmation link to',
@@ -1169,6 +1186,22 @@ export const translations = {
     'profile.saved': 'Il tuo profilo è stato aggiornato.',
     'profile.emailConfirmationSent': 'Controlla la posta per confermare il cambio email.',
     'profile.nameSavedEmailFailed': 'Il nome è stato salvato, ma non è stato possibile cambiare l’email:',
+    'profile.emailPasswordHint': 'Per cambiare email, conferma che sei tu con la password attuale.',
+    'profile.emailCodeHint': 'Accedi con Google. Per cambiare email ti mandiamo un codice a {email} per confermare che sei tu.',
+    'profile.currentPasswordLabel': 'Password attuale',
+    'profile.sendCode': 'Invia codice',
+    'profile.resendCode': 'Invia un nuovo codice',
+    'profile.codeLabel': 'Codice ricevuto via email',
+    'profile.codeSent': 'Codice inviato. Controlla la posta (anche lo spam).',
+    'profile.codeSendError': 'Non siamo riusciti a inviare il codice. Riprova.',
+    'profile.emailPasswordRequired': 'Inserisci la password attuale per cambiare email.',
+    'profile.emailCodeRequired': 'Fatti mandare un codice e inseriscilo per cambiare email.',
+    'profile.emailWrongPassword': 'La password non è corretta.',
+    'profile.emailWrongCode': 'Il codice è sbagliato o scaduto. Chiedine uno nuovo.',
+    'profile.emailInUse': 'Questa email è già usata da un altro account.',
+    'profile.emailInvalid': 'Questo indirizzo email non sembra corretto.',
+    'profile.emailTooMany': 'Troppi tentativi. Aspetta qualche minuto e riprova.',
+    'profile.emailChangeError': 'Al momento non riusciamo a cambiare la tua email. Riprova più tardi.',
     'profile.saveError': 'Impossibile salvare il profilo. Riprova.',
     'preferences.open': 'Personalizza la ricerca della stanza',
     'preferences.eyebrow': 'Le tue preferenze',
@@ -1582,6 +1615,7 @@ export const translations = {
     'auth.orDivider': 'oppure',
     'auth.oauthGoogleUnavailable': "L'accesso con Google non è ancora attivo. Per ora usa la tua email.",
     'auth.oauthError': 'Qualcosa è andato storto, riprova.',
+    'auth.linkFailedNote': 'Non siamo riusciti a farti accedere da quel link. Potrebbe essere scaduto o aperto in un altro browser. Se stavi confermando la tua email, è confermata: accedi qui sotto.',
     'auth.checkEmailTitle': 'Controlla la tua email',
     'auth.checkEmailSubtitle': 'Un ultimo passaggio per confermare che sei tu.',
     'auth.checkEmailSentTo': 'Ti abbiamo mandato un link di conferma a',
@@ -4363,9 +4397,7 @@ export function LanguageProvider({ userId, children }: { userId: string; childre
 
     (async () => {
       try {
-        const { data } = await supabase.auth.getSession();
-        const session = data?.session;
-        if (!session) return; // utente non loggato: cambio solo locale, non salvato
+        if (!getAuthSession()) return; // utente non loggato: cambio solo locale, non salvato
 
         await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.ME_LANGUAGE}`, {
           method: 'PATCH',

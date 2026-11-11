@@ -4,7 +4,7 @@ import { Link, useLocation } from 'wouter';
 import { getListListingsQueryKey, useListListings } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
 import { AppShell } from '@/components/layout/app-shell';
-import { supabase } from '@/lib/supabase';
+import { getAuthSession } from '@/lib/auth-session';
 import { HeroCards } from '@/components/shared/hero-cards';
 import { SearchPill } from '@/components/shared/search-pill';
 import { ListingCard } from '@/components/shared/listing-card';
@@ -59,8 +59,7 @@ export function Home() {
   // Redirect non-admin users away from the home page
   useEffect(() => {
     async function checkAuthAndRole() {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
+      if (!getAuthSession()) {
         setLocation(APP_ROUTES.LOGIN);
         return;
       }

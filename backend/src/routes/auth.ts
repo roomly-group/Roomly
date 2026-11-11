@@ -1,10 +1,21 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { createRequestAuthClient, supabaseAuthClient } from "../lib/supabase-auth.js";
-import { loginEmailLimiter, loginLimiter, refreshLimiter, signupLimiter, verifyLimiter } from "../middleware/rateLimit.js";
+import { loginEmailLimiter, loginLimiter, oauthLimiter, refreshLimiter, signupLimiter, verifyLimiter } from "../middleware/rateLimit.js";
 import { logger } from "../lib/logger.js";
 import { isAllowedOrigin } from "../lib/origins.js";
-import { API_ROUTE_PATHS, CSRF_TOKEN_COOKIE_NAME } from "@workspace/api-zod";
+import {
+  createPkcePair,
+  exchangeAuthCode,
+  isAuthSession,
+  isValidAuthCode,
+  isValidPkceVerifier,
+  oauthAuthorizeUrl,
+  sessionExpiresAt,
+  signUpWithPkce,
+  type AuthSession,
+} from "../lib/supabase-pkce.js";
+import { API_BASE_PATH, API_ROUTE_PATHS, CSRF_TOKEN_COOKIE_NAME } from "@workspace/api-zod";
 
 import crypto from 'crypto';
 
@@ -28,6 +39,16 @@ const ONBOARDING_APP_PATH = '/onboarding' as const;
 const SUPABASE_CAPTCHA_FAILED_CODE = 'captcha_failed' as const;
 /** Friendly message shown when the CAPTCHA (security check) is missing or expired. */
 const CAPTCHA_ERROR_MESSAGE = 'Verifica di sicurezza mancante o scaduta' as const;
+/** Cookie holding the secret PKCE code verifier between leaving the site and coming back. */
+const PKCE_VERIFIER_COOKIE_NAME = 'sb-pkce-verifier' as const;
+/** The verifier cookie is sent only to the code-exchange route, nowhere else. */
+const PKCE_VERIFIER_COOKIE_PATH = `${API_BASE_PATH}${API_ROUTE_PATHS.OAUTH_EXCHANGE}` as const;
+/** Verifier lifetime for Google login: the round trip to Google takes minutes at most (seconds). */
+export const OAUTH_VERIFIER_MAX_AGE_SECONDS = 600 as const;
+/** Verifier lifetime for email links (signup, email change): Supabase links last up to 24 h (seconds). */
+export const EMAIL_LINK_VERIFIER_MAX_AGE_SECONDS = 86400 as const;
+/** OAuth provider behind the "Continue with Google" button. */
+const GOOGLE_PROVIDER = 'google' as const;
 
 const router: IRouter = Router();
 
@@ -90,6 +111,50 @@ function setCsrfCookie(res: Response, token: string, options: { maxAge?: number 
   };
   const opts = { ...defaults, ...options };
   res.cookie(CSRF_TOKEN_COOKIE_NAME, token, opts);
+}
+
+// Stores the PKCE code verifier until the user comes back with `?code=`.
+// HttpOnly (page scripts can never read it), SameSite=Strict and scoped to the
+// exchange route only. Exported for the email change (routes/me.ts).
+export function setPkceVerifierCookie(res: Response, verifier: string, maxAgeSeconds: number) {
+  res.cookie(PKCE_VERIFIER_COOKIE_NAME, verifier, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: 'strict',
+    maxAge: secondsToMs(maxAgeSeconds),
+    path: PKCE_VERIFIER_COOKIE_PATH,
+  });
+}
+
+function clearPkceVerifierCookie(res: Response) {
+  res.clearCookie(PKCE_VERIFIER_COOKIE_NAME, { httpOnly: true, secure: isProd, sameSite: 'strict', path: PKCE_VERIFIER_COOKIE_PATH });
+}
+
+// Turns a fresh Supabase session into our cookies: access + refresh tokens
+// (HttpOnly) and a new CSRF token. The tokens never go into a response body.
+function setSessionCookies(res: Response, session: Pick<AuthSession, 'access_token' | 'refresh_token'>, expiresAtSeconds: number | undefined) {
+  setAuthCookie(res, session.access_token, expiresAtSeconds ? { maxAge: msUntil(expiresAtSeconds) } : {});
+  setRefreshCookie(res, session.refresh_token);
+  setCsrfCookie(res, crypto.randomBytes(CSRF_TOKEN_RANDOM_BYTES).toString('hex'));
+}
+
+// What the frontend gets to know about a session: who is logged in and when
+// the access token expires (to schedule the next refresh). No tokens: page
+// JavaScript (and so any XSS) must never be able to read them.
+function sessionBody(user: { id: string; email?: string | null }, expiresAtSeconds: number | undefined) {
+  return {
+    session: {
+      expires_at: expiresAtSeconds ? expiresAtSeconds * 1000 : undefined, // seconds -> milliseconds
+      user: { id: user.id, email: user.email ?? null },
+    },
+  };
+}
+
+// Site address to come back to after Google or an email link, built only from
+// a known frontend origin (never from free user input).
+function returnUrl(req: Request, path: string): string | undefined {
+  const origin = req.header('origin');
+  return isAllowedOrigin(origin) ? `${origin}${path}` : undefined;
 }
 
 // Login endpoint
@@ -180,9 +245,22 @@ const { password, captchaToken } = req.body as { password?: string; captchaToken
   }
 });
 
-// Refresh endpoint - called to get a new cookie pair with a genuinely fresh
-// access token, using the stored refresh token (real refresh, not just a
-// cookie re-set of the same access token as before).
+// Uses the refresh-token cookie to get a fresh session from Supabase and
+// stores it in new cookies. The frontend calls it shortly before the access
+// token expires (lib/auth-session.ts). Tokens never travel in the request or
+// the response body: the browser only learns who is logged in and the new expiry.
+// Returns null (and clears the cookies) when the refresh token is no longer valid.
+async function refreshFromCookie(res: Response, refreshToken: string) {
+  const { data, error } = await createRequestAuthClient().auth.refreshSession({ refresh_token: refreshToken });
+  if (error || !data.session || !data.user) {
+    clearAuthCookies(res);
+    return null;
+  }
+  const expiresAt = data.session.expires_at;
+  setSessionCookies(res, data.session, expiresAt);
+  return sessionBody(data.user, expiresAt);
+}
+
 router.post(API_ROUTE_PATHS.REFRESH, refreshLimiter, async (req: Request, res: Response) => {
   // CSRF protection: require custom header to prevent cross-site requests
   const csrfTokenCookie = req.cookies?.[CSRF_TOKEN_COOKIE_NAME];
@@ -191,36 +269,23 @@ router.post(API_ROUTE_PATHS.REFRESH, refreshLimiter, async (req: Request, res: R
     return res.status(403).json({ error: 'CSRF token missing or invalid' });
   }
 
-  // Get tokens from request body (sent by frontend during token synchronization)
-  const { access_token, refresh_token } = req.body as { access_token?: string; refresh_token?: string };
-
-  // Validate that we have both tokens
-  if (!access_token || !refresh_token) {
-    return res.status(400).json({ error: 'Missing access_token or refresh_token in request body' });
+  const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME];
+  if (!refreshToken) {
+    return res.status(401).json({ error: 'No refresh cookie' });
   }
 
   try {
-    // Verify the access token is valid by checking it with Supabase admin
-    const { data, error } = await supabaseAdmin.auth.getUser(access_token);
-    if (error || !data.user) {
-      return res.status(401).json({ error: 'Invalid access token' });
-    }
-
-    // Set HTTP-only cookies with the verified tokens
-    setAuthCookie(res, access_token);
-    setRefreshCookie(res, refresh_token);
-    // Set new CSRF token cookie
-    const newCsrfToken = crypto.randomBytes(CSRF_TOKEN_RANDOM_BYTES).toString('hex');
-    setCsrfCookie(res, newCsrfToken);
-
-    return res.json({ ok: true });
+    const body = await refreshFromCookie(res, refreshToken);
+    if (!body) return res.status(401).json({ error: 'Invalid or expired token' });
+    return res.json(body);
   } catch (error) {
     console.error('Refresh error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Verify endpoint - checks if cookie is valid and returns session data
+// Verify endpoint - checks if the session cookies are valid and tells the
+// frontend who is logged in. Returns the user and expiry only, never the tokens.
 router.post(API_ROUTE_PATHS.VERIFY, verifyLimiter, async (req: Request, res: Response) => {
   const token = req.cookies?.[ACCESS_TOKEN_COOKIE_NAME];
   const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME];
@@ -242,29 +307,9 @@ router.post(API_ROUTE_PATHS.VERIFY, verifyLimiter, async (req: Request, res: Res
       if (!refreshToken) {
         return res.status(401).json({ error: 'Invalid or expired token' });
       }
-      const { data: refreshed, error: refreshError } = await createRequestAuthClient().auth.refreshSession({
-        refresh_token: refreshToken,
-      });
-      if (refreshError || !refreshed.session || !refreshed.user) {
-        clearAuthCookies(res);
-        return res.status(401).json({ error: 'Invalid or expired token' });
-      }
-
-      const { access_token, refresh_token, expires_at } = refreshed.session;
-      setAuthCookie(res, access_token, expires_at ? { maxAge: msUntil(expires_at) } : {});
-      setRefreshCookie(res, refresh_token);
-      setCsrfCookie(res, crypto.randomBytes(CSRF_TOKEN_RANDOM_BYTES).toString('hex'));
-      return res.json({
-        session: {
-          access_token,
-          refresh_token,
-          expires_at: expires_at ? expires_at * 1000 : undefined, // Convert seconds to milliseconds
-          user: {
-            id: refreshed.user.id,
-            email: refreshed.user.email,
-          },
-        },
-      });
+      const body = await refreshFromCookie(res, refreshToken);
+      if (!body) return res.status(401).json({ error: 'Invalid or expired token' });
+      return res.json(body);
     }
 
     // Decode JWT token to get expiration time
@@ -285,21 +330,7 @@ router.post(API_ROUTE_PATHS.VERIFY, verifyLimiter, async (req: Request, res: Res
         throw new Error('Invalid or missing expiration time in token');
       }
 
-      // Return session data to restore Supabase client session.
-      // refresh_token MUST be included, otherwise supabase.auth.setSession()
-      // fails silently on the frontend and the client ends up with no session.
-      return res.json({
-        session: {
-          access_token: token,
-          refresh_token: refreshToken,
-          expires_at: exp * 1000, // Convert seconds to milliseconds
-          user: {
-            id: userData.user.id,
-            email: userData.user.email,
-            // Add other non-sensitive user fields as needed
-          }
-        }
-      });
+      return res.json(sessionBody(userData.user, exp));
     } catch (decodeError) {
       console.error('JWT decode error:', decodeError);
       // Treat decoding failures as invalid tokens
@@ -378,44 +409,41 @@ router.post(API_ROUTE_PATHS.REGISTER, signupLimiter, async (req: Request, res: R
 
   // The confirmation link brings the user straight into the onboarding. Supabase
   // only honours this URL if it is listed under Authentication → URL
-  // Configuration → Redirect URLs; otherwise it falls back to the Site URL, and
-  // the frontend forwards a fresh session from there to /onboarding anyway.
-  const origin = req.header('origin');
-  const emailRedirectTo = isAllowedOrigin(origin) ? `${origin}${ONBOARDING_APP_PATH}` : undefined;
+  // Configuration → Redirect URLs; otherwise it falls back to the Site URL.
+  // Either way the link comes back with `?code=`, which the frontend sends to
+  // /oauth/exchange (lib/auth-session.ts) from any page.
+  const emailRedirectTo = returnUrl(req, ONBOARDING_APP_PATH);
 
   try {
-    // Same reasoning as /login and /refresh: signUp() sets a live session
-    // on whichever client instance calls it. Must not be supabaseAdmin.
-    const { data, error: signUpError } = await supabaseAuthClient.auth.signUp({
+    // PKCE: the link in the confirmation email carries a one-time code instead
+    // of the tokens. Its verifier stays in this browser (HttpOnly cookie), so
+    // the user is logged in automatically when they open the link here. On
+    // another device the email is still confirmed; they just log in.
+    const { verifier, challenge } = createPkcePair();
+    const { data, error: signUpError } = await signUpWithPkce({
       email,
       password,
-      options: {
-        captchaToken,
-        emailRedirectTo,
-      },
+      captchaToken,
+      redirectTo: emailRedirectTo,
+      challenge,
     });
 
     if (signUpError) {
+      if (signUpError.status === 0) throw new Error(signUpError.message);
       return res.status(400).json({ error: signUpError.message });
     }
 
-    if (data.session) {
+    if (isAuthSession(data)) {
       // Email confirmation disabled in the Supabase dashboard: a session
-      // was already returned. Mirror /login's cookie handling so the app
-      // behaves identically regardless of which endpoint created the session.
-      const { access_token, refresh_token, user, expires_at } = data.session;
-
-      setAuthCookie(res, access_token,
-        expires_at ? { maxAge: msUntil(expires_at) } : {}
-      );
-      setRefreshCookie(res, refresh_token);
-
+      // was already returned. Same cookies as /login.
+      setSessionCookies(res, data, sessionExpiresAt(data));
       return res.json({
-        user: { id: user.id, email: user.email },
+        user: { id: data.user.id, email: data.user.email },
       });
     }
 
     // Email confirmation enabled: no session yet, user must confirm their inbox.
+    setPkceVerifierCookie(res, verifier, EMAIL_LINK_VERIFIER_MAX_AGE_SECONDS);
     return res.json({ requiresEmailConfirmation: true });
   } catch (error) {
     console.error('Register error:', error);
@@ -423,12 +451,11 @@ router.post(API_ROUTE_PATHS.REGISTER, signupLimiter, async (req: Request, res: R
   }
 });
 
-// Hands the browser a CSRF cookie when it has none yet. A session that arrives
-// in the URL (back from Google, or from the confirmation email) never went
-// through /login, so there is no CSRF cookie to echo in the X-CSRF-Token header
-// that /session requires. Safe to expose: another site can make the browser
-// call this, but it cannot read the cookie value it sets, so it still cannot
-// produce a matching header.
+// Hands the browser a CSRF cookie when it has none yet (a session that was
+// never created by /login, e.g. right after signup), so it can echo it in the
+// X-CSRF-Token header that /refresh requires. Safe to expose: another site
+// can make the browser call this, but it cannot read the cookie value it
+// sets, so it still cannot produce a matching header.
 router.get(API_ROUTE_PATHS.CSRF, (req: Request, res: Response) => {
   res.set('Cache-Control', 'no-store');
   if (!req.cookies?.[CSRF_TOKEN_COOKIE_NAME]) {
@@ -437,37 +464,49 @@ router.get(API_ROUTE_PATHS.CSRF, (req: Request, res: Response) => {
   res.json({ ok: true });
 });
 
-// Idrata i cookie di sessione da un access_token/refresh_token Supabase
-// ottenuti lato client (es. subito dopo signUp(), o dopo il redirect di
-// conferma email), quando quel flusso non passa da /login.
-router.post(API_ROUTE_PATHS.SESSION, async (req: Request, res: Response) => {
-  // CSRF protection: require custom header to prevent cross-site requests
-  const csrfTokenCookie = req.cookies?.[CSRF_TOKEN_COOKIE_NAME];
-  const csrfTokenHeader = req.headers['x-csrf-token'];
-  if (!csrfTokenCookie || !csrfTokenHeader || csrfTokenCookie !== csrfTokenHeader) {
-    return res.status(403).json({ error: 'CSRF token missing or invalid' });
+// "Continue with Google", step 1 (PKCE). Creates a secret verifier, keeps it
+// in an HttpOnly cookie, and returns the Supabase URL to send the browser to.
+// Google then comes back to /onboarding with `?code=` (no tokens in the URL).
+router.post(API_ROUTE_PATHS.OAUTH_GOOGLE, oauthLimiter, (req: Request, res: Response) => {
+  const redirectTo = returnUrl(req, ONBOARDING_APP_PATH);
+  if (!redirectTo) {
+    return res.status(400).json({ error: 'Origin not allowed' });
   }
+  const { verifier, challenge } = createPkcePair();
+  setPkceVerifierCookie(res, verifier, OAUTH_VERIFIER_MAX_AGE_SECONDS);
+  res.set('Cache-Control', 'no-store');
+  return res.json({ url: oauthAuthorizeUrl(GOOGLE_PROVIDER, redirectTo, challenge) });
+});
 
-  const { access_token, refresh_token } = req.body as { access_token?: string; refresh_token?: string };
+// Step 2 for Google, the signup email and the email-change email: the page
+// the user lands on sends the one-time `code` here. Together with the
+// verifier from the cookie (set when the flow started, in this browser),
+// Supabase turns it into a session, which goes into our HttpOnly cookies.
+// Fails when the link was opened in another browser (no verifier), or the
+// code was already used or expired.
+router.post(API_ROUTE_PATHS.OAUTH_EXCHANGE, oauthLimiter, async (req: Request, res: Response) => {
+  const code = (req.body as { code?: unknown } | undefined)?.code;
+  const verifier = req.cookies?.[PKCE_VERIFIER_COOKIE_NAME];
+  // A verifier is single-use: drop it whatever happens next.
+  clearPkceVerifierCookie(res);
 
-  if (!access_token || !refresh_token) {
-    return res.status(400).json({ error: 'Missing access_token or refresh_token' });
+  if (!isValidAuthCode(code) || !isValidPkceVerifier(verifier)) {
+    return res.status(400).json({ error: 'Invalid or expired link' });
   }
 
   try {
-    const { data, error } = await supabaseAdmin.auth.getUser(access_token);
-    if (error || !data.user) {
-      return res.status(401).json({ error: 'Invalid token' });
+    const { data: session, error } = await exchangeAuthCode(code, verifier);
+    if (error || !session?.access_token || !session.refresh_token || !session.user?.id) {
+      if (error?.status === 0) throw new Error(error.message);
+      logger.warn({ status: error?.status, code: error?.code }, 'PKCE code exchange refused');
+      return res.status(400).json({ error: 'Invalid or expired link' });
     }
 
-    setAuthCookie(res, access_token);
-    setRefreshCookie(res, refresh_token);
-    // Set CSRF token cookie
-    const csrfToken = crypto.randomBytes(CSRF_TOKEN_RANDOM_BYTES).toString('hex');
-    setCsrfCookie(res, csrfToken);
-    return res.json({ ok: true });
+    const expiresAt = sessionExpiresAt(session);
+    setSessionCookies(res, session, expiresAt);
+    return res.json(sessionBody(session.user, expiresAt));
   } catch (error) {
-    console.error('Session error:', error);
+    console.error('Code exchange error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

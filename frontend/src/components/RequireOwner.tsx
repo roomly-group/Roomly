@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getAuthSession } from '@/lib/auth-session';
 import { getIsOwner } from '@/lib/auth-role';
 import { peekLastKnownRole, peekRoleCache } from '@/lib/role-cache';
 import NotFound from '@/pages/not-found';
@@ -18,8 +18,7 @@ export function RequireOwner({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     async function checkOwnerStatus() {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const user = session?.user;
+        const user = getAuthSession()?.user;
 
         if (!user) {
           if (!cancelled) setIsOwner(false);

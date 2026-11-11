@@ -14,7 +14,7 @@ import roomlyMark from '@assets/logo_no_background.png';
 import { useLanguage } from '@/lib/i18n';
 import { LanguagePicker } from '@/components/language-selector';
 import { ProfileMenu } from '@/components/layout/profile-menu';
-import { supabase } from '@/lib/supabase';
+import { getAuthSession } from '@/lib/auth-session';
 import { getRoleInfo, mainPageFor } from '@/lib/auth-role';
 import { peekLastKnownRole, peekRoleCache } from '@/lib/role-cache';
 import { useAccount } from '@/lib/account-cache';
@@ -55,8 +55,7 @@ function useRoleFlags() {
 
     async function loadRole() {
       try {
-        const { data } = await supabase.auth.getSession();
-        const user = data?.session?.user;
+        const user = getAuthSession()?.user;
         const info = await getRoleInfo(user);
         // Verifica fallita (nulla in cache): non si declassa chi era già noto.
         if (user && !peekRoleCache() && peekLastKnownRole()) return;

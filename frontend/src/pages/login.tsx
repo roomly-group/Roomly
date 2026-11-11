@@ -6,9 +6,9 @@ import { Mail, Lock, EyeOff, Eye } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { supabase } from '@/lib/supabase';
+import { restoreSession } from '@/lib/auth-session';
 import { postAuthRoute } from '@/lib/auth-role';
-import { APP_ROUTES, PASSWORD_FIELD_PLACEHOLDER, SHARED_TEST_IDS } from '@/lib/constants';
+import { APP_ROUTES, AUTH_LINK_FAILED_QUERY, PASSWORD_FIELD_PLACEHOLDER, SHARED_TEST_IDS } from '@/lib/constants';
 import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 import { AuthShell } from '@/components/layout/auth-shell';
 import { TurnstileWidget } from '@/components/shared/turnstile';
@@ -34,6 +34,8 @@ export function LoginPage() {
   // Bumped whenever we need to force the Turnstile widget to remount and
   // issue a fresh token (e.g. after a failed submit consumed the old one).
   const [turnstileKey, setTurnstileKey] = useState(0);
+  // Set by main.tsx when a Google or email link could not log the user in.
+  const [linkFailed] = useState(() => window.location.search.includes(AUTH_LINK_FAILED_QUERY));
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -74,21 +76,11 @@ export function LoginPage() {
       // Get user data from response (no longer contains tokens for security)
       const { user } = await response.json();
 
-      // Verify the session via cookies to update Supabase client
-      const verifyResponse = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.VERIFY}`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-
-      if (!verifyResponse.ok) {
-        throw new Error('Failed to verify session after login');
+      // Read the new session from the cookies (user + expiry, never the tokens)
+      // so the rest of the app knows who is logged in.
+      if (!(await restoreSession())) {
+        throw new Error(t('auth.loginError'));
       }
-
-      const { session } = await verifyResponse.json();
-
-      // Set the session in Supabase client for immediate use (for frontend auth checks)
-      // This is only kept in memory, not persisted to localStorage
-      await supabase.auth.setSession(session);
       clearRoleCache();
       clearAccountCache();
 
@@ -117,6 +109,12 @@ export function LoginPage() {
         </p>
       }
     >
+      {linkFailed ? (
+        <p className="mb-4 rounded-xl bg-mint-mist px-4 py-3 text-sm font-bold text-pine" role="status" data-testid="note-auth-link-failed">
+          {t('auth.linkFailedNote')}
+        </p>
+      ) : null}
+
       <OAuthButtons />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4" data-testid={LOGIN_TEST_IDS.FORM_LOGIN}>

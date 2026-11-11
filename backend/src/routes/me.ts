@@ -1,7 +1,9 @@
 import { Router, type IRouter } from "express";
 import { forgetUser, requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
-import { accountDataLimiter } from "../middleware/rateLimit.js";
+import { accountDataLimiter, emailChangeLimiter } from "../middleware/rateLimit.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
+import { createRequestAuthClient } from "../lib/supabase-auth.js";
+import { createPkcePair, requestEmailChange } from "../lib/supabase-pkce.js";
 import { ensureUtenteRecord } from "../lib/utenti.js";
 import { signedProfilePhotoUrl } from "../lib/profile-photo.js";
 import { waitlistPosition } from "../lib/waitlist.js";
@@ -13,12 +15,15 @@ import {
   hasOpenContracts,
   secondsSinceLastSignIn,
 } from "../lib/account.js";
-import { ACCESS_TOKEN_COOKIE_NAME, clearAuthCookies } from "./auth.js";
+import { ACCESS_TOKEN_COOKIE_NAME, EMAIL_LINK_VERIFIER_MAX_AGE_SECONDS, clearAuthCookies, setPkceVerifierCookie } from "./auth.js";
 import {
   ACCOUNT_DELETE_CONFIRMATION,
   ACCOUNT_DELETE_ERROR_CODES,
   API_ROUTE_PATHS,
   DEFAULT_USER_PREFERENCES,
+  EMAIL_CHANGE_ERROR_CODES,
+  EMAIL_CHANGE_METHODS,
+  type EmailChangeMethod,
   IDENTITY_LOCKED_CODE,
   IDENTITY_LOCKED_MESSAGE,
   SUPPORTED_LANGUAGE_CODES,
@@ -282,6 +287,232 @@ router.delete(API_ROUTE_PATHS.ME, requireAuth, accountDataLimiter, async (req, r
   } catch (error) {
     console.error("Failed to delete account:", error);
     res.status(500).json({ error: "Impossibile eliminare l'account, riprova" });
+  }
+});
+
+// ===================== EMAIL CHANGE =====================
+// Changing the login email needs proof that the person at the keyboard owns
+// the account, not just a live session (a stolen or forgotten-open session
+// could otherwise move the account to another address):
+// - accounts with a password type it again;
+// - accounts without one (signed up with Google) get a one-time code at their
+//   current address (POST /api/me/email/code) and type that.
+// The change itself goes through PKCE, so the confirmation link comes back
+// with `?code=` and never puts tokens in the URL (see lib/supabase-pkce.ts).
+
+/** Longest password accepted for the check (characters); only bounds the request size. */
+const EMAIL_CHANGE_PASSWORD_MAX_LENGTH = 1024 as const;
+/** Longest Turnstile token accepted (characters); only bounds the request size. */
+const CAPTCHA_TOKEN_MAX_LENGTH = 4096 as const;
+/** Longest email address (characters, RFC 5321). */
+const EMAIL_MAX_LENGTH = 254 as const;
+/** The emailed one-time code: digits only, 6-10 long (Supabase's OTP length setting). */
+const EMAIL_OTP_PATTERN = /^\d{6,10}$/;
+/** Identity provider name of email + password accounts in Supabase. */
+const PASSWORD_PROVIDER = "email" as const;
+/** Supabase error codes meaning the CAPTCHA token was refused. */
+const SUPABASE_CAPTCHA_CODES: readonly string[] = ["captcha_failed"];
+/** Supabase error codes meaning the new address belongs to another account. */
+const SUPABASE_EMAIL_TAKEN_CODES: readonly string[] = ["email_exists", "user_already_exists"];
+/** Supabase error codes meaning the new address is not acceptable. */
+const SUPABASE_EMAIL_INVALID_CODES: readonly string[] = ["email_address_invalid", "email_address_not_authorized", "validation_failed"];
+/** Supabase error codes meaning too many emails or requests for now. */
+const SUPABASE_RATE_LIMIT_CODES: readonly string[] = ["over_email_send_rate_limit", "over_request_rate_limit"];
+
+const emailChangeSchema = z.object({
+  email: z.string().trim().toLowerCase().pipe(z.email().max(EMAIL_MAX_LENGTH)),
+  password: z.string().min(1).max(EMAIL_CHANGE_PASSWORD_MAX_LENGTH).optional(),
+  captchaToken: z.string().min(1).max(CAPTCHA_TOKEN_MAX_LENGTH).optional(),
+  code: z.string().trim().regex(EMAIL_OTP_PATTERN).optional(),
+});
+
+const emailCodeSchema = z.object({
+  captchaToken: z.string().min(1).max(CAPTCHA_TOKEN_MAX_LENGTH),
+});
+
+/** Password for accounts that have one, emailed code for the others (Google-only). Null if Supabase can't be read. */
+async function emailChangeMethod(userId: string): Promise<EmailChangeMethod | null> {
+  // getUserById can also throw (e.g. network failure): treat it like an error answer.
+  const { data, error } = await supabaseAdmin.auth.admin
+    .getUserById(userId)
+    .catch((thrown: unknown) => ({ data: { user: null }, error: thrown }));
+  if (error || !data.user) {
+    console.error("Failed to read auth user for email change:", error);
+    return null;
+  }
+  const providers = [
+    ...(data.user.identities ?? []).map((identity) => identity.provider),
+    ...((data.user.app_metadata?.["providers"] as string[] | undefined) ?? []),
+  ];
+  return providers.includes(PASSWORD_PROVIDER) ? EMAIL_CHANGE_METHODS.PASSWORD : EMAIL_CHANGE_METHODS.CODE;
+}
+
+/** The password/code check creates a second Supabase session: end it straight away. */
+async function endProofSession(accessToken: string | undefined): Promise<void> {
+  if (!accessToken) return;
+  const { error } = await supabaseAdmin.auth.admin.signOut(accessToken, "local");
+  if (error) console.error("Failed to end the email-change check session:", error);
+}
+
+const emailChangeError = (code: (typeof EMAIL_CHANGE_ERROR_CODES)[keyof typeof EMAIL_CHANGE_ERROR_CODES], error: string) => ({
+  error,
+  code,
+});
+
+// GET /api/me/email -> { method }: which proof the profile form must ask for.
+router.get(API_ROUTE_PATHS.ME_EMAIL, requireAuth, async (req, res) => {
+  const { userId } = req as AuthenticatedRequest;
+  const method = await emailChangeMethod(userId);
+  if (!method) {
+    res.status(500).json({ error: "Internal server error" });
+    return;
+  }
+  res.json({ method });
+});
+
+// POST /api/me/email/code  body: { captchaToken }
+// Emails a one-time code to the CURRENT address of an account without a
+// password. Supabase checks the Turnstile token (CAPTCHA protection).
+router.post(API_ROUTE_PATHS.ME_EMAIL_CODE, requireAuth, emailChangeLimiter, async (req, res) => {
+  const { userId, userEmail } = req as AuthenticatedRequest;
+  const parsed = emailCodeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json(emailChangeError(EMAIL_CHANGE_ERROR_CODES.CAPTCHA_FAILED, "Verifica di sicurezza mancante o scaduta"));
+    return;
+  }
+
+  const method = await emailChangeMethod(userId);
+  if (!method) {
+    res.status(500).json({ error: "Internal server error" });
+    return;
+  }
+  if (method !== EMAIL_CHANGE_METHODS.CODE || !userEmail) {
+    res.status(400).json(emailChangeError(EMAIL_CHANGE_ERROR_CODES.WRONG_METHOD, "Usa la password per cambiare email"));
+    return;
+  }
+
+  // shouldCreateUser: false so this can never create an account.
+  const { error } = await createRequestAuthClient().auth.signInWithOtp({
+    email: userEmail,
+    options: { shouldCreateUser: false, captchaToken: parsed.data.captchaToken },
+  });
+  if (error) {
+    if (SUPABASE_CAPTCHA_CODES.includes(error.code ?? "")) {
+      res.status(400).json(emailChangeError(EMAIL_CHANGE_ERROR_CODES.CAPTCHA_FAILED, "Verifica di sicurezza mancante o scaduta"));
+      return;
+    }
+    if (SUPABASE_RATE_LIMIT_CODES.includes(error.code ?? "") || error.status === 429) {
+      res.status(429).json(emailChangeError(EMAIL_CHANGE_ERROR_CODES.TOO_MANY_REQUESTS, "Troppi tentativi, riprova più tardi"));
+      return;
+    }
+    console.error("Failed to send email-change code:", { status: error.status, code: error.code });
+    res.status(500).json({ error: "Internal server error" });
+    return;
+  }
+  res.json({ ok: true });
+});
+
+// PATCH /api/me/email  body: { email, password + captchaToken } or { email, code }
+// -> { email, pending }: pending=true when Supabase sent confirmation email(s)
+// first (the address changes once they are confirmed).
+router.patch(API_ROUTE_PATHS.ME_EMAIL, requireAuth, emailChangeLimiter, async (req, res) => {
+  const { userId, userEmail } = req as AuthenticatedRequest;
+  const accessToken = req.cookies?.[ACCESS_TOKEN_COOKIE_NAME] as string | undefined;
+  if (!userEmail || !accessToken) {
+    res.status(401).json({ error: "Missing auth cookie" });
+    return;
+  }
+
+  const parsed = emailChangeSchema.safeParse(req.body);
+  if (!parsed.success || parsed.data.email === userEmail.toLowerCase()) {
+    res.status(400).json(emailChangeError(EMAIL_CHANGE_ERROR_CODES.INVALID_EMAIL, "Email non valida"));
+    return;
+  }
+  const { email, password, captchaToken, code } = parsed.data;
+
+  const method = await emailChangeMethod(userId);
+  if (!method) {
+    res.status(500).json({ error: "Internal server error" });
+    return;
+  }
+
+  try {
+    // 1. Proof of ownership. Done on a throwaway client (never the shared
+    //    one): both calls create a session on the client that runs them.
+    const authClient = createRequestAuthClient();
+    let proofUserId: string | undefined;
+    if (method === EMAIL_CHANGE_METHODS.PASSWORD) {
+      if (!password) {
+        res.status(400).json(emailChangeError(EMAIL_CHANGE_ERROR_CODES.WRONG_METHOD, "Password mancante"));
+        return;
+      }
+      if (!captchaToken) {
+        res.status(400).json(emailChangeError(EMAIL_CHANGE_ERROR_CODES.CAPTCHA_FAILED, "Verifica di sicurezza mancante o scaduta"));
+        return;
+      }
+      const { data, error } = await authClient.auth.signInWithPassword({ email: userEmail, password, options: { captchaToken } });
+      await endProofSession(data.session?.access_token);
+      if (error) {
+        // Wrong password and CAPTCHA failures are 400 (not 401) so they never look like an expired session.
+        const isCaptcha = SUPABASE_CAPTCHA_CODES.includes(error.code ?? "");
+        res.status(400).json(
+          isCaptcha
+            ? emailChangeError(EMAIL_CHANGE_ERROR_CODES.CAPTCHA_FAILED, "Verifica di sicurezza mancante o scaduta")
+            : emailChangeError(EMAIL_CHANGE_ERROR_CODES.WRONG_PASSWORD, "Password errata"),
+        );
+        return;
+      }
+      proofUserId = data.user?.id;
+    } else {
+      if (!code) {
+        res.status(400).json(emailChangeError(EMAIL_CHANGE_ERROR_CODES.WRONG_METHOD, "Codice mancante"));
+        return;
+      }
+      const { data, error } = await authClient.auth.verifyOtp({ email: userEmail, token: code, type: "email" });
+      await endProofSession(data.session?.access_token);
+      if (error) {
+        res.status(400).json(emailChangeError(EMAIL_CHANGE_ERROR_CODES.WRONG_CODE, "Codice errato o scaduto"));
+        return;
+      }
+      proofUserId = data.user?.id;
+    }
+    if (proofUserId !== userId) {
+      res.status(403).json(emailChangeError(EMAIL_CHANGE_ERROR_CODES.WRONG_METHOD, "Not authorized"));
+      return;
+    }
+
+    // 2. The change itself, on the caller's own session, with PKCE.
+    const { verifier, challenge } = createPkcePair();
+    const { data: updated, error } = await requestEmailChange(accessToken, email, challenge);
+    if (error) {
+      if (SUPABASE_EMAIL_TAKEN_CODES.includes(error.code ?? "")) {
+        res.status(409).json(emailChangeError(EMAIL_CHANGE_ERROR_CODES.EMAIL_IN_USE, "Email già in uso"));
+        return;
+      }
+      if (SUPABASE_EMAIL_INVALID_CODES.includes(error.code ?? "")) {
+        res.status(400).json(emailChangeError(EMAIL_CHANGE_ERROR_CODES.INVALID_EMAIL, "Email non valida"));
+        return;
+      }
+      if (SUPABASE_RATE_LIMIT_CODES.includes(error.code ?? "") || error.status === 429) {
+        res.status(429).json(emailChangeError(EMAIL_CHANGE_ERROR_CODES.TOO_MANY_REQUESTS, "Troppi tentativi, riprova più tardi"));
+        return;
+      }
+      console.error("Email change refused by Supabase:", { status: error.status, code: error.code });
+      res.status(500).json({ error: "Internal server error" });
+      return;
+    }
+
+    // Email confirmation off in Supabase: the address is already changed.
+    if (updated.email?.toLowerCase() === email) {
+      res.json({ email, pending: false });
+      return;
+    }
+    // Confirmation needed: the link logs the user in again when opened in this browser.
+    setPkceVerifierCookie(res, verifier, EMAIL_LINK_VERIFIER_MAX_AGE_SECONDS);
+    res.json({ email: userEmail, pending: true });
+  } catch (error) {
+    console.error("Failed to change email:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

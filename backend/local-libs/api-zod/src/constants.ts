@@ -25,6 +25,8 @@ export const API_ROUTE_PATHS = {
   OWNER_CONTRACT_STATUS: "/owner/contracts/:id/status",
   ME_ROLE: "/me/role",
   ME: "/me",
+  ME_EMAIL: "/me/email",
+  ME_EMAIL_CODE: "/me/email/code",
   ME_EXPORT: "/me/export",
   ME_PROFILE: "/me/profile",
   ME_LANGUAGE: "/me/language",
@@ -49,7 +51,8 @@ export const API_ROUTE_PATHS = {
   LOGOUT: "/logout",
   AUTH_CONFIG: "/config",
   REGISTER: "/register",
-  SESSION: "/session",
+  OAUTH_GOOGLE: "/oauth/google",
+  OAUTH_EXCHANGE: "/oauth/exchange",
   CSRF: "/csrf",
   UNIVERSITIES: "/universita",
 } as const;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Redirect, useLocation } from 'wouter';
-import { supabase } from '@/lib/supabase';
+import { getAuthSession } from '@/lib/auth-session';
 import { peekLastKnownRole, peekRoleCache } from '@/lib/role-cache';
 import { useAccount } from '@/lib/account-cache';
 import { useLanguage } from '@/lib/i18n';
@@ -30,8 +30,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
     if (known) return;
     async function checkAuth() {
       try {
-        const { data } = await supabase.auth.getSession();
-        setAuthenticated(!!data.session);
+        setAuthenticated(getAuthSession() !== null);
       } catch (err) {
         console.error('Failed to check auth:', err);
         setAuthenticated(false);
