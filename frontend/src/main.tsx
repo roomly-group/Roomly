@@ -2,7 +2,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { consumeAuthRedirect, getAuthSession, restoreSession } from '@/lib/auth-session';
-import { APP_ROUTES, AUTH_LINK_FAILED_QUERY, WAITLIST_FAQ_ANCHOR_URL } from '@/lib/constants';
+import { APP_ROUTES, AUTH_ACCOUNT_SUSPENDED_QUERY, AUTH_LINK_FAILED_QUERY, WAITLIST_FAQ_ANCHOR_URL } from '@/lib/constants';
 import { clearRoleCache } from '@/lib/role-cache';
 import { clearAccountCache } from '@/lib/account-cache';
 import { rememberInviteFromUrl } from '@/lib/onboarding';
@@ -21,6 +21,10 @@ async function initializeApp() {
     // show the login page, which explains it in plain words.
     if (!session && redirect === 'failed') {
       window.history.replaceState(null, '', `${APP_ROUTES.LOGIN}?${AUTH_LINK_FAILED_QUERY}`);
+    }
+    // Google refused the login because the account is suspended (RMY-04).
+    if (!session && redirect === 'suspended') {
+      window.history.replaceState(null, '', `${APP_ROUTES.LOGIN}?${AUTH_ACCOUNT_SUSPENDED_QUERY}`);
     }
     return session;
   } catch (error) {

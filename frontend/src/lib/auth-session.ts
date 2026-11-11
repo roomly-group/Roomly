@@ -20,6 +20,10 @@ const CSRF_COOKIE_PATTERN = `(?:^|; )${CSRF_TOKEN_COOKIE_NAME}=([^;]*)` as const
 const AUTH_CODE_PARAM = 'code' as const;
 /** Query parameters Supabase adds when a redirect failed (e.g. expired link, Google cancelled). */
 const AUTH_ERROR_PARAMS = ['error', 'error_code', 'error_description'] as const;
+/** Query parameter of a failed redirect carrying Supabase's machine-readable error code. */
+const AUTH_ERROR_CODE_PARAM = 'error_code' as const;
+/** Supabase error code when a suspended account (banned, migration 017) tries Google login. */
+const USER_BANNED_ERROR_CODE = 'user_banned' as const;
 /**
  * Leftovers of the old implicit flow (links sent before the switch to PKCE):
  * `#access_token=…` or `#error=…`. Never used, only wiped from the address bar.
@@ -35,8 +39,8 @@ export type AuthSession = {
   expires_at?: number;
 };
 
-/** Result of coming back from Google or an email link. */
-export type AuthRedirectResult = 'none' | 'signed_in' | 'failed';
+/** Result of coming back from Google or an email link ('suspended': the account is suspended). */
+export type AuthRedirectResult = 'none' | 'signed_in' | 'failed' | 'suspended';
 
 // ===================== STATE =====================
 
@@ -161,6 +165,8 @@ export async function consumeAuthRedirect(): Promise<AuthRedirectResult> {
   const hasError = AUTH_ERROR_PARAMS.some((param) => url.searchParams.has(param));
   const hasImplicitHash = IMPLICIT_FLOW_HASH_PATTERN.test(url.hash);
   if (!code && !hasError && !hasImplicitHash) return 'none';
+  // Read before the error parameters are wiped below.
+  const isSuspended = url.searchParams.get(AUTH_ERROR_CODE_PARAM) === USER_BANNED_ERROR_CODE;
 
   url.searchParams.delete(AUTH_CODE_PARAM);
   AUTH_ERROR_PARAMS.forEach((param) => url.searchParams.delete(param));
@@ -168,6 +174,7 @@ export async function consumeAuthRedirect(): Promise<AuthRedirectResult> {
   // replaceState (not a new entry): the URL with the code is gone from history.
   window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
 
+  if (isSuspended) return 'suspended';
   if (!code) return 'failed';
   try {
     const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.OAUTH_EXCHANGE}`, {

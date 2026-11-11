@@ -58,6 +58,12 @@ export const SOCIAL_PROFILE_URLS = {
  */
 export const AUTH_LINK_FAILED_QUERY = 'link=failed' as const;
 
+/**
+ * Query flag on /login set when Google login was refused because the account
+ * is suspended: the login page then shows the "account suspended" message.
+ */
+export const AUTH_ACCOUNT_SUSPENDED_QUERY = 'account=suspended' as const;
+
 /** Mask displayed in password and confirmation fields (placeholder text). */
 export const PASSWORD_FIELD_PLACEHOLDER = '••••••••' as const;
 

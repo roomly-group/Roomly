@@ -46,7 +46,7 @@ function newSession(tag) {
   validRefresh.add(refresh);
   return { access_token: access, refresh_token: refresh, token_type: 'bearer', expires_in: TOKEN_LIFETIME_S, expires_at: exp, user: user() };
 }
-const utentiRow = { id: USER_ID, nome: 'Stu', cognome: 'Dent', email: USER_EMAIL, posizione: 1, lingua: 'en', data_nascita: '2000-01-01', foto_profilo: null, onboarding_completato_at: '2026-01-01T00:00:00Z', admin: false, owner: false };
+const utentiRow = { id: USER_ID, nome: 'Stu', cognome: 'Dent', email: USER_EMAIL, posizione: 1, lingua: 'en', data_nascita: '2000-01-01', foto_profilo: null, onboarding_completato_at: '2026-01-01T00:00:00Z', admin: false, owner: false, stato: 'attivo' };
 const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
 const bearer = (req) => (req.headers.authorization || '').replace(/^Bearer /, '');
 
@@ -66,6 +66,8 @@ http.createServer((req, res) => {
 
     if (req.method === 'OPTIONS') return send(204, null);
     if (p === '/__stub/provider') { provider = url.searchParams.get('value') || 'email'; return send(200, { provider }); }
+    // utenti.stato: 'sospeso' makes password login answer user_banned (tokens already issued stay valid here)
+    if (p === '/__stub/stato') { utentiRow.stato = url.searchParams.get('value') || 'attivo'; return send(200, { stato: utentiRow.stato }); }
 
     // ---------- Auth ----------
     if (p === '/auth/v1/settings') return send(200, { external: { google: true } });
@@ -88,6 +90,7 @@ http.createServer((req, res) => {
       if (grant === 'password') {
         if (!b.gotrue_meta_security?.captcha_token) return err(400, 'captcha_failed', 'captcha protection: request disallowed');
         if (b.email !== USER_EMAIL || b.password !== RIGHT_PASSWORD || provider !== 'email') return err(400, 'invalid_credentials', 'Invalid login credentials');
+        if (utentiRow.stato !== 'attivo') return err(400, 'user_banned', 'User is banned');
         return send(200, newSession('proof'));
       }
       if (grant === 'pkce') {

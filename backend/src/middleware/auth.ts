@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { ACCOUNT_SUSPENDED_ERROR_CODE } from "@workspace/api-zod";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 
 export type AuthenticatedRequest = Request & {
@@ -12,6 +13,18 @@ export type AuthenticatedRequest = Request & {
 const TOKEN_CACHE_TTL_MS = 60_000 as const;
 /** Maximum number of token entries retained in the in-memory auth cache (entries). */
 const TOKEN_CACHE_MAX_ENTRIES = 5_000 as const;
+/** The only utenti.stato allowed to use the API: 'sospeso' and 'eliminato' are refused. */
+const ACTIVE_ACCOUNT_STATUS = "attivo" as const;
+/** Fallback text for a blocked account; the frontend shows its own translation of the code. */
+const ACCOUNT_SUSPENDED_MESSAGE = "Il tuo account è sospeso" as const;
+
+/**
+ * Answers 403 for a suspended or deleted account (RMY-04). Shared with
+ * POST /api/login (routes/auth.ts), so both send the same code and text.
+ */
+export function sendAccountSuspended(res: Response): void {
+  res.status(403).json({ error: ACCOUNT_SUSPENDED_MESSAGE, code: ACCOUNT_SUSPENDED_ERROR_CODE });
+}
 
 // Cache breve token -> utente. Senza questo, ogni richiesta API (anche il
 // polling della chat) fa prima un giro di rete verso Supabase (auth.getUser).
@@ -61,6 +74,29 @@ export async function requireAuth(
 
   if (error || !data.user) {
     res.status(401).json({ error: "Invalid or expired token" });
+    return;
+  }
+
+  // RMY-04: a suspended or deleted account (utenti.stato) may not use the API.
+  // The trigger from migration 017 also bans the user in Supabase Auth and ends
+  // their sessions; this check is the backstop in case the trigger is missing
+  // or someone edits stato another way. It runs only here, on a cache miss, so
+  // at most once per token every TOKEN_CACHE_TTL_MS: a token already cached
+  // keeps working for at most that long after the suspension.
+  const { data: account, error: accountError } = await supabaseAdmin
+    .from("utenti")
+    .select("stato")
+    .eq("id", data.user.id)
+    .maybeSingle();
+  if (accountError) {
+    // Fail closed: if we can't read the status, we don't let the call through.
+    console.error("Error checking account status:", accountError);
+    res.status(500).json({ error: "Internal server error" });
+    return;
+  }
+  // No row yet (signup just happened, onboarding creates it): nothing to suspend.
+  if (account && account.stato !== ACTIVE_ACCOUNT_STATUS) {
+    sendAccountSuspended(res);
     return;
   }
 

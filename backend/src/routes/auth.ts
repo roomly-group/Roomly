@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { createRequestAuthClient, supabaseAuthClient } from "../lib/supabase-auth.js";
 import { loginEmailLimiter, loginLimiter, oauthLimiter, refreshLimiter, signupLimiter, verifyLimiter } from "../middleware/rateLimit.js";
+import { sendAccountSuspended } from "../middleware/auth.js";
 import { logger } from "../lib/logger.js";
 import { isAllowedOrigin } from "../lib/origins.js";
 import {
@@ -37,6 +38,8 @@ const CSRF_TOKEN_RANDOM_BYTES = 32 as const;
 const ONBOARDING_APP_PATH = '/onboarding' as const;
 /** Supabase auth error code returned when the Turnstile CAPTCHA token is invalid/expired/reused. */
 const SUPABASE_CAPTCHA_FAILED_CODE = 'captcha_failed' as const;
+/** Supabase auth error code for a banned user (set when utenti.stato is not 'attivo', migration 017). */
+const SUPABASE_USER_BANNED_CODE = 'user_banned' as const;
 /** Friendly message shown when the CAPTCHA (security check) is missing or expired. */
 const CAPTCHA_ERROR_MESSAGE = 'Verifica di sicurezza mancante o scaduta' as const;
 /** Cookie holding the secret PKCE code verifier between leaving the site and coming back. */
@@ -214,6 +217,14 @@ const { password, captchaToken } = req.body as { password?: string; captchaToken
       // could lock a user out by sending fake CAPTCHA tokens with their email.
       if (authErrorCode === SUPABASE_CAPTCHA_FAILED_CODE) {
         return res.status(400).json({ error: CAPTCHA_ERROR_MESSAGE });
+      }
+      // Suspended account (RMY-04): tell the user plainly instead of "wrong
+      // password". Supabase already returns "user_banned" to anyone calling
+      // its public login endpoint, so this reveals nothing new. 403 (not 401)
+      // keeps it out of the per-email wrong-password limit.
+      if (authErrorCode === SUPABASE_USER_BANNED_CODE) {
+        sendAccountSuspended(res);
+        return;
       }
       return res.status(401).json({ error: 'Invalid email or password' });
     }

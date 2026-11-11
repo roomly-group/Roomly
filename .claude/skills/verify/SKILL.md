@@ -32,6 +32,7 @@ is `student@test.local` (UUID id, as Supabase's admin API requires one).
 | `POST /auth/v1/logout`, `GET /auth/v1/admin/users/:id` | admin sign-out and user lookup |
 | `GET /rest/v1/utenti` | one profile row. Other tables → empty |
 | `POST /__stub/provider?value=google\|email` | switches the user between Google-only (no password) and password accounts |
+| `POST /__stub/stato?value=sospeso\|attivo` | sets `utenti.stato`. Not `attivo`: password login → 400 `user_banned`; issued tokens stay valid (tests the `requireAuth` backstop) |
 
 Every request is appended to `$STUB_DIR/requests.log`. The first access token is
 written to `$STUB_DIR/tokens.json` (`ACCESS_OLD`). Use the session scratchpad as `STUB_DIR`.

@@ -8,8 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { restoreSession } from '@/lib/auth-session';
 import { postAuthRoute } from '@/lib/auth-role';
-import { APP_ROUTES, AUTH_LINK_FAILED_QUERY, PASSWORD_FIELD_PLACEHOLDER, SHARED_TEST_IDS } from '@/lib/constants';
-import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
+import { APP_ROUTES, AUTH_ACCOUNT_SUSPENDED_QUERY, AUTH_LINK_FAILED_QUERY, PASSWORD_FIELD_PLACEHOLDER, SHARED_TEST_IDS } from '@/lib/constants';
+import { ACCOUNT_SUSPENDED_ERROR_CODE, API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 import { AuthShell } from '@/components/layout/auth-shell';
 import { TurnstileWidget } from '@/components/shared/turnstile';
 import { OAuthButtons } from '@/components/shared/oauth-buttons';
@@ -36,6 +36,8 @@ export function LoginPage() {
   const [turnstileKey, setTurnstileKey] = useState(0);
   // Set by main.tsx when a Google or email link could not log the user in.
   const [linkFailed] = useState(() => window.location.search.includes(AUTH_LINK_FAILED_QUERY));
+  // Set by main.tsx when Google login was refused because the account is suspended.
+  const [suspendedOnArrival] = useState(() => window.location.search.includes(AUTH_ACCOUNT_SUSPENDED_QUERY));
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -70,7 +72,9 @@ export function LoginPage() {
         // make the widget re-render rather than let the user retry with a dead token.
         setCaptchaToken(null);
         setTurnstileKey((key) => key + 1);
-        throw new Error(errorData.error || 'Login failed');
+        // Suspended account (RMY-04): show our friendly, translated text.
+        const message = errorData.code === ACCOUNT_SUSPENDED_ERROR_CODE ? t('auth.accountSuspended') : errorData.error;
+        throw new Error(message || 'Login failed');
       }
 
       // Get user data from response (no longer contains tokens for security)
@@ -112,6 +116,12 @@ export function LoginPage() {
       {linkFailed ? (
         <p className="mb-4 rounded-xl bg-mint-mist px-4 py-3 text-sm font-bold text-pine" role="status" data-testid="note-auth-link-failed">
           {t('auth.linkFailedNote')}
+        </p>
+      ) : null}
+
+      {suspendedOnArrival ? (
+        <p className="mb-4 rounded-xl bg-terracotta-mist px-4 py-3 text-sm font-bold text-terracotta" role="alert" data-testid="note-account-suspended">
+          {t('auth.accountSuspended')}
         </p>
       ) : null}
 

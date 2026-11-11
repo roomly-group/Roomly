@@ -20,6 +20,13 @@ export const ACCOUNT_DELETE_ERROR_CODES = {
 } as const;
 
 /**
+ * `code` of the 403 answer for a suspended or deleted account (utenti.stato is
+ * not 'attivo'), from any logged-in API route or from POST /api/login.
+ * The frontend shows its own friendly, translated text for it.
+ */
+export const ACCOUNT_SUSPENDED_ERROR_CODE = "account_suspended" as const;
+
+/**
  * How a user proves it is them before changing their email (GET /api/me/email).
  * PASSWORD: accounts with a password. CODE: accounts without one (signed up
  * with Google), which get a one-time code at their current address instead.
