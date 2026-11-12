@@ -107,8 +107,80 @@ export const UpdateOwnerContractStatusBody = zod.object({
   registrationReference: zod.string().trim().max(CONTRACT_REGISTRATION_REFERENCE_MAX_LENGTH).optional(),
 });
 
+// ===================== STUDENT SIDE ("Il mio contratto") =====================
+
+/**
+ * Where a student is in one rental, shown as the step bar of the student's
+ * contract page (GET /me/contract). Derived by the backend from the request
+ * and the contract:
+ *   request  request sent, the owner has not answered yet
+ *   sign     request accepted: contract being prepared or waiting for the signature
+ *   move_in  contract signed, the stay has not started yet (or starts today)
+ *   stay     contract signed and the stay is running
+ */
+export const STUDENT_CONTRACT_STAGES = ["request", "sign", "move_in", "stay"] as const;
+
+/** Request states a student can still follow on the contract page (conversazioni.stato_richiesta). */
+export const STUDENT_OPEN_REQUEST_STATUSES = ["in_attesa", "accettata"] as const;
+
+export const StudentContractStageSchema = zod.enum(STUDENT_CONTRACT_STAGES);
+
+/** The contract terms the student needs, without the owner's bookkeeping (registration details). */
+export const StudentContractDetails = zod.object({
+  id: zod.number(),
+  status: ContractStatusSchema,
+  startDate: IsoDate,
+  endDate: IsoDate,
+  months: zod.number(),
+  /** Month of the stay the student is in (1-based), only during the "stay" stage. */
+  currentMonth: zod.number().nullable(),
+  monthlyRent: zod.number(),
+  deposit: zod.number().nullable(),
+  signatureRequestedAt: zod.string().nullable(),
+  signedOn: IsoDate.nullable(),
+  registeredOn: IsoDate.nullable(),
+});
+
+/** One open rental of the student: a request still in play, or a live contract. */
+export const StudentJourney = zod.object({
+  stage: StudentContractStageSchema,
+  /** Chat with the owner; null only if it was removed. */
+  conversationId: zod.number().nullable(),
+  requestStatus: zod.enum(STUDENT_OPEN_REQUEST_STATUSES).nullable(),
+  requestedAt: zod.string().nullable(),
+  acceptedAt: zod.string().nullable(),
+  roomTitle: zod.string(),
+  roomAddress: zod.string(),
+  ownerName: zod.string(),
+  ownerPhotoUrl: zod.string().nullable(),
+  ownerVerified: zod.boolean(),
+  contract: StudentContractDetails.nullable(),
+});
+
+/** A contract that is over (ended, or past its end date). */
+export const StudentPastContract = zod.object({
+  id: zod.number(),
+  roomTitle: zod.string(),
+  roomAddress: zod.string(),
+  startDate: IsoDate,
+  endDate: IsoDate,
+  endedOn: IsoDate.nullable(),
+});
+
+export const StudentContractOverviewResponse = zod.object({
+  /** Open rentals, the most advanced first: the page shows the first one. */
+  journeys: zod.array(StudentJourney),
+  pastContracts: zod.array(StudentPastContract),
+  /** Today in Europe/Rome, the date every stage above was computed against. */
+  today: IsoDate,
+});
+
 export type ContractStatus = zod.infer<typeof ContractStatusSchema>;
 export type ContractGroup = zod.infer<typeof ContractGroupSchema>;
+export type StudentContractStage = zod.infer<typeof StudentContractStageSchema>;
+export type StudentJourneyItem = zod.infer<typeof StudentJourney>;
+export type StudentPastContractItem = zod.infer<typeof StudentPastContract>;
+export type StudentContractOverview = zod.infer<typeof StudentContractOverviewResponse>;
 export type ContractAction = zod.infer<typeof ContractActionSchema>;
 export type OwnerContractItem = zod.infer<typeof OwnerContract>;
 export type ContractCandidateItem = zod.infer<typeof ContractCandidate>;

@@ -11,9 +11,10 @@ const MOBILE_TAB_BAR_TEST_IDS = {
 } as const;
 
 /**
- * Phone navigation (under 640px): Esplora · Messaggi · Profilo for students,
- * Panoramica · Messaggi · Profilo for owners. A spacer keeps the footer
- * clear of the fixed bar.
+ * Phone navigation (under 640px): the same links as the header
+ * (Esplora · Messaggi · Contratti · Profilo for students,
+ * Panoramica · Messaggi · Contratti · Profilo for owners). A spacer keeps the
+ * footer clear of the fixed bar.
  */
 export function MobileTabBar() {
   const { t } = useLanguage();

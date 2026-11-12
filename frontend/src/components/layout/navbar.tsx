@@ -4,7 +4,6 @@ import {
   LayoutDashboard,
   Menu,
   MessageCircle,
-  MoveUpRight,
   Search,
   UserRound,
   X,
@@ -27,16 +26,20 @@ const STATIC_PATHS: readonly string[] = [APP_ROUTES.ABOUT, APP_ROUTES.CONTACT, A
 /** Stable test selectors used by global navigation controls. */
 const NAVBAR_TEST_IDS = {
   LINK_NAV_PREFIX: 'link-nav-',
-  LINK_SWITCH_ROLE: 'link-switch-role',
   BUTTON_OPEN_MOBILE_MENU: 'button-open-mobile-menu',
   LINK_MOBILE_PREFIX: 'link-mobile-',
-  LINK_MOBILE_SWITCH_ROLE: 'link-mobile-switch-role',
   LINK_NAV_REGISTER: 'link-nav-register',
 } as const;
 
-// Nav items whose `key` is in this set are only shown to admins; plain
-// authenticated users (role: 'user') never see them.
-const ADMIN_ONLY_NAV_KEYS = ['find-a-room', 'messages'];
+// Student nav items whose `key` is in this set are only shown to admins
+// (pre-launch); plain authenticated users (role: 'user') never see them.
+const ADMIN_ONLY_NAV_KEYS = ['find-a-room', 'messages', 'contracts'];
+// Student nav items owners keep even without admin rights (their routes are
+// open to owners: RequireAdmin allowOwner in router.tsx).
+const OWNER_KEPT_NAV_KEYS = ['messages', 'contracts'];
+
+// Browse pages (outside /owner) where an owner still gets the owner header.
+const OWNER_BROWSE_PATHS: readonly string[] = [APP_ROUTES.HOME, APP_ROUTES.SEARCH] as const;
 
 // Resolves the role flags of the current session. Both default to false until
 // resolved, so restricted nav items never flash on screen.
@@ -91,7 +94,10 @@ export function useAppNav() {
   const isGuest = location === APP_ROUTES.ROOT || location === APP_ROUTES.WAITLIST;
   const isStatic = STATIC_PATHS.includes(location);
   const isApp = !isWaitlistConfirmed && !isGuest && !isStatic;
-  const owner = location.startsWith(APP_ROUTES.OWNER_DASHBOARD);
+  // Owner header on every /owner page and, for owners, also on the browse
+  // pages (home, search results, listing pages).
+  const isBrowsePage = OWNER_BROWSE_PATHS.includes(location) || location.startsWith(`${APP_ROUTES.LISTINGS}/`);
+  const owner = location.startsWith(APP_ROUTES.OWNER_DASHBOARD) || (isOwner && isBrowsePage);
 
   const allLinks = owner
     ? [
@@ -103,18 +109,22 @@ export function useAppNav() {
     : [
         { href: APP_ROUTES.HOME, key: 'find-a-room', label: t('nav.findRoom'), shortLabel: t('nav.explore'), icon: Search },
         { href: APP_ROUTES.MESSAGES, key: 'messages', label: t('nav.messages'), shortLabel: t('nav.messages'), icon: MessageCircle },
+        { href: APP_ROUTES.CONTRACTS, key: 'contracts', label: t('nav.contracts'), shortLabel: t('nav.contracts'), icon: FileText },
         { href: APP_ROUTES.PROFILE, key: 'my-profile', label: t('nav.myProfile'), shortLabel: t('nav.profileShort'), icon: UserRound },
       ];
 
-  // "Trova una stanza" / "Messaggi" (and their owner equivalents) are
+  // Student side: "Trova una stanza" / "Messaggi" / "Contratti" are
   // admin-only; plain authenticated users only ever see "Il mio profilo".
-  // Verified owners always keep "Messaggi" (in both sections).
-  const links = allLinks.filter(
-    (link) =>
-      isAdmin ||
-      !ADMIN_ONLY_NAV_KEYS.includes(link.key) ||
-      (isOwner && link.key === 'messages'),
-  );
+  // Owners keep "Messaggi" and "Contratti". The owner header is only shown
+  // to owners (owner pages are behind RequireOwner), so it is not filtered.
+  const links = owner
+    ? allLinks
+    : allLinks.filter(
+        (link) =>
+          isAdmin ||
+          !ADMIN_ONLY_NAV_KEYS.includes(link.key) ||
+          (isOwner && OWNER_KEPT_NAV_KEYS.includes(link.key)),
+      );
 
   const isActive = (href: string) =>
     location === href ||
@@ -122,9 +132,6 @@ export function useAppNav() {
     (href !== APP_ROUTES.ROOT && href !== APP_ROUTES.OWNER_DASHBOARD && location.startsWith(href)) ||
     // Search results and listing pages belong to the "find a room" tab.
     (href === APP_ROUTES.HOME && (location === APP_ROUTES.SEARCH || location.startsWith(APP_ROUTES.LISTINGS)));
-
-  // Student side: owners get a "Dashboard" button, everyone else "List a room".
-  const switchLabel = owner ? t('nav.lookingForRoom') : isOwner ? t('nav.dashboard') : t('nav.listRoom');
 
   return {
     isApp,
@@ -134,9 +141,6 @@ export function useAppNav() {
     owner,
     links,
     isActive,
-    showSwitch: isOwner,
-    switchHref: owner ? APP_ROUTES.HOME : APP_ROUTES.OWNER_DASHBOARD,
-    switchLabel,
   };
 }
 
@@ -148,14 +152,14 @@ export function useAppNav() {
 //   /waitlist/confirmed       -> logo + ProfileMenu (with waitlist position)
 //   legal pages (STATIC_PATHS)-> logo + "back home" link
 //   everything else           -> full app header (product tabs + ProfileMenu),
-//                                "owner" mode is detected from the /owner prefix;
+//                                "owner" mode: every /owner page, plus home,
+//                                search and listing pages for owners;
 //                                home and search add a second row with the search pill
 export function Navbar() {
   const { t } = useLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { account } = useAccount();
-  const { isApp, isStatic, isWaitlistConfirmed, owner, links, isActive, showSwitch, switchHref, switchLabel } =
-    useAppNav();
+  const { isApp, isStatic, isWaitlistConfirmed, owner, links, isActive } = useAppNav();
   // Logo: guests go to the landing page; signed-in users to their main page
   // (the home for admins and owners, the waitlist page for everyone else).
   const logoHref = account ? mainPageFor(peekRoleCache() ?? peekLastKnownRole()) : APP_ROUTES.ROOT;
@@ -205,15 +209,6 @@ export function Navbar() {
           </nav>
 
           <div className="flex items-center gap-2">
-            {showSwitch && (
-              <Link
-                href={switchHref}
-                className="hidden min-h-11 items-center rounded-xl px-3 text-sm font-extrabold text-shutter transition-colors hover:bg-mint-mist lg:inline-flex"
-                data-testid={NAVBAR_TEST_IDS.LINK_SWITCH_ROLE}
-              >
-                {switchLabel}
-              </Link>
-            )}
             {links.length > 1 && (
               <button
                 className="hidden h-11 w-11 place-items-center rounded-xl text-pine transition-colors hover:bg-mint-mist sm:grid lg:hidden"
@@ -225,22 +220,7 @@ export function Navbar() {
                 {mobileOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
             )}
-            <ProfileMenu
-              profileHref={owner ? APP_ROUTES.OWNER_PROFILE : APP_ROUTES.PROFILE}
-              extra={
-                showSwitch ? (
-                  // Phones have no header switch: the profile menu carries it.
-                  <Link
-                    href={switchHref}
-                    className="flex min-h-11 items-center gap-2 rounded-xl bg-mint-mist px-3 text-sm font-extrabold text-pine sm:hidden"
-                    data-testid={NAVBAR_TEST_IDS.LINK_MOBILE_SWITCH_ROLE}
-                  >
-                    <MoveUpRight size={16} aria-hidden />
-                    {switchLabel}
-                  </Link>
-                ) : undefined
-              }
-            />
+            <ProfileMenu profileHref={owner ? APP_ROUTES.OWNER_PROFILE : APP_ROUTES.PROFILE} />
           </div>
         </div>
 
@@ -259,16 +239,6 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
-            {showSwitch && (
-              <Link
-                href={switchHref}
-                onClick={() => setMobileOpen(false)}
-                className="mt-1 flex min-h-12 items-center gap-3 rounded-xl px-3 font-extrabold text-shutter hover:bg-mint-mist"
-              >
-                <MoveUpRight size={18} aria-hidden />
-                {switchLabel}
-              </Link>
-            )}
           </div>
         )}
 

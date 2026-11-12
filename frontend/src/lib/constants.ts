@@ -21,6 +21,7 @@ export const APP_ROUTES = {
   MESSAGE_DETAIL: '/messages/:id?',
   OWNER_MESSAGES: '/owner/messages',
   OWNER_MESSAGE_DETAIL: '/owner/messages/:id?',
+  CONTRACTS: '/contracts',
   PROFILE: '/profile',
   PROFILE_PREFERENCES: '/profile/preferences',
   OWNER_LISTING_NEW: '/owner/listings/new',

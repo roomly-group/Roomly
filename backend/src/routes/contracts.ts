@@ -1,9 +1,10 @@
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
-import { messageLimiter } from "../middleware/rateLimit.js";
+import { chatReadLimiter, messageLimiter } from "../middleware/rateLimit.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { releaseRoom } from "../lib/rooms.js";
+import { isUserVerified } from "../lib/verification.js";
 import { ACTIVE_CONTRACT_ERROR, studentHasActiveContract } from "../lib/active-contract.js";
 import {
   API_ROUTE_PATHS,
@@ -11,10 +12,14 @@ import {
   CONTRACT_REGISTRATION_DEADLINE_DAYS,
   CreateOwnerContractBody,
   ListOwnerContractsResponse,
+  STUDENT_OPEN_REQUEST_STATUSES,
+  StudentContractOverviewResponse,
   UpdateOwnerContractStatusBody,
   type ContractGroup,
   type ContractStatus,
   type OwnerContractItem,
+  type StudentContractStage,
+  type StudentJourneyItem,
 } from "@workspace/api-zod";
 
 // ===================== CONFIGURATION =====================
@@ -23,6 +28,16 @@ import {
 const CONTRACTS_TIME_ZONE = "Europe/Rome" as const;
 /** File name offered when the owner exports contracts for the accountant. */
 const EXPORT_FILE_NAME = "roomly-contratti.csv" as const;
+/** Most open rentals (requests + live contracts) returned to a student's contract page. */
+const STUDENT_JOURNEYS_LIMIT = 20 as const;
+/** Most ended contracts listed under "Contratti precedenti". */
+const STUDENT_PAST_CONTRACTS_LIMIT = 20 as const;
+/** Name shown when the owner's profile has no name (e.g. the account was deleted). */
+const OWNER_FALLBACK_NAME = "Proprietario" as const;
+/** Contract steps that are signed: the rental is (or will be) running. */
+const SIGNED_CONTRACT_STATUSES: readonly ContractStatus[] = ["firmato", "registrato"];
+/** Order of the student's open rentals: the most advanced one is shown first. */
+const STAGE_PRIORITY: Record<StudentContractStage, number> = { stay: 0, move_in: 1, sign: 2, request: 3 };
 
 const router: IRouter = Router();
 
@@ -98,10 +113,10 @@ const monthsBetween = (start: string, end: string) => {
   return Math.max(1, whole + (ed >= sd - 1 ? 1 : 0));
 };
 
-const displayName = (person: PersonRow | undefined): string => {
-  if (!person) return "Studente";
+const displayName = (person: PersonRow | undefined, fallback = "Studente"): string => {
+  if (!person) return fallback;
   const full = `${person.nome ?? ""} ${person.cognome ?? ""}`.trim();
-  return full || person.nome_utente || "Studente";
+  return full || person.nome_utente || fallback;
 };
 
 const roomAddress = (room: RoomRow | undefined) =>
@@ -450,6 +465,193 @@ router.post(API_ROUTE_PATHS.OWNER_CONTRACT_STATUS, requireAuth, requireOwnerAcco
     return res.json({ success: true });
   } catch (error) {
     return serverError(res, "Error updating contract:", error);
+  }
+});
+
+// ===================== STUDENT SIDE ("Il mio contratto") =====================
+
+type StudentContractRow = {
+  id: number;
+  conversazione_id: number | null;
+  proprietario_id: string;
+  data_inizio: string;
+  data_fine: string;
+  canone_mensile: number | string;
+  deposito: number | string | null;
+  stato: ContractStatus;
+  firma_richiesta_at: string | null;
+  firmato_il: string | null;
+  registrato_il: string | null;
+  concluso_il: string | null;
+  stanza?: RoomRow;
+  proprietario?: PersonRow;
+};
+
+type StudentRequestRow = {
+  id: number;
+  stato_richiesta: (typeof STUDENT_OPEN_REQUEST_STATUSES)[number];
+  created_at: string;
+  deciso_at: string | null;
+  stanza?: (RoomRow & { proprietario_id?: string | null; proprietario?: PersonRow }) | null;
+};
+
+// Only what the student needs: no registration details (owner bookkeeping),
+// no other student's data. Owner name and photo are the ones the chat already shows.
+const STUDENT_CONTRACT_SELECT = `
+  id,
+  conversazione_id,
+  proprietario_id,
+  data_inizio,
+  data_fine,
+  canone_mensile,
+  deposito,
+  stato,
+  firma_richiesta_at,
+  firmato_il,
+  registrato_il,
+  concluso_il,
+  stanza:stanza_id(titolo, indirizzo, citta),
+  proprietario:proprietario_id(nome_utente, nome, cognome, foto_profilo)
+`;
+
+const STUDENT_REQUEST_SELECT = `
+  id,
+  stato_richiesta,
+  created_at,
+  deciso_at,
+  stanza:stanza_id(titolo, indirizzo, citta, proprietario_id, proprietario:proprietario_id(nome_utente, nome, cognome, foto_profilo))
+`;
+
+/** Signed and over: ended by the owner, or past its end date. */
+const isPastContract = (row: StudentContractRow, today: string) =>
+  row.stato === "concluso" || (SIGNED_CONTRACT_STATUSES.includes(row.stato) && row.data_fine < today);
+
+/** Stage of a live contract: to sign, waiting for the move-in day, or running. */
+const contractStage = (row: StudentContractRow, today: string): StudentContractStage => {
+  if (!SIGNED_CONTRACT_STATUSES.includes(row.stato)) return "sign";
+  return today <= row.data_inizio ? "move_in" : "stay";
+};
+
+/** 1-based month of the stay on `today`, kept between 1 and the contract length. */
+const currentMonthOf = (start: string, today: string, months: number) => {
+  const [sy, sm, sd] = start.split("-").map(Number);
+  const [ty, tm, td] = today.split("-").map(Number);
+  const elapsed = (ty - sy) * 12 + (tm - sm) - (td < sd ? 1 : 0);
+  return Math.min(months, Math.max(1, elapsed + 1));
+};
+
+/**
+ * GET /api/me/contract
+ * The signed-in student's open rentals (requests still in play and live
+ * contracts, the most advanced first) and their past contracts. Read-only:
+ * every row is filtered on the caller's own id, so nobody can read another
+ * student's contract.
+ */
+router.get(API_ROUTE_PATHS.ME_CONTRACT, requireAuth, chatReadLimiter, async (req, res) => {
+  const { userId } = req as AuthenticatedRequest;
+  const today = todayIso();
+  try {
+    const [contractsResult, requestsResult] = await Promise.all([
+      supabaseAdmin
+        .from("contratti")
+        .select(STUDENT_CONTRACT_SELECT)
+        .eq("studente_id", userId)
+        .neq("stato", "annullato")
+        .order("data_inizio", { ascending: true }),
+      supabaseAdmin
+        .from("conversazioni")
+        .select(STUDENT_REQUEST_SELECT)
+        .eq("studente_id", userId)
+        .in("stato_richiesta", [...STUDENT_OPEN_REQUEST_STATUSES])
+        .order("updated_at", { ascending: false }),
+    ]);
+    if (contractsResult.error) throw contractsResult.error;
+    if (requestsResult.error) throw requestsResult.error;
+
+    const contracts = (contractsResult.data ?? []) as unknown as StudentContractRow[];
+    const requests = (requestsResult.data ?? []) as unknown as StudentRequestRow[];
+    const requestById = new Map(requests.map((row) => [row.id, row]));
+    // A request that already has a (not cancelled) contract is followed through the contract.
+    const withContract = new Set(contracts.map((row) => row.conversazione_id).filter((id): id is number => id != null));
+
+    // Verified badge per owner, looked up once each.
+    const ownerIds = new Set<string>();
+    for (const row of contracts) ownerIds.add(row.proprietario_id);
+    for (const row of requests) if (row.stanza?.proprietario_id) ownerIds.add(row.stanza.proprietario_id);
+    const verifiedEntries = await Promise.all([...ownerIds].map(async (id) => [id, await isUserVerified(id)] as const));
+    const verified = new Map(verifiedEntries);
+
+    const liveJourneys: StudentJourneyItem[] = contracts
+      .filter((row) => !isPastContract(row, today))
+      .map((row) => {
+        const stage = contractStage(row, today);
+        const months = monthsBetween(row.data_inizio, row.data_fine);
+        const request = row.conversazione_id != null ? requestById.get(row.conversazione_id) : undefined;
+        return {
+          stage,
+          conversationId: row.conversazione_id,
+          requestStatus: request?.stato_richiesta ?? null,
+          requestedAt: request?.created_at ?? null,
+          acceptedAt: request?.deciso_at ?? null,
+          roomTitle: row.stanza?.titolo ?? "",
+          roomAddress: roomAddress(row.stanza),
+          ownerName: displayName(row.proprietario, OWNER_FALLBACK_NAME),
+          ownerPhotoUrl: row.proprietario?.foto_profilo ?? null,
+          ownerVerified: verified.get(row.proprietario_id) ?? false,
+          contract: {
+            id: row.id,
+            status: row.stato,
+            startDate: row.data_inizio,
+            endDate: row.data_fine,
+            months,
+            currentMonth: stage === "stay" ? currentMonthOf(row.data_inizio, today, months) : null,
+            monthlyRent: Number(row.canone_mensile),
+            deposit: row.deposito == null ? null : Number(row.deposito),
+            signatureRequestedAt: row.firma_richiesta_at,
+            signedOn: row.firmato_il,
+            registeredOn: row.registrato_il,
+          },
+        };
+      });
+
+    const requestJourneys: StudentJourneyItem[] = requests
+      .filter((row) => !withContract.has(row.id))
+      .map((row) => ({
+        // Accepted with no contract yet: the owner is preparing it.
+        stage: row.stato_richiesta === "accettata" ? "sign" : "request",
+        conversationId: row.id,
+        requestStatus: row.stato_richiesta,
+        requestedAt: row.created_at,
+        acceptedAt: row.deciso_at,
+        roomTitle: row.stanza?.titolo ?? "",
+        roomAddress: roomAddress(row.stanza),
+        ownerName: displayName(row.stanza?.proprietario, OWNER_FALLBACK_NAME),
+        ownerPhotoUrl: row.stanza?.proprietario?.foto_profilo ?? null,
+        ownerVerified: row.stanza?.proprietario_id ? verified.get(row.stanza.proprietario_id) ?? false : false,
+        contract: null,
+      }));
+
+    // Stable sort: inside one stage, contracts (by start date) come before plain requests (newest first).
+    const journeys = [...liveJourneys, ...requestJourneys]
+      .sort((a, b) => STAGE_PRIORITY[a.stage] - STAGE_PRIORITY[b.stage])
+      .slice(0, STUDENT_JOURNEYS_LIMIT);
+
+    const pastContracts = contracts
+      .filter((row) => isPastContract(row, today))
+      .sort((a, b) => b.data_fine.localeCompare(a.data_fine))
+      .slice(0, STUDENT_PAST_CONTRACTS_LIMIT)
+      .map((row) => ({
+        id: row.id,
+        roomTitle: row.stanza?.titolo ?? "",
+        roomAddress: roomAddress(row.stanza),
+        startDate: row.data_inizio,
+        endDate: row.data_fine,
+        endedOn: row.concluso_il,
+      }));
+
+    return res.json(StudentContractOverviewResponse.parse({ journeys, pastContracts, today }));
+  } catch (error) {
+    return serverError(res, "Error loading the student's contract:", error);
   }
 });
 

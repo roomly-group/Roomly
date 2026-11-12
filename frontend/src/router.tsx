@@ -14,6 +14,7 @@ const OwnerProfileRoute = lazy(() => import('@/pages/profile').then((m) => ({ de
 const UserPreferencesPage = lazy(() => import('@/pages/user-preferences').then((m) => ({ default: m.UserPreferencesPage })));
 const OwnerDashboard = lazy(() => import('@/pages/owner-dashboard').then((m) => ({ default: m.OwnerDashboard })));
 const OwnerContractsPage = lazy(() => import('@/pages/owner-contracts').then((m) => ({ default: m.OwnerContractsPage })));
+const StudentContractPage = lazy(() => import('@/pages/student-contract').then((m) => ({ default: m.StudentContractPage })));
 const NewListingPage = lazy(() => import('@/pages/new-listing').then((m) => ({ default: m.NewListingPage })));
 const EditListingPage = lazy(() => import('@/pages/edit-listing').then((m) => ({ default: m.EditListingPage })));
 const WaitlistPage = lazy(() => import('@/pages/waitlist').then((m) => ({ default: m.WaitlistPage })));
@@ -68,6 +69,12 @@ export function Router() {
         <Route path={APP_ROUTES.MESSAGE_DETAIL}>
           <RequireAdmin allowOwner>
             <StudentMessagesRoute />
+          </RequireAdmin>
+        </Route>
+        {/* Pre-launch, like messages: admins and owners only. */}
+        <Route path={APP_ROUTES.CONTRACTS}>
+          <RequireAdmin allowOwner>
+            <StudentContractPage />
           </RequireAdmin>
         </Route>
         <Route path={APP_ROUTES.PROFILE}>

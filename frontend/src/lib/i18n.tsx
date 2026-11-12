@@ -3,6 +3,7 @@ import { verificationTranslations } from './i18n-verification';
 import { adminTranslations } from './i18n-admin';
 import { accountTranslations } from './i18n-account';
 import { safetyTranslations } from './i18n-safety';
+import { studentContractTranslations } from './i18n-student-contract';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { getAuthSession } from '@/lib/auth-session';
 import { patchAccount, useAccount } from '@/lib/account-cache';
@@ -73,6 +74,7 @@ export const translations = {
     ...verificationTranslations.en,
     ...adminTranslations.en,
     ...safetyTranslations.en,
+    ...studentContractTranslations.en,
     'nav.findRoom': 'Find a room',
     'nav.messages': 'Messages',
     'nav.myProfile': 'My profile',
@@ -897,6 +899,7 @@ export const translations = {
     ...verificationTranslations.it,
     ...adminTranslations.it,
     ...safetyTranslations.it,
+    ...studentContractTranslations.it,
     'nav.findRoom': 'Trova una stanza',
     'nav.messages': 'Messaggi',
     'nav.myProfile': 'Il mio profilo',
@@ -1718,6 +1721,7 @@ export const translations = {
     ...accountTranslations.es,
     ...verificationTranslations.es,
     ...safetyTranslations.es,
+    ...studentContractTranslations.es,
     'nav.findRoom': 'Encontrar una habitación',
     'nav.messages': 'Mensajes',
     'nav.myProfile': 'Mi perfil',
@@ -2378,6 +2382,7 @@ export const translations = {
     ...accountTranslations.fr,
     ...verificationTranslations.fr,
     ...safetyTranslations.fr,
+    ...studentContractTranslations.fr,
     'nav.findRoom': 'Trouver une chambre',
     'nav.messages': 'Messages',
     'nav.myProfile': 'Mon profil',
@@ -3037,6 +3042,7 @@ export const translations = {
     ...accountTranslations.de,
     ...verificationTranslations.de,
     ...safetyTranslations.de,
+    ...studentContractTranslations.de,
     'nav.findRoom': 'Zimmer finden',
     'nav.messages': 'Nachrichten',
     'nav.myProfile': 'Mein Profil',
@@ -3696,6 +3702,7 @@ export const translations = {
     ...accountTranslations.pt,
     ...verificationTranslations.pt,
     ...safetyTranslations.pt,
+    ...studentContractTranslations.pt,
     'nav.findRoom': 'Encontrar um quarto',
     'nav.messages': 'Mensagens',
     'nav.myProfile': 'Meu perfil',
