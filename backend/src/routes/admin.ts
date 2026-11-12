@@ -21,6 +21,8 @@ import {
 
 /** Time zone used to decide what "today" is for contract dates. */
 const ADMIN_TIME_ZONE = "Europe/Rome" as const;
+/** User reports (routes/safety.ts, migrations/019). */
+const REPORTS_TABLE = "segnalazioni" as const;
 
 const DAY_MS = 86_400_000;
 
@@ -85,6 +87,7 @@ router.get(API_ROUTE_PATHS.ADMIN_STATS, requireAuth, requireAdmin, async (_req, 
       verificationsPending,
       verificationsApproved,
       verificationsRejected,
+      reportsOpen,
     ] = await Promise.all([
       countOf(supabaseAdmin.from("utenti").select("id", head)),
       countOf(supabaseAdmin.from("utenti").select("id", head).eq("owner", true)),
@@ -108,9 +111,10 @@ router.get(API_ROUTE_PATHS.ADMIN_STATS, requireAuth, requireAdmin, async (_req, 
       countOf(supabaseAdmin.from(VERIFICATION_TABLE).select("id", head).eq("stato", "in_attesa")),
       countOf(supabaseAdmin.from(VERIFICATION_TABLE).select("id", head).eq("stato", "approvata")),
       countOf(supabaseAdmin.from(VERIFICATION_TABLE).select("id", head).eq("stato", "rifiutata")),
+      countOf(supabaseAdmin.from(REPORTS_TABLE).select("id", head).eq("stato", "aperta")),
     ]);
 
-    const [signedContracts, runningContracts, oldestPending, rejections, recentListings] = await Promise.all([
+    const [signedContracts, runningContracts, oldestPending, rejections, recentListings, oldestReport] = await Promise.all([
       supabaseAdmin
         .from("contratti")
         .select("id, firmato_il, data_inizio, stanza:stanza_id(titolo), proprietario:proprietario_id(nome_utente, nome, cognome), studente:studente_id(nome_utente, nome, cognome)")
@@ -134,8 +138,14 @@ router.get(API_ROUTE_PATHS.ADMIN_STATS, requireAuth, requireAdmin, async (_req, 
         .gte("created_at", weekAgo)
         .order("created_at", { ascending: false })
         .limit(ADMIN_QUEUE_SIZE),
+      supabaseAdmin
+        .from(REPORTS_TABLE)
+        .select("created_at")
+        .eq("stato", "aperta")
+        .order("created_at", { ascending: true })
+        .limit(1),
     ]);
-    for (const result of [signedContracts, runningContracts, oldestPending, rejections, recentListings]) {
+    for (const result of [signedContracts, runningContracts, oldestPending, rejections, recentListings, oldestReport]) {
       if (result.error) throw result.error;
     }
 
@@ -212,6 +222,10 @@ router.get(API_ROUTE_PATHS.ADMIN_STATS, requireAuth, requireAdmin, async (_req, 
           rejectionReasons: VERIFICATION_REJECTION_REASONS.filter((reason) => reasonCounts.has(reason))
             .map((reason) => ({ reason, count: reasonCounts.get(reason)! }))
             .sort((a, b) => b.count - a.count),
+        },
+        reports: {
+          open: reportsOpen,
+          oldestOpenAt: (oldestReport.data ?? [])[0]?.created_at ?? null,
         },
         queues: {
           contractsToRegister: contractsToRegister.slice(0, ADMIN_QUEUE_SIZE),

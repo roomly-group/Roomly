@@ -2,6 +2,7 @@ import { contractTranslations } from './i18n-contracts';
 import { verificationTranslations } from './i18n-verification';
 import { adminTranslations } from './i18n-admin';
 import { accountTranslations } from './i18n-account';
+import { safetyTranslations } from './i18n-safety';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { getAuthSession } from '@/lib/auth-session';
 import { patchAccount, useAccount } from '@/lib/account-cache';
@@ -71,6 +72,7 @@ export const translations = {
     ...accountTranslations.en,
     ...verificationTranslations.en,
     ...adminTranslations.en,
+    ...safetyTranslations.en,
     'nav.findRoom': 'Find a room',
     'nav.messages': 'Messages',
     'nav.myProfile': 'My profile',
@@ -894,6 +896,7 @@ export const translations = {
     ...accountTranslations.it,
     ...verificationTranslations.it,
     ...adminTranslations.it,
+    ...safetyTranslations.it,
     'nav.findRoom': 'Trova una stanza',
     'nav.messages': 'Messaggi',
     'nav.myProfile': 'Il mio profilo',
@@ -1714,6 +1717,7 @@ export const translations = {
     ...contractTranslations.es,
     ...accountTranslations.es,
     ...verificationTranslations.es,
+    ...safetyTranslations.es,
     'nav.findRoom': 'Encontrar una habitación',
     'nav.messages': 'Mensajes',
     'nav.myProfile': 'Mi perfil',
@@ -2373,6 +2377,7 @@ export const translations = {
     ...contractTranslations.fr,
     ...accountTranslations.fr,
     ...verificationTranslations.fr,
+    ...safetyTranslations.fr,
     'nav.findRoom': 'Trouver une chambre',
     'nav.messages': 'Messages',
     'nav.myProfile': 'Mon profil',
@@ -3031,6 +3036,7 @@ export const translations = {
     ...contractTranslations.de,
     ...accountTranslations.de,
     ...verificationTranslations.de,
+    ...safetyTranslations.de,
     'nav.findRoom': 'Zimmer finden',
     'nav.messages': 'Nachrichten',
     'nav.myProfile': 'Mein Profil',
@@ -3689,6 +3695,7 @@ export const translations = {
     ...contractTranslations.pt,
     ...accountTranslations.pt,
     ...verificationTranslations.pt,
+    ...safetyTranslations.pt,
     'nav.findRoom': 'Encontrar um quarto',
     'nav.messages': 'Mensagens',
     'nav.myProfile': 'Meu perfil',

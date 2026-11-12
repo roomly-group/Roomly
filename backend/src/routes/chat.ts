@@ -4,6 +4,7 @@ import { requireAppAccess, requireAuth, type AuthenticatedRequest } from "../mid
 import { chatReadLimiter, messageLimiter } from "../middleware/rateLimit.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { ACTIVE_CONTRACT_ERROR, studentHasActiveContract } from "../lib/active-contract.js";
+import { isBlockedBetween, loadUserBlocks, type UserBlocks } from "../lib/blocks.js";
 import {
   ListConversationsResponse,
   ListMessagesResponse,
@@ -13,6 +14,7 @@ import {
   DELETED_MESSAGE_TYPE,
   MESSAGE_MAX_LENGTH_CHARS,
   MESSAGES_PAGE_SIZE,
+  SAFETY_ERROR_CODES,
 } from "@workspace/api-zod";
 
 // ===================== CONFIGURATION =====================
@@ -98,13 +100,22 @@ const ownerIdOf = (conversation: ConversationRow): string | undefined =>
 const roleOf = (conversation: ConversationRow, userId: string): "student" | "owner" =>
   ownerIdOf(conversation) === userId ? "owner" : "student";
 
-const toConversation = (row: ConversationRow, userId: string, unreadCount: number) => {
+/** No blocks at all: used where a chat was just created or reopened. */
+const NO_BLOCKS: UserBlocks = { blockedByMe: new Set(), blockedMe: new Set() };
+
+const toConversation = (row: ConversationRow, userId: string, unreadCount: number, blocks: UserBlocks = NO_BLOCKS) => {
   const other = (row.partecipanti ?? []).find((p) => p.utente_id !== userId);
   const last = row.messaggi?.[0];
   // A deleted user's text was wiped: no preview for it.
   const preview = last && last.tipo !== DELETED_MESSAGE_TYPE ? last.testo : "";
   const role = roleOf(row, userId);
+  // The other person of the chat, from the chat itself (their membership row may be gone).
+  const otherId = role === "owner" ? row.studente_id : ownerIdOf(row);
+  const blockedByMe = Boolean(otherId && blocks.blockedByMe.has(otherId));
   return {
+    // RMY-12: the blocker's inbox hides the chat; either block closes it for new messages.
+    blockedByMe,
+    messagingBlocked: blockedByMe || Boolean(otherId && blocks.blockedMe.has(otherId)),
     id: row.id,
     role,
     // The student deleted their account: the UI shows "Deleted user".
@@ -123,16 +134,23 @@ const toConversation = (row: ConversationRow, userId: string, unreadCount: numbe
 // Una singola chat nel formato di GET /conversations, con l'ULTIMO messaggio
 // come anteprima (senza order/limit PostgREST restituiva il primo).
 async function conversationResponseFor(conversationId: number, userId: string) {
-  const { data, error } = await supabaseAdmin
-    .from("conversazioni")
-    .select(CONVERSATION_SELECT)
-    .eq("id", conversationId)
-    .order("created_at", { referencedTable: "messaggi", ascending: false })
-    .limit(1, { referencedTable: "messaggi" })
-    .single();
+  const [{ data, error }, blocks] = await Promise.all([
+    supabaseAdmin
+      .from("conversazioni")
+      .select(CONVERSATION_SELECT)
+      .eq("id", conversationId)
+      .order("created_at", { referencedTable: "messaggi", ascending: false })
+      .limit(1, { referencedTable: "messaggi" })
+      .single(),
+    loadUserBlocks(userId),
+  ]);
   if (error) throw error;
-  return toConversation(data as unknown as ConversationRow, userId, 0);
+  return toConversation(data as unknown as ConversationRow, userId, 0, blocks);
 }
+
+/** 409 answer when one of the two people blocked the other (RMY-12). */
+const sendBlocked = (res: Response) =>
+  res.status(409).json({ error: "Chat is blocked", code: SAFETY_ERROR_CODES.BLOCKED });
 
 const toMessage = (row: MessageRow, ownerId: string | undefined) => ({
   id: row.id,
@@ -160,7 +178,7 @@ async function loadConversationFor(id: number, userId: string) {
       .maybeSingle(),
     supabaseAdmin
       .from("conversazioni")
-      .select("id, stanza:stanza_id(proprietario_id)")
+      .select("id, studente_id, stanza:stanza_id(proprietario_id)")
       .eq("id", id)
       .maybeSingle(),
   ]);
@@ -169,10 +187,14 @@ async function loadConversationFor(id: number, userId: string) {
   // Stessa risposta di "non esiste": non riveliamo l'esistenza di chat altrui.
   if (!membershipResult.data || !conversationResult.data) return { status: 404 as const };
 
-  const stanza = (conversationResult.data as unknown as {
+  const conversation = conversationResult.data as unknown as {
+    studente_id: string | null;
     stanza?: { proprietario_id?: string } | null;
-  }).stanza;
-  return { status: 200 as const, ownerId: stanza?.proprietario_id };
+  };
+  const ownerId = conversation.stanza?.proprietario_id;
+  // L'altra persona della chat (null se ha eliminato l'account): serve al controllo dei blocchi.
+  const otherId = ownerId === userId ? conversation.studente_id : ownerId ?? null;
+  return { status: 200 as const, ownerId, otherId };
 }
 
 // Salva il messaggio e aggiorna l'orario della conversazione (per l'ordinamento).
@@ -219,7 +241,7 @@ router.get(API_ROUTE_PATHS.CONVERSATIONS, requireAuth, chatReadLimiter, async (r
     const ids = (memberships ?? []).map((m) => m.conversazione_id as number);
     if (!ids.length) return res.json(ListConversationsResponse.parse([]));
 
-    const [conversationsResult, unreadResult] = await Promise.all([
+    const [conversationsResult, unreadResult, blocks] = await Promise.all([
       supabaseAdmin
         .from("conversazioni")
         .select(CONVERSATION_SELECT)
@@ -233,6 +255,7 @@ router.get(API_ROUTE_PATHS.CONVERSATIONS, requireAuth, chatReadLimiter, async (r
         .in("conversazione_id", ids)
         .eq("letto", false)
         .neq("mittente_id", userId),
+      loadUserBlocks(userId),
     ]);
     if (conversationsResult.error) throw conversationsResult.error;
     if (unreadResult.error) throw unreadResult.error;
@@ -245,7 +268,7 @@ router.get(API_ROUTE_PATHS.CONVERSATIONS, requireAuth, chatReadLimiter, async (r
 
     const rows = (conversationsResult.data ?? []) as unknown as ConversationRow[];
     return res.json(
-      ListConversationsResponse.parse(rows.map((row) => toConversation(row, userId, unread.get(row.id) ?? 0))),
+      ListConversationsResponse.parse(rows.map((row) => toConversation(row, userId, unread.get(row.id) ?? 0, blocks))),
     );
   } catch (error) {
     return serverError(res, "Error listing conversations:", error);
@@ -297,6 +320,9 @@ router.post(API_ROUTE_PATHS.CONVERSATIONS, requireAuth, requireAppAccess, messag
         .status(200)
         .json(ListConversationsResponse.parse([await conversationResponseFor(existingChat.id, userId)]));
     }
+
+    // RMY-12: no new requests between two people when one blocked the other.
+    if (await isBlockedBetween(userId, room.proprietario_id)) return sendBlocked(res);
 
     // Check if room is not disponibile
     if (room.stato !== "disponibile") {
@@ -454,6 +480,8 @@ router.post(API_ROUTE_PATHS.CONVERSATION_MESSAGES, requireAuth, messageLimiter, 
     if (convData.stato_richiesta === "rifiutata" || convData.stato_richiesta === "annullata") {
       return res.status(409).json({ error: "Chat is closed" });
     }
+    // RMY-12: one of the two blocked the other, so nobody can write here any more.
+    if (found.otherId && (await isBlockedBetween(userId, found.otherId))) return sendBlocked(res);
 
     const message = await insertMessage(id.data, userId, body);
     return res.status(201).json(SendMessageResponse.parse(toMessage(message, found.ownerId)));
@@ -536,6 +564,8 @@ router.post(API_ROUTE_PATHS.CONVERSATION_ACCEPT, requireAuth, messageLimiter, as
     if (ctx.stanza?.stato !== "disponibile") {
       return res.status(409).json({ error: "Room not available" });
     }
+    // RMY-12: a blocked student cannot be accepted (nor can an owner who blocked them accept).
+    if (await isBlockedBetween(userId, ctx.studente_id)) return sendBlocked(res);
 
     // Lo studente con un contratto d'affitto attivo non può prendere un'altra stanza.
     // Le richieste già accettate su altre stanze non contano.

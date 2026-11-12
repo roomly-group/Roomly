@@ -2,6 +2,7 @@ import { supabaseAdmin } from "./supabase-admin.js";
 import { PROFILE_PHOTO_BUCKET, signedProfilePhotoUrl } from "./profile-photo.js";
 import { VERIFICATION_BUCKET, VERIFICATION_TABLE } from "./verification.js";
 import { ROOM_PHOTO_BUCKET, createRoomPhotoSignedUrl, getRoomPhotoPath } from "./room-photos.js";
+import { BLOCKS_TABLE } from "./blocks.js";
 import { DELETED_MESSAGE_TYPE } from "@workspace/api-zod";
 
 // Account deletion (DELETE /api/me) and personal-data export (GET /api/me/export),
@@ -323,7 +324,7 @@ async function exportConversations(userId: string, ownedRoomIds: number[]) {
  * ids are left out because they are someone else's data.
  */
 export async function buildAccountExport(userId: string) {
-  const [authResult, profileResult, preferencesResult, roomsResult, contractsResult, verificationsResult] = await Promise.all([
+  const [authResult, profileResult, preferencesResult, roomsResult, contractsResult, verificationsResult, reportsResult, blocksResult] = await Promise.all([
     supabaseAdmin.auth.admin.getUserById(userId),
     supabaseAdmin.from("utenti").select("*, universita:universita_id(nome, citta)").eq("id", userId).maybeSingle(),
     supabaseAdmin.from("preferenze_utenti").select("*").eq("utente_id", userId).maybeSingle(),
@@ -344,9 +345,21 @@ export async function buildAccountExport(userId: string) {
       )
       .eq("utente_id", userId)
       .order("created_at", { ascending: true }),
+    // RMY-12: reports the user filed (not the admin's handling, which is internal)
+    // and the people they blocked.
+    supabaseAdmin
+      .from("segnalazioni")
+      .select("tipo, motivo, descrizione, stato, created_at")
+      .eq("segnalante_id", userId)
+      .order("created_at", { ascending: true }),
+    supabaseAdmin
+      .from(BLOCKS_TABLE)
+      .select("created_at, bloccato:bloccato_id(nome_utente, nome, cognome)")
+      .eq("bloccante_id", userId)
+      .order("created_at", { ascending: true }),
   ]);
   if (authResult.error) throw authResult.error;
-  for (const result of [profileResult, preferencesResult, roomsResult, contractsResult, verificationsResult]) {
+  for (const result of [profileResult, preferencesResult, roomsResult, contractsResult, verificationsResult, reportsResult, blocksResult]) {
     if (result.error) throw result.error;
   }
 
@@ -393,6 +406,20 @@ export async function buildAccountExport(userId: string) {
     identityVerifications: (verificationsResult.data ?? []).map(({ documento_fronte, documento_retro, video, ...attempt }) => ({
       ...attempt,
       filesStillStored: Boolean(documento_fronte || documento_retro || video),
+    })),
+    reportsMade: (reportsResult.data ?? []).map((report) => ({
+      target: report.tipo,
+      reason: report.motivo,
+      description: report.descrizione,
+      status: report.stato,
+      createdAt: report.created_at,
+    })),
+    blockedUsers: ((blocksResult.data ?? []) as unknown as Array<{
+      created_at: string;
+      bloccato: { nome_utente: string | null; nome: string | null; cognome: string | null } | null;
+    }>).map((block) => ({
+      name: `${block.bloccato?.nome ?? ""} ${block.bloccato?.cognome ?? ""}`.trim() || block.bloccato?.nome_utente || null,
+      blockedAt: block.created_at,
     })),
   };
 }

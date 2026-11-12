@@ -32,6 +32,7 @@ export const APP_ROUTES = {
   VERIFICATION: '/verifica',
   ADMIN_DASHBOARD: '/admin',
   ADMIN_VERIFICATIONS: '/admin/verifiche',
+  ADMIN_REPORTS: '/admin/segnalazioni',
   WAITLIST: '/waitlist',
   WAITLIST_CONFIRMED: '/waitlist/confirmed',
   ONBOARDING: '/onboarding',

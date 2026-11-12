@@ -34,7 +34,7 @@ const PROCESSORS_EN = [
 const privacy: Record<Lang, LegalDoc> = {
   it: {
     title: 'Informativa sulla privacy',
-    updated: 'Ultimo aggiornamento: 10 novembre 2026',
+    updated: 'Ultimo aggiornamento: 12 novembre 2026',
     intro:
       'Questa informativa spiega quali dati personali tratta Roomly, perché, su quale base giuridica e quali diritti hai, ai sensi degli artt. 13 e 14 del Regolamento (UE) 2016/679 ("GDPR") e del D.Lgs. 196/2003 come modificato dal D.Lgs. 101/2018.',
     sections: [
@@ -87,6 +87,7 @@ const privacy: Record<Lang, LegalDoc> = {
         title: '6. Cosa vedono gli altri utenti',
         paragraphs: [
           'Gli annunci sono visibili agli utenti registrati, inclusi nome del proprietario, zona e fotografie. Quando invii una richiesta, il proprietario vede il tuo nome e i messaggi che gli scrivi. L’indirizzo esatto dell’immobile è usato per calcolare la distanza dalle università; sulla mappa pubblica dell’annuncio la posizione è mostrata solo in modo approssimato (circa 100 metri).',
+          'Segnalazioni e blocchi: se segnali un utente, un messaggio o un annuncio, il personale autorizzato di Roomly può leggere la segnalazione, il messaggio segnalato e la conversazione da cui proviene, solo per valutarla e, se necessario, sospendere un account o nascondere un annuncio. La persona segnalata non viene informata di chi l’ha segnalata. Se blocchi un utente, nessuno dei due può più scrivere all’altro. Base giuridica: legittimo interesse a prevenire truffe e abusi (art. 6.1.f GDPR).',
           'Non vendiamo i tuoi dati personali e non li usiamo per pubblicità profilata.',
         ],
       },
@@ -132,7 +133,7 @@ const privacy: Record<Lang, LegalDoc> = {
   },
   en: {
     title: 'Privacy Policy',
-    updated: 'Last updated: 10 November 2026',
+    updated: 'Last updated: 12 November 2026',
     intro:
       'This notice explains which personal data Roomly processes, why, on what legal basis and which rights you have, under Articles 13 and 14 of Regulation (EU) 2016/679 ("GDPR") and Italian Legislative Decree 196/2003 as amended. The Italian version prevails.',
     sections: [
@@ -181,6 +182,7 @@ const privacy: Record<Lang, LegalDoc> = {
         title: '6. What other users see',
         paragraphs: [
           'Listings are visible to registered users, including the owner’s name, area and photos. When you send a request, the owner sees your name and your messages. The exact property address is used to calculate the distance to universities; the listing map only shows an approximate position (about 100 metres).',
+          'Reports and blocks: if you report a user, a message or a listing, authorised Roomly staff may read the report, the reported message and the conversation it comes from, only to assess it and, if needed, suspend an account or hide a listing. The reported person is not told who reported them. If you block a user, neither of you can write to the other any more. Legal basis: legitimate interest in preventing scams and abuse (Art. 6(1)(f) GDPR).',
           'We do not sell your personal data and do not use it for targeted advertising.',
         ],
       },

@@ -29,6 +29,7 @@ const AdminDashboardPage = lazy(() => import('@/pages/admin-dashboard').then((m)
 const AdminVerificationsPage = lazy(() =>
   import('@/pages/admin-verifications').then((m) => ({ default: m.AdminVerificationsPage })),
 );
+const AdminReportsPage = lazy(() => import('@/pages/admin-reports').then((m) => ({ default: m.AdminReportsPage })));
 
 /** `?preview` in development shows a page with sample data and no login (pages/onboarding.tsx, pages/verification.tsx). */
 const isDevPreview = () => import.meta.env.DEV && new URLSearchParams(window.location.search).has('preview');
@@ -150,6 +151,15 @@ export function Router() {
           ) : (
             <RequireAdmin>
               <AdminVerificationsPage />
+            </RequireAdmin>
+          )}
+        </Route>
+        <Route path={APP_ROUTES.ADMIN_REPORTS}>
+          {isDevPreview() ? (
+            <AdminReportsPage />
+          ) : (
+            <RequireAdmin>
+              <AdminReportsPage />
             </RequireAdmin>
           )}
         </Route>

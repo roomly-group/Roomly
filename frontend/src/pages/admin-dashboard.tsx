@@ -1,7 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { ArrowRight, BadgeCheck, FileSignature, Home, MessageCircle, RefreshCw, ShieldCheck } from 'lucide-react';
+import { ArrowRight, BadgeCheck, FileSignature, Flag, Home, MessageCircle, RefreshCw, ShieldCheck } from 'lucide-react';
 import { customFetch } from '../../local-libs/api-client-react/src/custom-fetch';
 import { API_BASE_PATH, API_ROUTE_PATHS, type AdminStats } from '@workspace/api-zod';
 import { useLanguage } from '@/lib/i18n';
@@ -60,6 +60,7 @@ const PREVIEW_STATS: AdminStats = {
       { reason: 'challenge_not_done', count: 2 },
     ],
   },
+  reports: { open: 2, oldestOpenAt: new Date(Date.now() - 26 * 3_600_000).toISOString() },
   queues: {
     contractsToRegister: [
       {
@@ -170,7 +171,20 @@ function Dashboard({ stats }: { stats: AdminStats }) {
       {/* ---------- Work queues ---------- */}
       <section aria-labelledby="admin-queues">
         <h2 id="admin-queues" className="mb-4 text-xl font-black text-pine">{t('adminDashboard.queuesTitle')}</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <QueueCard
+            icon={<Flag size={20} aria-hidden />}
+            label={t('adminDashboard.queueReports')}
+            value={stats.reports.open}
+            hint={
+              stats.reports.oldestOpenAt
+                ? fill(t('adminDashboard.queueReportsOldest'), { time: waitedFor(stats.reports.oldestOpenAt, now) })
+                : t('adminDashboard.queueReportsNone')
+            }
+            href={APP_ROUTES.ADMIN_REPORTS}
+            urgent={stats.reports.open > 0}
+            testId="queue-reports"
+          />
           <QueueCard
             icon={<ShieldCheck size={20} aria-hidden />}
             label={t('adminDashboard.queueVerifications')}

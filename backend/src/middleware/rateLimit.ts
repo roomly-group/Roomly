@@ -289,3 +289,26 @@ export const emailChangeLimiter = rateLimit({
     res.status(429).json({ error: 'Too many requests, please try again later.', code: EMAIL_CHANGE_ERROR_CODES.TOO_MANY_REQUESTS });
   },
 });
+
+/** Reports a user may file per window (RMY-12). Genuine use is a handful a year. */
+const REPORT_RATE_LIMIT_MAX_REQUESTS = 10 as const;
+/** Report limiter window (ms): one hour. */
+const REPORT_RATE_LIMIT_WINDOW_MS = 3600000 as const;
+
+/**
+ * Rate limiter for POST /api/reports: stops one account from flooding the
+ * admin queue with reports. Keyed by user; mount after requireAuth.
+ */
+export const reportLimiter = rateLimit({
+  windowMs: REPORT_RATE_LIMIT_WINDOW_MS,
+  max: REPORT_RATE_LIMIT_MAX_REQUESTS,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const userId = (req as Request & { userId?: string }).userId;
+    return userId ? `report:${userId}` : extractIP(req);
+  },
+  handler: (_req: Request, res: Response) => {
+    res.status(429).json({ error: 'Too many reports, please try again later.' });
+  },
+});

@@ -73,6 +73,11 @@ export const AdminStatsResponse = zod.object({
     rejected: zod.number(),
     rejectionReasons: zod.array(zod.object({ reason: VerificationRejectionReasonSchema, count: zod.number() })),
   }),
+  /** User reports waiting for an admin (routes/safety.ts). */
+  reports: zod.object({
+    open: zod.number(),
+    oldestOpenAt: zod.string().nullable(),
+  }),
   queues: zod.object({
     contractsToRegister: zod.array(AdminContractToRegister),
     recentListings: zod.array(AdminRecentListing),

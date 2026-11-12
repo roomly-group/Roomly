@@ -163,7 +163,9 @@ export const ListConversationsResponseItem = zod.object({
   "requestStatus": zod.string(),
   "roomId": zod.number(),
   "roomStatus": zod.string(),
-  "participantDeleted": zod.boolean().optional()
+  "participantDeleted": zod.boolean().optional(),
+  "blockedByMe": zod.boolean().optional(),
+  "messagingBlocked": zod.boolean().optional()
 })
 export const ListConversationsResponse = zod.array(ListConversationsResponseItem)
 

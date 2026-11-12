@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleCheck,
+  Flag,
   GraduationCap,
   Images,
   MessageCircle,
@@ -47,7 +48,9 @@ import { ListingPhotoPlaceholder } from '@/components/shared/listing-card';
 import { QueryError } from '@/components/shared/query-error';
 import { getAuthSession } from '@/lib/auth-session';
 import { cn } from '@/lib/utils';
-import { MESSAGE_MAX_LENGTH_CHARS } from '@workspace/api-zod';
+import { MESSAGE_MAX_LENGTH_CHARS, SAFETY_ERROR_CODES } from '@workspace/api-zod';
+import { apiErrorCode } from '@/lib/api-error';
+import { ReportDialog } from '@/components/shared/report-dialog';
 
 type TranslationKey = Parameters<ReturnType<typeof useLanguage>['t']>[0];
 
@@ -64,6 +67,7 @@ const DETAIL_TEST_IDS = {
   BAR_MOBILE_REQUEST: 'bar-mobile-request',
   LINK_EDIT_OWN: 'link-edit-own-listing',
   LINK_SIMILAR: 'link-similar-rooms',
+  BUTTON_REPORT_LISTING: 'button-report-listing',
 } as const;
 
 const SECTION_TITLE_CLASS = 'text-[22px] font-black leading-[1.1] tracking-[-0.04em] text-pine';
@@ -199,6 +203,8 @@ export function ListingDetail() {
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const [showContact, setShowContact] = useState(false);
   const [firstMessage, setFirstMessage] = useState('');
+  // RMY-12: "Report this listing" dialog.
+  const [showReport, setShowReport] = useState(false);
   const [, navigate] = useLocation();
   const client = useQueryClient();
   const startConversation = useStartConversation();
@@ -247,6 +253,10 @@ export function ListingDetail() {
         : '';
 
     if (status === 409) {
+      // RMY-12: one of the two blocked the other.
+      if (apiErrorCode(error) === SAFETY_ERROR_CODES.BLOCKED) {
+        return t('safety.cannotContact');
+      }
       if (backendError === 'Student already has an active contract') {
         return t('listingDetail.alreadyHaveRoom');
       }
@@ -649,6 +659,16 @@ export function ListingDetail() {
               <p className="mt-4 flex items-start gap-2 text-sm leading-6 text-sage">
                 <ShieldCheck size={16} className="mt-1 shrink-0 text-shutter" aria-hidden /> {t('listingDetail.keepConversation')}
               </p>
+              {!isOwnListing && (
+                <button
+                  type="button"
+                  onClick={() => setShowReport(true)}
+                  className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-xl px-1 text-sm font-bold text-sage underline decoration-outline underline-offset-4 transition-colors hover:text-terracotta"
+                  data-testid={DETAIL_TEST_IDS.BUTTON_REPORT_LISTING}
+                >
+                  <Flag size={14} aria-hidden /> {t('safety.reportListing')}
+                </button>
+              )}
           </section>
           </div>
         </div>
@@ -756,6 +776,15 @@ export function ListingDetail() {
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>
       </DialogPrimitive.Root>
+
+      {!isOwnListing && (
+        <ReportDialog
+          open={showReport}
+          onOpenChange={setShowReport}
+          subject={{ target: 'listing', listingId: listing.id }}
+          title={t('safety.reportListing')}
+        />
+      )}
     </AppShell>
   );
 }

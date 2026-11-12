@@ -121,6 +121,10 @@ export interface Conversation {
   roomStatus: string;
   /** True when the other person deleted their account (shown as "Deleted user"). */
   participantDeleted?: boolean;
+  /** True when the viewer blocked the other person (the chat is hidden from the inbox). */
+  blockedByMe?: boolean;
+  /** True when either person blocked the other: no new messages in this chat. */
+  messagingBlocked?: boolean;
 }
 
 export interface StartConversationInput {
