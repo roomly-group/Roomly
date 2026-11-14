@@ -39,7 +39,8 @@ export function AuthShell({
           <h1 className="text-[2rem] font-black leading-tight tracking-[-0.03em] text-pine">{title}</h1>
           <p className="mt-2 text-[15px] leading-6 text-sage">{subtitle}</p>
           <div className="mt-8">{children}</div>
-          <div className="mt-8 border-t border-line pt-6 text-sm text-sage">{footer}</div>
+          {/* No footer (e.g. "password updated" on /reset-password): no empty divider line. */}
+          {footer ? <div className="mt-8 border-t border-line pt-6 text-sm text-sage">{footer}</div> : null}
         </div>
       </div>
 

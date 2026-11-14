@@ -5,6 +5,7 @@ const NotFound = lazy(() => import('@/pages/not-found'));
 const Home = lazy(() => import('@/pages/home').then((m) => ({ default: m.Home })));
 const LoginPage = lazy(() => import('@/pages/login').then((m) => ({ default: m.LoginPage })));
 const RegisterPage = lazy(() => import('@/pages/register').then((m) => ({ default: m.RegisterPage })));
+const ResetPasswordPage = lazy(() => import('@/pages/reset-password').then((m) => ({ default: m.ResetPasswordPage })));
 const SearchPage = lazy(() => import('@/pages/search').then((m) => ({ default: m.SearchPage })));
 const ListingDetail = lazy(() => import('@/pages/listing-detail').then((m) => ({ default: m.ListingDetail })));
 const StudentMessagesRoute = lazy(() => import('@/pages/messages').then((m) => ({ default: m.StudentMessagesRoute })));
@@ -51,6 +52,8 @@ export function Router() {
         <Route path={APP_ROUTES.ROOT} component={WaitlistPage} />
         <Route path={APP_ROUTES.LOGIN} component={LoginPage} />
         <Route path={APP_ROUTES.REGISTER} component={RegisterPage} />
+        {/* Public: asks for the reset email, or sets the new password from the emailed link (RMY-11). */}
+        <Route path={APP_ROUTES.RESET_PASSWORD} component={ResetPasswordPage} />
         <Route path={APP_ROUTES.HOME}>
           <RequireAdmin allowOwner>
             <Home />

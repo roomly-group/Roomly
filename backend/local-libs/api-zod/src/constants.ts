@@ -61,6 +61,8 @@ export const API_ROUTE_PATHS = {
   REGISTER: "/register",
   OAUTH_GOOGLE: "/oauth/google",
   OAUTH_EXCHANGE: "/oauth/exchange",
+  PASSWORD_FORGOT: "/password/forgot",
+  PASSWORD_RESET: "/password/reset",
   CSRF: "/csrf",
   UNIVERSITIES: "/universita",
 } as const;
@@ -106,6 +108,16 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
 
 /** Cookie name read by the frontend CSRF header synchronizer and set by the backend (cookie key). */
 export const CSRF_TOKEN_COOKIE_NAME = "csrf-token" as const;
+
+/**
+ * Password character rules (regex source) checked by the signup page, the
+ * reset-password page and POST /api/password/reset: at least 8 characters,
+ * with a lowercase and an uppercase letter, a digit and a symbol.
+ */
+export const PASSWORD_REQUIREMENTS_PATTERN = `^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*()_+=[\\]{};':"\\\\|<>?,./\`~-])[A-Za-z\\d!@#$%^&*()_+=[\\]{};':"\\\\|<>?,./\`~-]{8,}` as const;
+
+/** Longest password Supabase Auth accepts (characters: bcrypt only reads the first 72 bytes). */
+export const PASSWORD_MAX_LENGTH = 72 as const;
 
 /** Number of messages returned per message-history page in frontend and backend (messages). */
 export const MESSAGES_PAGE_SIZE = 100 as const;

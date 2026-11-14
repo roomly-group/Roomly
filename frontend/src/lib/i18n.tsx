@@ -3,6 +3,7 @@ import { verificationTranslations } from './i18n-verification';
 import { adminTranslations } from './i18n-admin';
 import { accountTranslations } from './i18n-account';
 import { safetyTranslations } from './i18n-safety';
+import { passwordResetTranslations } from './i18n-password-reset';
 import { studentContractTranslations } from './i18n-student-contract';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { getAuthSession } from '@/lib/auth-session';
@@ -74,6 +75,7 @@ export const translations = {
     ...verificationTranslations.en,
     ...adminTranslations.en,
     ...safetyTranslations.en,
+    ...passwordResetTranslations.en,
     ...studentContractTranslations.en,
     'nav.findRoom': 'Find a room',
     'nav.messages': 'Messages',
@@ -899,6 +901,7 @@ export const translations = {
     ...verificationTranslations.it,
     ...adminTranslations.it,
     ...safetyTranslations.it,
+    ...passwordResetTranslations.it,
     ...studentContractTranslations.it,
     'nav.findRoom': 'Trova una stanza',
     'nav.messages': 'Messaggi',
@@ -1721,6 +1724,7 @@ export const translations = {
     ...accountTranslations.es,
     ...verificationTranslations.es,
     ...safetyTranslations.es,
+    ...passwordResetTranslations.es,
     ...studentContractTranslations.es,
     'nav.findRoom': 'Encontrar una habitación',
     'nav.messages': 'Mensajes',
@@ -2382,6 +2386,7 @@ export const translations = {
     ...accountTranslations.fr,
     ...verificationTranslations.fr,
     ...safetyTranslations.fr,
+    ...passwordResetTranslations.fr,
     ...studentContractTranslations.fr,
     'nav.findRoom': 'Trouver une chambre',
     'nav.messages': 'Messages',
@@ -3042,6 +3047,7 @@ export const translations = {
     ...accountTranslations.de,
     ...verificationTranslations.de,
     ...safetyTranslations.de,
+    ...passwordResetTranslations.de,
     ...studentContractTranslations.de,
     'nav.findRoom': 'Zimmer finden',
     'nav.messages': 'Nachrichten',
@@ -3702,6 +3708,7 @@ export const translations = {
     ...accountTranslations.pt,
     ...verificationTranslations.pt,
     ...safetyTranslations.pt,
+    ...passwordResetTranslations.pt,
     ...studentContractTranslations.pt,
     'nav.findRoom': 'Encontrar um quarto',
     'nav.messages': 'Mensagens',

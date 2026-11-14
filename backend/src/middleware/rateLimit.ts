@@ -1,7 +1,7 @@
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { type Request, type Response } from 'express';
 import { getClientIp } from './originSecret.js';
-import { EMAIL_CHANGE_ERROR_CODES } from '@workspace/api-zod';
+import { EMAIL_CHANGE_ERROR_CODES, PASSWORD_RESET_ERROR_CODES } from '@workspace/api-zod';
 
 // ===================== CONFIGURATION =====================
 
@@ -340,4 +340,63 @@ export const reportLimiter = rateLimit({
   handler: (_req: Request, res: Response) => {
     res.status(429).json({ error: 'Too many reports, please try again later.' });
   },
+});
+
+// ===================== PASSWORD RESET (RMY-11) =====================
+
+/** "Forgot password" requests allowed per IP per 15 minutes. Generous: many students share one campus IP. */
+const PASSWORD_FORGOT_IP_RATE_LIMIT_MAX_REQUESTS = 10 as const;
+/** Reset emails allowed per email address per hour, from any IP. */
+const PASSWORD_FORGOT_EMAIL_RATE_LIMIT_MAX_REQUESTS = 3 as const;
+/** Per-email "forgot password" window (ms): one hour. */
+const PASSWORD_FORGOT_EMAIL_RATE_LIMIT_WINDOW_MS = 3600000 as const;
+/** New-password submissions (reset links tried) allowed per IP per 15 minutes. */
+const PASSWORD_RESET_RATE_LIMIT_MAX_REQUESTS = 10 as const;
+
+/** The 429 answer of the password-reset limiters, with a code the frontend translates. */
+const passwordResetTooMany = (_req: Request, res: Response) => {
+  res.status(429).json({ error: 'Too many requests, please try again later.', code: PASSWORD_RESET_ERROR_CODES.TOO_MANY_REQUESTS });
+};
+
+/**
+ * Rate limiter for POST /api/password/forgot, per IP: stops one machine from
+ * sending reset emails in a loop (each one costs an email and needs a CAPTCHA).
+ */
+export const passwordForgotLimiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW_15_MINUTES_MS,
+  max: PASSWORD_FORGOT_IP_RATE_LIMIT_MAX_REQUESTS,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => `password-forgot:${extractIP(req)}`,
+  handler: passwordResetTooMany,
+});
+
+/**
+ * Rate limiter for POST /api/password/forgot, per email address from any IP:
+ * stops someone flooding a student's inbox with reset emails. It applies the
+ * same way to addresses with and without an account, so a 429 reveals nothing
+ * about whether an account exists.
+ */
+export const passwordForgotEmailLimiter = rateLimit({
+  windowMs: PASSWORD_FORGOT_EMAIL_RATE_LIMIT_WINDOW_MS,
+  max: PASSWORD_FORGOT_EMAIL_RATE_LIMIT_MAX_REQUESTS,
+  standardHeaders: true,
+  legacyHeaders: false,
+  // No email in the body: the route answers 400 anyway, nothing to count.
+  skip: (req: Request) => normalizeLoginEmail(req) === '',
+  keyGenerator: (req: Request) => `password-forgot-email:${normalizeLoginEmail(req)}`,
+  handler: passwordResetTooMany,
+});
+
+/**
+ * Rate limiter for POST /api/password/reset, per IP: the reset token is long
+ * and random, so this only stops scripts from hammering Supabase through us.
+ */
+export const passwordResetLimiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW_15_MINUTES_MS,
+  max: PASSWORD_RESET_RATE_LIMIT_MAX_REQUESTS,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => `password-reset:${extractIP(req)}`,
+  handler: passwordResetTooMany,
 });

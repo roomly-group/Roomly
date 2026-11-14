@@ -14,7 +14,19 @@ Supabase sends these emails, so the files here are copies to paste into the dash
 2. Subject: `Conferma il tuo nuovo indirizzo email · Roomly`
 3. Paste the whole content of `change-email.html` and save.
 
-Both templates: the logo is loaded from `https://www.roomly.group/email/roomly-logo.png`
+## reset-password.html
+
+1. Same place → **Reset password**.
+2. Subject: `Reimposta la tua password · Roomly`
+3. Paste the whole content of `reset-password.html` and save.
+
+The link is `https://www.roomly.group/reset-password?token_hash={{ .TokenHash }}`
+(not `{{ .ConfirmationURL }}`): the reset page sends the token to the backend
+(`POST /api/password/reset`), so the link works on any device and an email
+scanner that opens links cannot use it up. The address is written out in full
+instead of `{{ .SiteURL }}` because the project's Site URL ends in `/login`.
+
+All templates: the logo is loaded from `https://www.roomly.group/email/roomly-logo.png`
 (`frontend/public/email/roomly-logo.png`), so the frontend must be deployed first.
 
 Dark mode: Apple Mail, iOS Mail, Outlook and Thunderbird use the template's own dark

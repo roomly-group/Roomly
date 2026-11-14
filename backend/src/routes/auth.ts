@@ -1,7 +1,18 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { createRequestAuthClient, supabaseAuthClient } from "../lib/supabase-auth.js";
-import { loginEmailLimiter, loginLimiter, oauthLimiter, refreshLimiter, signupLimiter, verifyLimiter } from "../middleware/rateLimit.js";
+import {
+  loginEmailLimiter,
+  loginLimiter,
+  oauthLimiter,
+  passwordForgotEmailLimiter,
+  passwordForgotLimiter,
+  passwordResetLimiter,
+  refreshLimiter,
+  signupLimiter,
+  verifyLimiter,
+} from "../middleware/rateLimit.js";
+import { z } from "zod";
 import { sendAccountSuspended } from "../middleware/auth.js";
 import { errorForLog, hashEmail, logger } from "../lib/logger.js";
 import { isAllowedOrigin } from "../lib/origins.js";
@@ -13,10 +24,20 @@ import {
   isValidPkceVerifier,
   oauthAuthorizeUrl,
   sessionExpiresAt,
+  requestPasswordRecovery,
   signUpWithPkce,
+  updatePassword,
+  verifyRecoveryToken,
   type AuthSession,
 } from "../lib/supabase-pkce.js";
-import { API_BASE_PATH, API_ROUTE_PATHS, CSRF_TOKEN_COOKIE_NAME } from "@workspace/api-zod";
+import {
+  API_BASE_PATH,
+  API_ROUTE_PATHS,
+  CSRF_TOKEN_COOKIE_NAME,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_REQUIREMENTS_PATTERN,
+  PASSWORD_RESET_ERROR_CODES,
+} from "@workspace/api-zod";
 
 import crypto from 'crypto';
 
@@ -52,6 +73,33 @@ export const OAUTH_VERIFIER_MAX_AGE_SECONDS = 600 as const;
 export const EMAIL_LINK_VERIFIER_MAX_AGE_SECONDS = 86400 as const;
 /** OAuth provider behind the "Continue with Google" button. */
 const GOOGLE_PROVIDER = 'google' as const;
+/**
+ * Cookie keeping the recovery session's refresh token when the reset link
+ * worked but the new password was refused (e.g. same as the old one): the
+ * link is single-use, so this lets the user try another password without
+ * asking for a new email. HttpOnly, sent only to the reset route.
+ */
+const PASSWORD_RECOVERY_COOKIE_NAME = 'sb-recovery' as const;
+/** The recovery cookie is sent only to the reset route, nowhere else. */
+const PASSWORD_RECOVERY_COOKIE_PATH = `${API_BASE_PATH}${API_ROUTE_PATHS.PASSWORD_RESET}` as const;
+/** How long the user has to retry with another password after a refused one (seconds). */
+const PASSWORD_RECOVERY_COOKIE_MAX_AGE_SECONDS = 900 as const;
+/** Longest email address (characters, RFC 5321). */
+const EMAIL_MAX_LENGTH = 254 as const;
+/** Longest Turnstile token accepted (characters); only bounds the request size. */
+const CAPTCHA_TOKEN_MAX_LENGTH = 4096 as const;
+/** Shape of the `token_hash` in the reset link (hex today, "pkce_" prefix possible; kept loose but bounded). */
+const RECOVERY_TOKEN_HASH_PATTERN = /^[A-Za-z0-9_-]{16,256}$/;
+/** Supabase error codes meaning the CAPTCHA token was refused. */
+const SUPABASE_CAPTCHA_CODES: readonly string[] = [SUPABASE_CAPTCHA_FAILED_CODE];
+/** Supabase error codes meaning too many emails or requests for now. */
+const SUPABASE_RATE_LIMIT_CODES: readonly string[] = ['over_email_send_rate_limit', 'over_request_rate_limit'];
+/** Supabase error code: the new password is the current one. */
+const SUPABASE_SAME_PASSWORD_CODE = 'same_password' as const;
+/** Supabase error code: the new password fails the project's password policy. */
+const SUPABASE_WEAK_PASSWORD_CODE = 'weak_password' as const;
+/** Scope of admin.signOut that ends every session of the user except the given one. */
+const SIGN_OUT_OTHER_SESSIONS = 'others' as const;
 
 const router: IRouter = Router();
 
@@ -520,6 +568,160 @@ router.post(API_ROUTE_PATHS.OAUTH_EXCHANGE, oauthLimiter, async (req: Request, r
     return res.json(sessionBody(session.user, expiresAt));
   } catch (error) {
     logger.error({ error: errorForLog(error) }, 'Code exchange error');
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ===================== PASSWORD RESET (RMY-11) =====================
+// 1. POST /password/forgot: the user types their email on /reset-password and
+//    Supabase emails them a link: /reset-password?token_hash=… (template in
+//    backend/email-templates/reset-password.html). The link works on any device.
+// 2. POST /password/reset: the page sends that token_hash plus the new
+//    password. We trade the token for a recovery session, set the password
+//    with it, sign out every other session (other devices, e.g. someone who
+//    knew the old password) and log the user in here.
+
+const forgotEmailSchema = z.string().trim().toLowerCase().pipe(z.email().max(EMAIL_MAX_LENGTH));
+const captchaTokenSchema = z.string().min(1).max(CAPTCHA_TOKEN_MAX_LENGTH);
+const passwordRequirements = new RegExp(PASSWORD_REQUIREMENTS_PATTERN);
+
+/** Same rules as the signup page, checked again here (never trust the browser). */
+function isValidNewPassword(value: unknown): value is string {
+  return typeof value === 'string' && Buffer.byteLength(value, 'utf8') <= PASSWORD_MAX_LENGTH && passwordRequirements.test(value);
+}
+
+type PasswordResetErrorCode = (typeof PASSWORD_RESET_ERROR_CODES)[keyof typeof PASSWORD_RESET_ERROR_CODES];
+/**
+ * Error answer with a `code` the frontend turns into a friendly, translated
+ * text. `linkUsed`: the reset link was already consumed, so the page must stop
+ * sending it and rely on the recovery cookie instead.
+ */
+const passwordResetError = (code: PasswordResetErrorCode, error: string, linkUsed = false) => ({ error, code, ...(linkUsed ? { linkUsed } : {}) });
+
+function setRecoveryCookie(res: Response, refreshToken: string) {
+  res.cookie(PASSWORD_RECOVERY_COOKIE_NAME, refreshToken, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: 'strict',
+    maxAge: secondsToMs(PASSWORD_RECOVERY_COOKIE_MAX_AGE_SECONDS),
+    path: PASSWORD_RECOVERY_COOKIE_PATH,
+  });
+}
+
+function clearRecoveryCookie(res: Response) {
+  res.clearCookie(PASSWORD_RECOVERY_COOKIE_NAME, { httpOnly: true, secure: isProd, sameSite: 'strict', path: PASSWORD_RECOVERY_COOKIE_PATH });
+}
+
+// POST /api/password/forgot  body: { email, captchaToken } -> { ok: true }
+// Always the same answer whether or not the address has an account, so this
+// route cannot be used to find out who is registered.
+router.post(API_ROUTE_PATHS.PASSWORD_FORGOT, passwordForgotLimiter, passwordForgotEmailLimiter, async (req: Request, res: Response) => {
+  const email = forgotEmailSchema.safeParse(req.body?.email);
+  if (!email.success) {
+    return res.status(400).json(passwordResetError(PASSWORD_RESET_ERROR_CODES.INVALID_EMAIL, 'Invalid email'));
+  }
+  // Turnstile token: Supabase checks it (Attack Protection), like for login and signup.
+  const captchaToken = captchaTokenSchema.safeParse(req.body?.captchaToken);
+  if (!captchaToken.success) {
+    return res.status(400).json(passwordResetError(PASSWORD_RESET_ERROR_CODES.CAPTCHA_FAILED, CAPTCHA_ERROR_MESSAGE));
+  }
+
+  try {
+    const { error } = await requestPasswordRecovery(email.data, captchaToken.data);
+    if (error) {
+      if (error.status === 0) throw new Error(error.message);
+      if (SUPABASE_CAPTCHA_CODES.includes(error.code ?? '')) {
+        return res.status(400).json(passwordResetError(PASSWORD_RESET_ERROR_CODES.CAPTCHA_FAILED, CAPTCHA_ERROR_MESSAGE));
+      }
+      // Supabase's "wait N seconds" limit only exists for real accounts:
+      // answering 429 would reveal that the address is registered. Answer as
+      // usual and log it (the email is hashed, RMY-10).
+      if (SUPABASE_RATE_LIMIT_CODES.includes(error.code ?? '') || error.status === 429) {
+        logger.warn({ emailHash: hashEmail(email.data), code: error.code }, 'Password reset email rate-limited by Supabase');
+        return res.json({ ok: true });
+      }
+      logger.error({ status: error.status, code: error.code }, 'Password reset email refused by Supabase');
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+    return res.json({ ok: true });
+  } catch (error) {
+    logger.error({ error: errorForLog(error) }, 'Password forgot error');
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/password/reset  body: { tokenHash?, password }
+// -> same body as /verify ({ session: { user, expires_at } }) and session cookies.
+// Without tokenHash, the recovery cookie from a previous refused attempt is used.
+router.post(API_ROUTE_PATHS.PASSWORD_RESET, passwordResetLimiter, async (req: Request, res: Response) => {
+  const { tokenHash, password } = (req.body ?? {}) as { tokenHash?: unknown; password?: unknown };
+
+  // Checked first, so a password that breaks the rules never uses up the link.
+  if (!isValidNewPassword(password)) {
+    return res.status(400).json(passwordResetError(PASSWORD_RESET_ERROR_CODES.WEAK_PASSWORD, 'Password does not meet the rules'));
+  }
+
+  try {
+    // 1. Recovery session: from the emailed link, or from the cookie left by
+    //    a previous attempt whose password was refused.
+    let session: AuthSession | null = null;
+    if (tokenHash !== undefined) {
+      if (typeof tokenHash !== 'string' || !RECOVERY_TOKEN_HASH_PATTERN.test(tokenHash)) {
+        return res.status(400).json(passwordResetError(PASSWORD_RESET_ERROR_CODES.INVALID_LINK, 'Invalid or expired link'));
+      }
+      const { data, error } = await verifyRecoveryToken(tokenHash);
+      if (error) {
+        if (error.status === 0) throw new Error(error.message);
+        // Suspended account (RMY-04): same friendly answer as login.
+        if (error.code === SUPABASE_USER_BANNED_CODE) {
+          sendAccountSuspended(res);
+          return;
+        }
+        logger.warn({ status: error.status, code: error.code }, 'Password reset link refused');
+        return res.status(400).json(passwordResetError(PASSWORD_RESET_ERROR_CODES.INVALID_LINK, 'Invalid or expired link'));
+      }
+      session = data;
+    } else {
+      const recoveryRefreshToken = req.cookies?.[PASSWORD_RECOVERY_COOKIE_NAME];
+      // Single use: drop it whatever happens next (set again below if needed).
+      clearRecoveryCookie(res);
+      if (typeof recoveryRefreshToken === 'string' && recoveryRefreshToken) {
+        const { data, error } = await createRequestAuthClient().auth.refreshSession({ refresh_token: recoveryRefreshToken });
+        if (error) logger.warn({ status: error.status, code: error.code }, 'Password reset recovery session refused');
+        session = data.session;
+      }
+    }
+    if (!session?.access_token || !session.refresh_token || !session.user?.id) {
+      return res.status(400).json(passwordResetError(PASSWORD_RESET_ERROR_CODES.INVALID_LINK, 'Invalid or expired link', true));
+    }
+
+    // 2. The new password, set with the user's own recovery session.
+    const { error: updateError } = await updatePassword(session.access_token, password);
+    if (updateError) {
+      // The link is used up: keep the recovery session in a short-lived
+      // HttpOnly cookie so the user can simply try another password.
+      setRecoveryCookie(res, session.refresh_token);
+      if (updateError.code === SUPABASE_SAME_PASSWORD_CODE) {
+        return res.status(400).json(passwordResetError(PASSWORD_RESET_ERROR_CODES.SAME_PASSWORD, 'Same as the old password', true));
+      }
+      if (updateError.code === SUPABASE_WEAK_PASSWORD_CODE) {
+        return res.status(400).json(passwordResetError(PASSWORD_RESET_ERROR_CODES.WEAK_PASSWORD, 'Password too weak', true));
+      }
+      logger.error({ status: updateError.status, code: updateError.code }, 'Password update refused by Supabase');
+      return res.status(500).json({ error: 'Internal server error', linkUsed: true });
+    }
+
+    // 3. Sign out every other session of this account. The password is
+    //    already changed, so a failure here is logged, not shown to the user.
+    const { error: signOutError } = await supabaseAdmin.auth.admin.signOut(session.access_token, SIGN_OUT_OTHER_SESSIONS);
+    if (signOutError) logger.error({ error: errorForLog(signOutError) }, 'Failed to sign out other sessions after password reset');
+
+    // 4. Logged in on this device, same cookies as /login.
+    const expiresAt = sessionExpiresAt(session);
+    setSessionCookies(res, session, expiresAt);
+    return res.json(sessionBody(session.user, expiresAt));
+  } catch (error) {
+    logger.error({ error: errorForLog(error) }, 'Password reset error');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

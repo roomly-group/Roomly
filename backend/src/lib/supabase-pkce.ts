@@ -188,6 +188,37 @@ export function exchangeAuthCode(code: string, verifier: string): Promise<AuthRe
   });
 }
 
+// ===================== PASSWORD RESET (RMY-11) =====================
+// Not PKCE: the reset link carries a `token_hash` (see
+// backend/email-templates/reset-password.html), so it works on any device,
+// not only in the browser that asked for it. Kept here because these calls
+// share the REST helper above.
+
+/** Type of the one-time token in the "Reset password" email. */
+const RECOVERY_OTP_TYPE = "recovery" as const;
+
+/**
+ * Asks Supabase to email a reset link to `email`. Supabase answers the same
+ * way whether or not an account exists. No PKCE challenge on purpose (see above).
+ */
+export function requestPasswordRecovery(email: string, captchaToken: string): Promise<AuthResult<unknown>> {
+  return authRequest<unknown>("POST", "/recover", {
+    body: { email, gotrue_meta_security: { captcha_token: captchaToken } },
+  });
+}
+
+/** Trades the `token_hash` from the reset link for a (recovery) session. Single use. */
+export function verifyRecoveryToken(tokenHash: string): Promise<AuthResult<AuthSession>> {
+  return authRequest<AuthSession>("POST", "/verify", {
+    body: { type: RECOVERY_OTP_TYPE, token_hash: tokenHash },
+  });
+}
+
+/** Sets a new password for the user owning `accessToken`. */
+export function updatePassword(accessToken: string, password: string): Promise<AuthResult<AuthUser>> {
+  return authRequest<AuthUser>("PUT", "/user", { accessToken, body: { password } });
+}
+
 /** True when Supabase's answer is a session (signup with email confirmation off). */
 export function isAuthSession(value: AuthSession | AuthUser): value is AuthSession {
   return typeof (value as AuthSession).access_token === "string" && typeof (value as AuthSession).refresh_token === "string";

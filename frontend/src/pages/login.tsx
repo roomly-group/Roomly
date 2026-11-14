@@ -20,6 +20,7 @@ import { OAuthButtons } from '@/components/shared/oauth-buttons';
 const LOGIN_TEST_IDS = {
   FORM_LOGIN: 'form-login',
   LINK_GO_REGISTER: 'link-go-register',
+  LINK_FORGOT_PASSWORD: 'link-forgot-password',
 } as const;
 
 export function LoginPage() {
@@ -175,6 +176,14 @@ export function LoginPage() {
                   )}
                 </button>
               </div>
+              {/* RMY-11: without this, a user who forgot the password was locked out. */}
+              <Link
+                href={APP_ROUTES.RESET_PASSWORD}
+                className="self-end py-1 text-sm font-extrabold text-shutter hover:text-pine"
+                data-testid={LOGIN_TEST_IDS.LINK_FORGOT_PASSWORD}
+              >
+                {t('resetPassword.forgotLink')}
+              </Link>
             </div>
 
             <div>

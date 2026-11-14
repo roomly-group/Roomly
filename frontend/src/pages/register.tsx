@@ -12,13 +12,11 @@ import { OAuthButtons } from '@/components/shared/oauth-buttons';
 import { restoreSession } from '@/lib/auth-session';
 import { postAuthRoute } from '@/lib/auth-role';
 import { APP_ROUTES, PASSWORD_FIELD_PLACEHOLDER, SHARED_TEST_IDS } from '@/lib/constants';
-import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
+import { API_BASE_PATH, API_ROUTE_PATHS, PASSWORD_REQUIREMENTS_PATTERN } from '@workspace/api-zod';
 import { trackEvent } from '@/lib/analytics';
 
 // ===================== CONFIGURATION =====================
 
-/** Regular expression enforcing the registration password character rules. */
-const PASSWORD_REQUIREMENTS_PATTERN = `^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*()_+=[\\]{};':"\\\\|<>?,./\`~-])[A-Za-z\\d!@#$%^&*()_+=[\\]{};':"\\\\|<>?,./\`~-]{8,}` as const;
 /** Stable selectors specific to the registration form. */
 const REGISTER_TEST_IDS = {
   FORM_REGISTER: 'form-register',

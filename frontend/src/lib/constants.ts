@@ -12,6 +12,7 @@ export const APP_ROUTES = {
   ROOT: '/',
   LOGIN: '/login',
   REGISTER: '/register',
+  RESET_PASSWORD: '/reset-password',
   HOME: '/home',
   SEARCH: '/search',
   LISTINGS: '/listings',

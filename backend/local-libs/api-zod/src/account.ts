@@ -55,5 +55,30 @@ export const EMAIL_CHANGE_ERROR_CODES = {
   TOO_MANY_REQUESTS: "too_many_requests",
 } as const;
 
+// ===================== PASSWORD RESET (RMY-11) =====================
+// Shared by the backend (routes/auth.ts) and the frontend (pages/reset-password.tsx).
+
+/**
+ * Query parameter of the link in the "Reset password" email
+ * (backend/email-templates/reset-password.html): /reset-password?token_hash=…
+ */
+export const PASSWORD_RESET_TOKEN_QUERY_PARAM = "token_hash" as const;
+
+/** `code` values of the POST /api/password/forgot and /api/password/reset error responses, matched by the frontend. */
+export const PASSWORD_RESET_ERROR_CODES = {
+  /** The Turnstile check is missing, expired or already used. */
+  CAPTCHA_FAILED: "captcha_failed",
+  /** The email address is not valid. */
+  INVALID_EMAIL: "invalid_email",
+  /** The reset link is wrong, expired or was already used. */
+  INVALID_LINK: "invalid_link",
+  /** The new password does not follow the rules (or Supabase finds it too weak). */
+  WEAK_PASSWORD: "weak_password",
+  /** The new password is the same as the old one. */
+  SAME_PASSWORD: "same_password",
+  /** Too many requests for now (our limiter). */
+  TOO_MANY_REQUESTS: "too_many_requests",
+} as const;
+
 /** Message type of a text whose author deleted their account (`messaggi.tipo`). */
 export const DELETED_MESSAGE_TYPE = "eliminato" as const;
