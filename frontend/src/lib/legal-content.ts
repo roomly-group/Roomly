@@ -15,7 +15,7 @@ const COMPANY_EN = '[Company name], registered office at [full address], VAT no.
 const EMAIL = 'hello@roomly.it';
 
 const PROCESSORS_IT = [
-  'Supabase Inc. (autenticazione e database)',
+  'Supabase Inc. (autenticazione, database e archiviazione dei file)',
   'Vercel Inc. (hosting del sito)',
   'Railway Corp. (hosting del server applicativo)',
   'Cloudflare Inc. (verifica anti-bot Turnstile)',
@@ -23,7 +23,7 @@ const PROCESSORS_IT = [
   'Google Ireland Ltd. (statistiche di visita con Google Analytics 4, solo con il tuo consenso)',
 ];
 const PROCESSORS_EN = [
-  'Supabase Inc. (authentication and database)',
+  'Supabase Inc. (authentication, database and file storage)',
   'Vercel Inc. (website hosting)',
   'Railway Corp. (application server hosting)',
   'Cloudflare Inc. (Turnstile anti-bot check)',
@@ -34,7 +34,7 @@ const PROCESSORS_EN = [
 const privacy: Record<Lang, LegalDoc> = {
   it: {
     title: 'Informativa sulla privacy',
-    updated: 'Ultimo aggiornamento: 12 novembre 2026',
+    updated: 'Ultimo aggiornamento: 14 novembre 2026',
     intro:
       'Questa informativa spiega quali dati personali tratta Roomly, perché, su quale base giuridica e quali diritti hai, ai sensi degli artt. 13 e 14 del Regolamento (UE) 2016/679 ("GDPR") e del D.Lgs. 196/2003 come modificato dal D.Lgs. 101/2018.',
     sections: [
@@ -53,6 +53,7 @@ const privacy: Record<Lang, LegalDoc> = {
           'Preferenze di ricerca che scegli di indicare: budget, animali, fumo, abitudini di rumore, ordine, orari e studio.',
           'Annunci pubblicati dai proprietari: titolo, descrizione, prezzo, indirizzo e coordinate dell’immobile, caratteristiche e fotografie.',
           'Richieste e messaggi scambiati tra studenti e proprietari tramite la chat di Roomly.',
+          'Verifica dell’identità, solo se la avvii: foto del fronte e del retro di un documento d’identità (carta d’identità, passaporto, patente o permesso di soggiorno), un breve video del tuo volto in cui pronunci un codice ed esegui alcuni gesti, e l’esito della verifica. Prima di salvare i file ne eliminiamo i metadati, come la posizione GPS e il dispositivo.',
           'Dati tecnici: indirizzo IP, tipo di browser e dati di sessione necessari a mantenere l’accesso e a proteggere il servizio da abusi.',
           'Lingua preferita e posizione in lista d’attesa.',
           'Dati statistici di navigazione, solo se accetti i cookie statistici: pagine visitate sul sito pubblico, tipo di dispositivo e browser, provenienza approssimativa e un identificativo casuale del browser. Google Analytics 4 non registra né conserva gli indirizzi IP degli utenti.',
@@ -64,6 +65,8 @@ const privacy: Record<Lang, LegalDoc> = {
         list: [
           'Creare e gestire il tuo account, pubblicare annunci, inviare richieste e messaggi: esecuzione del contratto (art. 6.1.b GDPR).',
           'Verificare che gli utenti siano maggiorenni e gestire la lista d’attesa: esecuzione del contratto e misure precontrattuali (art. 6.1.b).',
+          'Verificare la tua identità, confrontando a vista le foto del documento con il video, e mostrare sul tuo profilo il badge "Identità verificata": tuo consenso esplicito (artt. 6.1.a e 9.2.a GDPR), che dai prima di iniziare la verifica.',
+          'Addestrare il modello di verifica di Roomly con le foto del documento e il video, solo se scegli l’apposita opzione, separata dal consenso alla verifica e mai selezionata in partenza: tuo consenso esplicito e separato (artt. 6.1.a e 9.2.a GDPR), che puoi revocare in qualsiasi momento dalla pagina della verifica, senza conseguenze sulla verifica o sull’uso di Roomly.',
           'Sicurezza del servizio, prevenzione di frodi, spam e accessi automatizzati: legittimo interesse del titolare (art. 6.1.f).',
           'Adempiere a obblighi di legge e rispondere a richieste delle autorità: obbligo legale (art. 6.1.c).',
           'Inviarti comunicazioni sull’apertura del servizio quando ti iscrivi alla lista d’attesa: esecuzione della tua richiesta; puoi chiedere di non ricevere più comunicazioni in qualsiasi momento.',
@@ -74,6 +77,7 @@ const privacy: Record<Lang, LegalDoc> = {
         title: '4. Obbligatorietà del conferimento',
         paragraphs: [
           'I dati dell’account sono necessari per usare Roomly: senza di essi non possiamo creare l’account. Le preferenze di ricerca sono facoltative.',
+          'La verifica dell’identità è facoltativa per gli studenti; per i proprietari è necessaria per pubblicare annunci. Il consenso all’addestramento è sempre facoltativo: se non lo dai, la verifica funziona allo stesso modo.',
         ],
       },
       {
@@ -88,6 +92,7 @@ const privacy: Record<Lang, LegalDoc> = {
         paragraphs: [
           'Gli annunci sono visibili agli utenti registrati, inclusi nome del proprietario, zona e fotografie. Quando invii una richiesta, il proprietario vede il tuo nome e i messaggi che gli scrivi. L’indirizzo esatto dell’immobile è usato per calcolare la distanza dalle università; sulla mappa pubblica dell’annuncio la posizione è mostrata solo in modo approssimato (circa 100 metri).',
           'Segnalazioni e blocchi: se segnali un utente, un messaggio o un annuncio, il personale autorizzato di Roomly può leggere la segnalazione, il messaggio segnalato e la conversazione da cui proviene, solo per valutarla e, se necessario, sospendere un account o nascondere un annuncio. La persona segnalata non viene informata di chi l’ha segnalata. Se blocchi un utente, nessuno dei due può più scrivere all’altro. Base giuridica: legittimo interesse a prevenire truffe e abusi (art. 6.1.f GDPR).',
+          'Le foto del documento e il video della verifica non sono mai visibili agli altri utenti, che vedono solo il badge "Identità verificata". Li vede soltanto il personale autorizzato di Roomly che esegue la verifica, tramite link temporanei che scadono dopo 15 minuti.',
           'Non vendiamo i tuoi dati personali e non li usiamo per pubblicità profilata.',
         ],
       },
@@ -102,6 +107,7 @@ const privacy: Record<Lang, LegalDoc> = {
         paragraphs: [],
         list: [
           'Dati dell’account, annunci, richieste e messaggi: finché l’account è attivo; dopo la cancellazione vengono eliminati entro 30 giorni, salvo quanto necessario per obblighi di legge o per la difesa di un diritto.',
+          'Foto del documento e video della verifica: li conserviamo durante la revisione e li cancelliamo entro 7 giorni dalla decisione (approvazione o rifiuto); una verifica iniziata e mai inviata viene cancellata entro 7 giorni dall’ultima modifica. Se hai dato il consenso all’addestramento li conserviamo al massimo 12 mesi dalla decisione, oppure fino a 7 giorni dopo la revoca se revochi prima. Se elimini l’account vengono cancellati subito. Dell’esito (stato, date, motivo di un eventuale rifiuto) conserviamo traccia finché l’account è attivo.',
           'Dati della lista d’attesa: fino all’apertura del servizio o finché non chiedi la cancellazione.',
           'Dati tecnici e di sicurezza: per il tempo strettamente necessario, in genere non oltre 12 mesi.',
           'Dati statistici di Google Analytics: 14 mesi, poi cancellati automaticamente.',
@@ -111,6 +117,7 @@ const privacy: Record<Lang, LegalDoc> = {
         title: '9. I tuoi diritti',
         paragraphs: [
           `In qualsiasi momento puoi esercitare i diritti previsti dagli artt. 15-22 GDPR scrivendo a ${EMAIL}: accesso, rettifica, cancellazione, limitazione, portabilità dei dati e opposizione al trattamento basato sul legittimo interesse. Risponderemo entro un mese.`,
+          'Puoi revocare il consenso all’addestramento in qualsiasi momento dalla pagina della verifica dell’identità. La revoca non rende illecito il trattamento fatto prima (art. 7.3 GDPR).',
           `Puoi anche fare da solo, dalla sezione "I tuoi dati" in fondo al tuo profilo: "Scarica i miei dati" ti dà una copia dei tuoi dati in un file leggibile (JSON); "Elimina il mio account" cancella subito account, profilo, preferenze, annunci con le loro foto e chat, e i documenti della verifica dell’identità. Per sicurezza devi aver effettuato l’accesso da pochi minuti. Nelle chat sulle stanze di altri proprietari, il proprietario vedrà "Utente eliminato" al posto del tuo nome e i tuoi messaggi verranno rimossi. Se hai un contratto d’affitto su Roomly non annullato, l’eliminazione automatica non è disponibile: scrivi a ${EMAIL} e ti aiutiamo, conservando solo quanto richiesto dalla legge.`,
           'Se ritieni che il trattamento violi il GDPR, puoi proporre reclamo al Garante per la protezione dei dati personali (www.garanteprivacy.it) o all’autorità del Paese UE in cui risiedi.',
         ],
@@ -121,7 +128,7 @@ const privacy: Record<Lang, LegalDoc> = {
       },
       {
         title: '11. Decisioni automatizzate',
-        paragraphs: ['Non prendiamo decisioni basate unicamente su trattamenti automatizzati che producano effetti giuridici su di te (art. 22 GDPR). Il calcolo della distanza dalle università serve solo a ordinare i risultati.'],
+        paragraphs: ['Non prendiamo decisioni basate unicamente su trattamenti automatizzati che producano effetti giuridici su di te (art. 22 GDPR). Il calcolo della distanza dalle università serve solo a ordinare i risultati.', 'La verifica dell’identità è decisa da una persona del team Roomly, non da un sistema automatico.'],
       },
       {
         title: '12. Sicurezza e modifiche',
@@ -133,7 +140,7 @@ const privacy: Record<Lang, LegalDoc> = {
   },
   en: {
     title: 'Privacy Policy',
-    updated: 'Last updated: 12 November 2026',
+    updated: 'Last updated: 14 November 2026',
     intro:
       'This notice explains which personal data Roomly processes, why, on what legal basis and which rights you have, under Articles 13 and 14 of Regulation (EU) 2016/679 ("GDPR") and Italian Legislative Decree 196/2003 as amended. The Italian version prevails.',
     sections: [
@@ -152,6 +159,7 @@ const privacy: Record<Lang, LegalDoc> = {
           'Search preferences you choose to give: budget, pets, smoking, noise, tidiness, schedule and study habits.',
           'Listings published by owners: title, description, price, property address and coordinates, features and photos.',
           'Requests and messages exchanged between students and owners in the Roomly chat.',
+          'Identity verification, only if you start it: photos of the front and back of an identity document (ID card, passport, driving licence or residence permit), a short video of your face in which you say a code and make a few gestures, and the outcome of the check. Before storing the files we remove their metadata, such as GPS position and device.',
           'Technical data: IP address, browser type and session data needed to keep you signed in and protect the service from abuse.',
           'Preferred language and waitlist position.',
           'Browsing statistics, only if you accept statistics cookies: pages visited on the public site, device and browser type, approximate origin and a random browser identifier. Google Analytics 4 does not log or store users’ IP addresses.',
@@ -163,6 +171,8 @@ const privacy: Record<Lang, LegalDoc> = {
         list: [
           'Creating and running your account, publishing listings, sending requests and messages: performance of a contract (Art. 6(1)(b) GDPR).',
           'Checking that users are adults and managing the waitlist: contract and pre-contractual steps (Art. 6(1)(b)).',
+          'Verifying your identity, by visually comparing the document photos with the video, and showing the "Identity verified" badge on your profile: your explicit consent (Art. 6(1)(a) and Art. 9(2)(a) GDPR), given before you start the check.',
+          'Training Roomly’s verification model with the document photos and the video, only if you choose the dedicated option, which is separate from the verification consent and never pre-selected: your separate explicit consent (Art. 6(1)(a) and Art. 9(2)(a) GDPR), which you can withdraw at any time from the verification page, without affecting the verification or your use of Roomly.',
           'Security, preventing fraud, spam and automated access: our legitimate interest (Art. 6(1)(f)).',
           'Complying with legal obligations and requests from authorities: legal obligation (Art. 6(1)(c)).',
           'Telling you when the service opens if you join the waitlist: fulfilling your request; you can opt out at any time.',
@@ -171,7 +181,10 @@ const privacy: Record<Lang, LegalDoc> = {
       },
       {
         title: '4. Is providing data mandatory?',
-        paragraphs: ['Account data is required to use Roomly; without it we cannot create your account. Search preferences are optional.'],
+        paragraphs: [
+          'Account data is required to use Roomly; without it we cannot create your account. Search preferences are optional.',
+          'Identity verification is optional for students; owners need it to publish listings. Consent to training is always optional: without it, the verification works exactly the same.',
+        ],
       },
       {
         title: '5. Recipients and processors',
@@ -183,6 +196,7 @@ const privacy: Record<Lang, LegalDoc> = {
         paragraphs: [
           'Listings are visible to registered users, including the owner’s name, area and photos. When you send a request, the owner sees your name and your messages. The exact property address is used to calculate the distance to universities; the listing map only shows an approximate position (about 100 metres).',
           'Reports and blocks: if you report a user, a message or a listing, authorised Roomly staff may read the report, the reported message and the conversation it comes from, only to assess it and, if needed, suspend an account or hide a listing. The reported person is not told who reported them. If you block a user, neither of you can write to the other any more. Legal basis: legitimate interest in preventing scams and abuse (Art. 6(1)(f) GDPR).',
+          'The document photos and the verification video are never shown to other users, who only see the "Identity verified" badge. Only the authorised Roomly staff who carry out the check can see them, through temporary links that expire after 15 minutes.',
           'We do not sell your personal data and do not use it for targeted advertising.',
         ],
       },
@@ -197,6 +211,7 @@ const privacy: Record<Lang, LegalDoc> = {
         paragraphs: [],
         list: [
           'Account data, listings, requests and messages: while the account is active; deleted within 30 days of account deletion, except what the law requires or what is needed to defend a legal claim.',
+          'Document photos and verification video: kept during the review and deleted within 7 days of the decision (approval or rejection); a check that was started but never sent is deleted within 7 days of its last change. If you consented to training, we keep them for at most 12 months after the decision, or until 7 days after you withdraw consent if you withdraw it earlier. If you delete your account they are deleted immediately. We keep a record of the outcome (status, dates, reason for any rejection) while the account is active.',
           'Waitlist data: until the service opens or until you ask us to delete it.',
           'Technical and security data: only as long as strictly necessary, usually no more than 12 months.',
           'Google Analytics statistics: 14 months, then deleted automatically.',
@@ -206,6 +221,7 @@ const privacy: Record<Lang, LegalDoc> = {
         title: '9. Your rights',
         paragraphs: [
           `You can exercise your rights under Articles 15-22 GDPR at any time by writing to ${EMAIL}: access, rectification, erasure, restriction, data portability and objection to processing based on legitimate interest. We reply within one month.`,
+          'You can withdraw your consent to training at any time from the identity verification page. Withdrawal does not make the processing done before it unlawful (Art. 7(3) GDPR).',
           `You can also do it yourself, from "Your data" at the bottom of your profile: "Download my data" gives you a copy of your data in a readable file (JSON); "Delete my account" immediately deletes your account, profile, preferences, listings with their photos and chats, and your identity check documents. For your safety you must have logged in within the last few minutes. In chats about other owners’ rooms, the owner will see "Deleted user" instead of your name and your messages will be removed. If you have a rental contract on Roomly that is not cancelled, automatic deletion is not available: write to ${EMAIL} and we will help you, keeping only what the law requires.`,
           'You can lodge a complaint with the Italian Data Protection Authority (www.garanteprivacy.it) or with the authority of the EU country where you live.',
         ],
@@ -216,7 +232,7 @@ const privacy: Record<Lang, LegalDoc> = {
       },
       {
         title: '11. Automated decisions',
-        paragraphs: ['We do not take decisions based solely on automated processing that produce legal effects on you (Art. 22 GDPR). The distance calculation only orders search results.'],
+        paragraphs: ['We do not take decisions based solely on automated processing that produce legal effects on you (Art. 22 GDPR). The distance calculation only orders search results.', 'Identity verification is decided by a person on the Roomly team, not by an automated system.'],
       },
       {
         title: '12. Security and changes',

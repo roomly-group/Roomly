@@ -47,6 +47,14 @@ export const VERIFICATION_VIDEO_MAX_SIZE_BYTES = 31457280 as const;
 export const VERIFICATION_DOCUMENT_MAX_SIZE_BYTES = 10485760 as const;
 /** Days the files of a decided attempt are kept when the user did not consent to training (days). */
 export const VERIFICATION_FILE_RETENTION_DAYS = 7 as const;
+/**
+ * RMY-03: hard limit for the files of a decided attempt when the user DID
+ * consent to training (days after the decision, 12 months). Consent never
+ * means "forever": past this limit the files are deleted all the same.
+ * The privacy policy (frontend/src/lib/legal-content.ts) and the consent texts
+ * (frontend/src/lib/i18n-verification.ts) state "12 months": keep them in sync.
+ */
+export const VERIFICATION_TRAINING_RETENTION_DAYS = 365 as const;
 /** Longest reviewer note (characters). */
 export const VERIFICATION_REVIEWER_NOTE_MAX_LENGTH = 500 as const;
 

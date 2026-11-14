@@ -9,6 +9,7 @@ import { stripVideoMetadata, VideoProcessingError } from "../lib/video.js";
 import {
   VERIFICATION_BUCKET,
   VERIFICATION_TABLE,
+  removeAttemptFiles,
   removeVerificationFiles,
   signedVerificationFileUrl,
 } from "../lib/verification.js";
@@ -261,7 +262,8 @@ router.post(API_ROUTE_PATHS.ME_VERIFICATION, requireAuth, messageLimiter, async 
     }
 
     if (latest?.stato === "bozza") {
-      await removeVerificationFiles([latest.documento_fronte, latest.documento_retro, latest.video]);
+      // Files first, row after (RMY-03): the DB refuses the delete while the folder still holds files.
+      await removeAttemptFiles(latest);
       const { error: deleteError } = await supabaseAdmin.from(VERIFICATION_TABLE).delete().eq("id", latest.id);
       if (deleteError) throw deleteError;
     }
@@ -404,7 +406,9 @@ router.post(API_ROUTE_PATHS.ME_VERIFICATION_SUBMIT, requireAuth, messageLimiter,
 /**
  * POST /api/me/verification/training-consent
  * Gives or withdraws the consent to use the user's files for training. Once
- * withdrawn, files of decided attempts are deleted at the next purge.
+ * withdrawn, files of decided attempts are deleted at the next purge. With
+ * consent they are still deleted VERIFICATION_TRAINING_RETENTION_DAYS after
+ * the decision (RMY-03); giving consent again never extends that.
  */
 router.post(API_ROUTE_PATHS.ME_VERIFICATION_TRAINING_CONSENT, requireAuth, messageLimiter, async (req, res) => {
   const { userId } = req as AuthenticatedRequest;

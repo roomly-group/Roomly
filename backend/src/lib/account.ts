@@ -3,6 +3,7 @@ import { PROFILE_PHOTO_BUCKET, signedProfilePhotoUrl } from "./profile-photo.js"
 import { VERIFICATION_BUCKET, VERIFICATION_TABLE } from "./verification.js";
 import { ROOM_PHOTO_BUCKET, createRoomPhotoSignedUrl, getRoomPhotoPath } from "./room-photos.js";
 import { BLOCKS_TABLE } from "./blocks.js";
+import { listFiles } from "./storage-files.js";
 import { DELETED_MESSAGE_TYPE } from "@workspace/api-zod";
 
 // Account deletion (DELETE /api/me) and personal-data export (GET /api/me/export),
@@ -30,8 +31,6 @@ const HAS_CONTRACTS_DB_ERROR_CODE = "RM007" as const;
 const CANCELLED_CONTRACT_STATUS = "annullato" as const;
 /** Files removed per storage call (the Storage API caps one call at 1000). */
 const STORAGE_REMOVE_BATCH_SIZE = 100 as const;
-/** Entries per storage list page. */
-const STORAGE_LIST_PAGE_SIZE = 1000 as const;
 /** Rows per page when reading big tables (PostgREST returns at most 1000 rows). */
 const ROWS_PAGE_SIZE = 1000 as const;
 /** Conversation ids per `.in()` filter, keeps the request URL short. */
@@ -92,27 +91,6 @@ export async function hasOpenContracts(userId: string): Promise<boolean> {
 }
 
 // ===================== STORAGE =====================
-
-/** Every file path under `folder` in `bucket`, going `depth` folders down. */
-async function listFiles(bucket: string, folder: string, depth: number): Promise<string[]> {
-  const paths: string[] = [];
-  for (let offset = 0; ; offset += STORAGE_LIST_PAGE_SIZE) {
-    const { data, error } = await supabaseAdmin.storage
-      .from(bucket)
-      .list(folder, { limit: STORAGE_LIST_PAGE_SIZE, offset });
-    if (error) throw error;
-    for (const entry of data ?? []) {
-      const path = `${folder}/${entry.name}`;
-      // Folders come back with a null id.
-      if (entry.id === null) {
-        if (depth > 1) paths.push(...(await listFiles(bucket, path, depth - 1)));
-      } else {
-        paths.push(path);
-      }
-    }
-    if (!data || data.length < STORAGE_LIST_PAGE_SIZE) return paths;
-  }
-}
 
 /**
  * All storage files of a user: profile photos, identity documents and videos,

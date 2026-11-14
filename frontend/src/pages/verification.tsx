@@ -278,7 +278,9 @@ function IntroStep({
   const [documentType, setDocumentType] = useState<VerificationDocumentType>(rejected?.documentType ?? 'carta_identita');
   const [confirmed, setConfirmed] = useState(false);
   const [consent, setConsent] = useState(false);
-  const [training, setTraining] = useState(rejected?.consentTraining ?? false);
+  // RMY-03: the training consent is always unticked, even on a retry after a
+  // rejection. Valid consent is an active choice made each time, never pre-ticked.
+  const [training, setTraining] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

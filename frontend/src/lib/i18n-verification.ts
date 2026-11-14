@@ -3,6 +3,10 @@
 // into every language of `translations` in i18n.tsx. The reviewers' page is
 // internal: its texts exist in English and Italian, the other languages fall
 // back to English.
+//
+// Retention periods in these texts ("7 days", "12 months") must match
+// VERIFICATION_FILE_RETENTION_DAYS and VERIFICATION_TRAINING_RETENTION_DAYS
+// in backend/local-libs/api-zod/src/verification.ts.
 
 export const verificationTranslations = {
   en: {
@@ -33,7 +37,7 @@ export const verificationTranslations = {
     'verification.docType.patente': 'Driving licence',
     'verification.docType.permesso_soggiorno': 'Residence permit',
     'verification.consentVerification': 'I agree that Roomly uses the photos and the video to verify my identity. If I don’t agree to the option below, they are deleted within 7 days of the decision.',
-    'verification.consentTraining': 'Optional: Roomly may keep them to train its own verification model. I can withdraw this at any time.',
+    'verification.consentTraining': 'Optional: Roomly may keep them to train its own verification model, for at most 12 months after the decision. I can withdraw this at any time.',
     'verification.start': 'Start',
     'verification.starting': 'Starting…',
     'verification.continue': 'Continue',
@@ -113,7 +117,7 @@ export const verificationTranslations = {
     'adminVerification.document': 'Document',
     'adminVerification.submittedAt': 'Sent',
     'adminVerification.decidedAt': 'Decided',
-    'adminVerification.trainingYes': 'Agreed to training',
+    'adminVerification.trainingYes': 'Agreed to training: files deleted after 12 months',
     'adminVerification.trainingNo': 'No training: files deleted after 7 days',
     'adminVerification.expectedCode': 'Code to say',
     'adminVerification.expectedGestures': 'Gestures',
@@ -165,7 +169,7 @@ export const verificationTranslations = {
     'verification.docType.patente': 'Patente',
     'verification.docType.permesso_soggiorno': 'Permesso di soggiorno',
     'verification.consentVerification': 'Acconsento che Roomly usi le foto e il video per verificare la mia identità. Se non scelgo l’opzione qui sotto, vengono cancellati entro 7 giorni dalla decisione.',
-    'verification.consentTraining': 'Facoltativo: Roomly può conservarli per addestrare il proprio modello di verifica. Posso ritirare il consenso quando voglio.',
+    'verification.consentTraining': 'Facoltativo: Roomly può conservarli per addestrare il proprio modello di verifica, per al massimo 12 mesi dalla decisione. Posso ritirare il consenso quando voglio.',
     'verification.start': 'Inizia',
     'verification.starting': 'Un attimo…',
     'verification.continue': 'Continua',
@@ -245,7 +249,7 @@ export const verificationTranslations = {
     'adminVerification.document': 'Documento',
     'adminVerification.submittedAt': 'Inviata',
     'adminVerification.decidedAt': 'Decisa',
-    'adminVerification.trainingYes': 'Consenso all’addestramento',
+    'adminVerification.trainingYes': 'Consenso all’addestramento: file cancellati dopo 12 mesi',
     'adminVerification.trainingNo': 'Niente addestramento: file cancellati dopo 7 giorni',
     'adminVerification.expectedCode': 'Codice da dire',
     'adminVerification.expectedGestures': 'Gesti',
@@ -297,7 +301,7 @@ export const verificationTranslations = {
     'verification.docType.patente': 'Permiso de conducir',
     'verification.docType.permesso_soggiorno': 'Permiso de residencia',
     'verification.consentVerification': 'Acepto que Roomly use las fotos y el vídeo para verificar mi identidad. Si no acepto la opción de abajo, se borran en un plazo de 7 días desde la decisión.',
-    'verification.consentTraining': 'Opcional: Roomly puede conservarlos para entrenar su propio modelo de verificación. Puedo retirar este consentimiento cuando quiera.',
+    'verification.consentTraining': 'Opcional: Roomly puede conservarlos para entrenar su propio modelo de verificación, como máximo 12 meses desde la decisión. Puedo retirar este consentimiento cuando quiera.',
     'verification.start': 'Empezar',
     'verification.starting': 'Un momento…',
     'verification.continue': 'Continuar',
@@ -390,7 +394,7 @@ export const verificationTranslations = {
     'verification.docType.patente': 'Permis de conduire',
     'verification.docType.permesso_soggiorno': 'Titre de séjour',
     'verification.consentVerification': 'J’accepte que Roomly utilise les photos et la vidéo pour vérifier mon identité. Si je n’accepte pas l’option ci-dessous, elles sont supprimées dans les 7 jours suivant la décision.',
-    'verification.consentTraining': 'Facultatif : Roomly peut les conserver pour entraîner son propre modèle de vérification. Je peux retirer ce consentement à tout moment.',
+    'verification.consentTraining': 'Facultatif : Roomly peut les conserver pour entraîner son propre modèle de vérification, au maximum 12 mois après la décision. Je peux retirer ce consentement à tout moment.',
     'verification.start': 'Commencer',
     'verification.starting': 'Un instant…',
     'verification.continue': 'Continuer',
@@ -483,7 +487,7 @@ export const verificationTranslations = {
     'verification.docType.patente': 'Führerschein',
     'verification.docType.permesso_soggiorno': 'Aufenthaltstitel',
     'verification.consentVerification': 'Ich bin einverstanden, dass Roomly die Fotos und das Video zur Prüfung meiner Identität verwendet. Ohne die Option unten werden sie innerhalb von 7 Tagen nach der Entscheidung gelöscht.',
-    'verification.consentTraining': 'Optional: Roomly darf sie aufbewahren, um ein eigenes Prüfmodell zu trainieren. Ich kann diese Einwilligung jederzeit widerrufen.',
+    'verification.consentTraining': 'Optional: Roomly darf sie höchstens 12 Monate nach der Entscheidung aufbewahren, um ein eigenes Prüfmodell zu trainieren. Ich kann diese Einwilligung jederzeit widerrufen.',
     'verification.start': 'Starten',
     'verification.starting': 'Einen Moment…',
     'verification.continue': 'Weiter',
@@ -576,7 +580,7 @@ export const verificationTranslations = {
     'verification.docType.patente': 'Carta de condução',
     'verification.docType.permesso_soggiorno': 'Autorização de residência',
     'verification.consentVerification': 'Aceito que a Roomly use as fotos e o vídeo para verificar a minha identidade. Se não aceitar a opção abaixo, são apagados no prazo de 7 dias após a decisão.',
-    'verification.consentTraining': 'Opcional: a Roomly pode guardá-los para treinar o seu próprio modelo de verificação. Posso retirar este consentimento quando quiser.',
+    'verification.consentTraining': 'Opcional: a Roomly pode guardá-los para treinar o seu próprio modelo de verificação, no máximo 12 meses após a decisão. Posso retirar este consentimento quando quiser.',
     'verification.start': 'Começar',
     'verification.starting': 'Um momento…',
     'verification.continue': 'Continuar',

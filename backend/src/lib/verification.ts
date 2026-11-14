@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "./supabase-admin.js";
 import { logger } from "./logger.js";
-import { VERIFICATION_FILE_RETENTION_DAYS } from "@workspace/api-zod";
+import { listFiles, listFolders } from "./storage-files.js";
+import { VERIFICATION_FILE_RETENTION_DAYS, VERIFICATION_TRAINING_RETENTION_DAYS } from "@workspace/api-zod";
 
 // Identity verification helpers shared by routes/verification.ts (the flow
 // and the review) and routes/roomly.ts (the badge on the listing page).
@@ -15,8 +16,14 @@ export const VERIFICATION_TABLE = "verifiche_identita" as const;
 const VERIFICATION_FILE_URL_TTL_SECONDS = 900 as const;
 /** How often the backend deletes files it no longer may keep (ms, 6 hours). */
 const PURGE_INTERVAL_MS = 21_600_000 as const;
-/** Attempts handled per purge run, so one run never grows unbounded. */
+/** Attempts (or orphaned user folders) handled per purge run, so one run never grows unbounded. */
 const PURGE_BATCH_SIZE = 200 as const;
+/** User ids per `.in()` lookup in the orphan sweep: keeps the request URL short (36-char UUIDs). */
+const USER_ID_CHUNK_SIZE = 100 as const;
+/** Folder depth of the bucket below the user folder: <user id>/<attempt id>/<file>. */
+const VERIFICATION_FOLDER_DEPTH = 2 as const;
+/** Top-level folders are user ids; anything else in the bucket root is left alone. */
+const USER_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const DAY_MS = 86_400_000;
 
@@ -100,6 +107,25 @@ export async function removeVerificationFiles(paths: (string | null | undefined)
   if (error) throw error;
 }
 
+/**
+ * Removes EVERY stored file of one attempt: the paths saved in the row plus
+ * anything else left in its folder (<user id>/<attempt id>/), e.g. an old video
+ * whose cleanup failed. Call it before deleting the row: the DB refuses to
+ * delete a row while its folder still holds files (migrations/021).
+ */
+export async function removeAttemptFiles(attempt: {
+  id: number;
+  utente_id: string;
+  documento_fronte: string | null;
+  documento_retro: string | null;
+  video: string | null;
+}): Promise<void> {
+  const folderFiles = await listFiles(VERIFICATION_BUCKET, `${attempt.utente_id}/${attempt.id}`, 1);
+  await removeVerificationFiles([
+    ...new Set([...folderFiles, attempt.documento_fronte, attempt.documento_retro, attempt.video]),
+  ]);
+}
+
 type PurgeRow = {
   id: number;
   documento_fronte: string | null;
@@ -110,22 +136,32 @@ type PurgeRow = {
 /**
  * Deletes the files Roomly may no longer keep and records when:
  *   - decided attempts without training consent, VERIFICATION_FILE_RETENTION_DAYS after the decision;
- *   - attempts left half-way (bozza), the same number of days after their last change.
+ *   - decided attempts WITH training consent, VERIFICATION_TRAINING_RETENTION_DAYS after the
+ *     decision (RMY-03: consent never means keeping biometric data forever). Counted from
+ *     decisa_at, which never moves, so switching consent off and on again cannot extend it;
+ *   - attempts left half-way (bozza), VERIFICATION_FILE_RETENTION_DAYS after their last change.
  * The outcome (who, when, approved or not) stays in the table.
  */
 export async function purgeExpiredVerificationFiles(): Promise<number> {
-  const cutoff = new Date(Date.now() - VERIFICATION_FILE_RETENTION_DAYS * DAY_MS).toISOString();
+  const now = Date.now();
+  const cutoff = new Date(now - VERIFICATION_FILE_RETENTION_DAYS * DAY_MS).toISOString();
+  const trainingCutoff = new Date(now - VERIFICATION_TRAINING_RETENTION_DAYS * DAY_MS).toISOString();
   const columns = "id, documento_fronte, documento_retro, video";
 
-  const [decided, abandoned] = await Promise.all([
+  /** Decided attempts with this training choice whose decision is older than `before`. */
+  const decidedBefore = (consentTraining: boolean, before: string) =>
     supabaseAdmin
       .from(VERIFICATION_TABLE)
       .select(columns)
       .is("file_eliminati_at", null)
       .in("stato", ["approvata", "rifiutata"])
-      .eq("consenso_addestramento", false)
-      .lt("decisa_at", cutoff)
-      .limit(PURGE_BATCH_SIZE),
+      .eq("consenso_addestramento", consentTraining)
+      .lt("decisa_at", before)
+      .limit(PURGE_BATCH_SIZE);
+
+  const [decided, trainingExpired, abandoned] = await Promise.all([
+    decidedBefore(false, cutoff),
+    decidedBefore(true, trainingCutoff),
     supabaseAdmin
       .from(VERIFICATION_TABLE)
       .select(columns)
@@ -135,9 +171,10 @@ export async function purgeExpiredVerificationFiles(): Promise<number> {
       .limit(PURGE_BATCH_SIZE),
   ]);
   if (decided.error) throw decided.error;
+  if (trainingExpired.error) throw trainingExpired.error;
   if (abandoned.error) throw abandoned.error;
 
-  const rows = [...(decided.data ?? []), ...(abandoned.data ?? [])] as PurgeRow[];
+  const rows = [...(decided.data ?? []), ...(trainingExpired.data ?? []), ...(abandoned.data ?? [])] as PurgeRow[];
   for (const row of rows) {
     await removeVerificationFiles([row.documento_fronte, row.documento_retro, row.video]);
     const now = new Date().toISOString();
@@ -150,17 +187,57 @@ export async function purgeExpiredVerificationFiles(): Promise<number> {
   return rows.length;
 }
 
-/** Runs the purge now and then every PURGE_INTERVAL_MS. Errors are logged, never thrown. */
+/**
+ * RMY-03 safety net: deletes the files of users who no longer exist.
+ * The app deletes them before the account (lib/account.ts), but a user row
+ * removed some other way (e.g. by hand in the Supabase dashboard) would leave
+ * ID documents and face videos behind with nothing pointing at them.
+ * Top-level folders are user ids: any id missing from `utenti` is an orphan.
+ * A failed lookup throws, so nothing is ever deleted on a guess.
+ * Returns the number of user folders emptied.
+ */
+export async function purgeOrphanedVerificationFiles(): Promise<number> {
+  const userFolders = (await listFolders(VERIFICATION_BUCKET, "")).filter((name) => USER_ID_PATTERN.test(name));
+
+  const orphans: string[] = [];
+  for (let start = 0; start < userFolders.length && orphans.length < PURGE_BATCH_SIZE; start += USER_ID_CHUNK_SIZE) {
+    const chunk = userFolders.slice(start, start + USER_ID_CHUNK_SIZE);
+    const { data, error } = await supabaseAdmin.from("utenti").select("id").in("id", chunk);
+    if (error) throw error;
+    const existing = new Set((data ?? []).map((row) => String(row.id).toLowerCase()));
+    orphans.push(...chunk.filter((id) => !existing.has(id.toLowerCase())));
+  }
+
+  const batch = orphans.slice(0, PURGE_BATCH_SIZE);
+  for (const userId of batch) {
+    await removeVerificationFiles(await listFiles(VERIFICATION_BUCKET, userId, VERIFICATION_FOLDER_DEPTH));
+  }
+  return batch.length;
+}
+
+/**
+ * Runs both purges now and then every PURGE_INTERVAL_MS. They run one after
+ * the other and independently: one failing never stops the other.
+ * Errors are logged (counts only, no personal data), never thrown.
+ */
 export function scheduleVerificationPurge(): void {
-  const run = () => {
-    purgeExpiredVerificationFiles()
-      .then((count) => {
-        if (count > 0) logger.info({ count }, "Deleted expired identity verification files");
-      })
-      .catch((err: unknown) => {
-        logger.warn({ err: err instanceof Error ? err.message : err }, "Identity verification purge failed");
-      });
+  const logFailure = (err: unknown, label: string) =>
+    logger.warn({ err: err instanceof Error ? err.message : err }, label);
+
+  const run = async () => {
+    try {
+      const count = await purgeExpiredVerificationFiles();
+      if (count > 0) logger.info({ count }, "Deleted expired identity verification files");
+    } catch (err) {
+      logFailure(err, "Identity verification purge failed");
+    }
+    try {
+      const count = await purgeOrphanedVerificationFiles();
+      if (count > 0) logger.info({ count }, "Deleted identity verification files of deleted users");
+    } catch (err) {
+      logFailure(err, "Identity verification orphan purge failed");
+    }
   };
-  run();
-  setInterval(run, PURGE_INTERVAL_MS).unref();
+  void run();
+  setInterval(() => void run(), PURGE_INTERVAL_MS).unref();
 }
