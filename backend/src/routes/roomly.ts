@@ -5,6 +5,7 @@ import { readNearbyPlaces, refreshNearbyPlaces } from "../lib/nearby-places.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { releaseRoom } from "../lib/rooms.js";
 import { isValidImage, reencodeAsJpeg, uploadImageType, type PhotoBox } from "../lib/image.js";
+import { listingPhotoUploadLimiter } from "../middleware/rateLimit.js";
 import { signedProfilePhotoUrl } from "../lib/profile-photo.js";
 import { ROOM_PHOTO_BUCKET, createRoomPhotoSignedUrl, getRoomPhotoPath } from "../lib/room-photos.js";
 import { isUserVerified } from "../lib/verification.js";
@@ -452,6 +453,8 @@ router.post(API_ROUTE_PATHS.LISTINGS, requireAuth, async (req: Request, res: Res
 router.post(
   API_ROUTE_PATHS.OWNER_LISTING_PHOTOS,
   requireAuth,
+  // Limiter runs before raw(): a blocked request is refused before its body is read (RMY-09).
+  listingPhotoUploadLimiter,
   raw({ type: () => true, limit: ROOM_PHOTO_MAX_SIZE_BYTES }),
   async (req: Request, res: Response) => {
     let uploadedPath: string | null = null;
@@ -472,14 +475,10 @@ router.post(
       if (!isValidImage(req.body, contentType)) {
         return res.status(400).json({ error: "Invalid image file" });
       }
-      // Only freshly encoded pixels are stored, never the uploaded bytes (see reencodeAsJpeg).
-      let photoBytes: Buffer;
-      try {
-        photoBytes = await reencodeAsJpeg(req.body, ROOM_PHOTO_BOX);
-      } catch {
-        return res.status(400).json({ error: "Invalid image file" });
-      }
 
+      // Ownership and photo-count checks run BEFORE the expensive sharp
+      // re-encode, so a user who does not own the listing (or whose listing is
+      // already full) cannot make the server decode images for nothing (RMY-09).
       const authedReq = req as typeof req & { userId: string };
       const { data: listing, error: listingError } = await supabaseAdmin
         .from("stanze")
@@ -499,6 +498,14 @@ router.post(
       if (photosError) throw photosError;
       if ((existingPhotos ?? []).length >= ROOM_PHOTO_MAX_COUNT) {
         return res.status(400).json({ error: `A listing can have at most ${ROOM_PHOTO_MAX_COUNT} photos` });
+      }
+
+      // Only freshly encoded pixels are stored, never the uploaded bytes (see reencodeAsJpeg).
+      let photoBytes: Buffer;
+      try {
+        photoBytes = await reencodeAsJpeg(req.body, ROOM_PHOTO_BOX);
+      } catch {
+        return res.status(400).json({ error: "Invalid image file" });
       }
 
       uploadedPath = `${id}/${randomUUID()}.jpg`;

@@ -250,6 +250,35 @@ export const photoUploadLimiter = rateLimit({
   },
 });
 
+/**
+ * Listing-photo uploads allowed per user per window (uploads). A listing holds
+ * at most ROOM_PHOTO_MAX_COUNT (10) photos, uploaded one by one: 20/min lets an
+ * owner fill a listing (or redo it after a failed batch) in one go.
+ */
+const LISTING_PHOTO_UPLOAD_RATE_LIMIT_MAX_REQUESTS = 20 as const;
+
+/**
+ * Rate limiter for listing-photo uploads (RMY-09). Each upload is up to 8 MB
+ * and is decoded and re-encoded with sharp, which is CPU- and memory-heavy, so
+ * one account may not loop this endpoint to exhaust the server. Kept separate
+ * from photoUploadLimiter so a profile/verification photo does not eat into an
+ * owner's listing-photo budget. Keyed by user; mount after requireAuth and
+ * BEFORE the body parser, so a blocked request is refused before its bytes are read.
+ */
+export const listingPhotoUploadLimiter = rateLimit({
+  windowMs: CHAT_RATE_LIMIT_WINDOW_MS, // 1 minute
+  max: LISTING_PHOTO_UPLOAD_RATE_LIMIT_MAX_REQUESTS,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const userId = (req as Request & { userId?: string }).userId;
+    return userId ? `listing-photo:${userId}` : extractIP(req);
+  },
+  handler: (_req: Request, res: Response) => {
+    res.status(429).json({ error: 'Too many uploads, please try again in a minute.' });
+  },
+});
+
 /** Google-login starts and code exchanges allowed per IP per window (requests). */
 const OAUTH_RATE_LIMIT_MAX_REQUESTS = 30 as const;
 
