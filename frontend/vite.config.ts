@@ -14,6 +14,12 @@ const DEFAULT_BACKEND_URL = 'http://localhost:3001' as const;
 const SERVER_HOST = '0.0.0.0' as const;
 /** Chunk-size threshold used by Vite's build warning (KB). */
 const CHUNK_SIZE_WARNING_LIMIT_KB = 1000 as const;
+/**
+ * Production source map mode. 'hidden' still writes .map files but drops the
+ * sourceMappingURL comment from the bundles, so browsers' devtools don't load
+ * the original source automatically.
+ */
+const BUILD_SOURCEMAP = 'hidden' as const;
 
 const port = Number(process.env.PORT) || DEFAULT_SERVER_PORT;
 const backendUrl = process.env.BACKEND_URL || DEFAULT_BACKEND_URL;
@@ -34,7 +40,7 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, 'dist/public'),
     emptyOutDir: true,
-    sourcemap: true,
+    sourcemap: BUILD_SOURCEMAP,
     chunkSizeWarningLimit: CHUNK_SIZE_WARNING_LIMIT_KB,
     rollupOptions: {
       output: {
