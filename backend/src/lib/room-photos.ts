@@ -47,3 +47,42 @@ export const createRoomPhotoSignedUrl = async (storedUrl: string): Promise<strin
 
   return data.signedUrl;
 };
+
+/**
+ * Signs many stored listing photos with ONE storage request (createSignedUrls),
+ * instead of one request per photo. Used by the search results, where every card
+ * needs its cover. Returns a map storedUrl -> signed URL; photos that cannot be
+ * signed (outside the bucket, missing file, storage error) are simply absent,
+ * so the card falls back to its no-photo state.
+ */
+export const createRoomPhotoSignedUrls = async (storedUrls: string[]): Promise<Map<string, string>> => {
+  const signed = new Map<string, string>();
+
+  // storedUrl -> bucket path, skipping URLs that do not point into the bucket.
+  const pathByStoredUrl = new Map<string, string>();
+  for (const storedUrl of storedUrls) {
+    const path = getRoomPhotoPath(storedUrl);
+    if (path) pathByStoredUrl.set(storedUrl, path);
+  }
+  const paths = [...new Set(pathByStoredUrl.values())];
+  if (paths.length === 0) return signed;
+
+  const { data, error } = await supabaseAdmin.storage
+    .from(ROOM_PHOTO_BUCKET)
+    .createSignedUrls(paths, ROOM_PHOTO_URL_TTL_SECONDS);
+
+  if (error) {
+    logger.warn({ error: errorForLog(error) }, "Failed to sign room photo URLs");
+    return signed;
+  }
+
+  const signedByPath = new Map<string, string>();
+  for (const item of data) {
+    if (item.path && item.signedUrl && !item.error) signedByPath.set(item.path, item.signedUrl);
+  }
+  for (const [storedUrl, path] of pathByStoredUrl) {
+    const url = signedByPath.get(path);
+    if (url) signed.set(storedUrl, url);
+  }
+  return signed;
+};

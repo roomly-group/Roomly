@@ -27,7 +27,8 @@ const SEARCH_TEST_IDS = {
 } as const;
 
 // Type and filters apply on the client: the API only filters by university and
-// budget, and returns every match at once, so the counts stay exact.
+// budget, and returns its matches at once (nearest/newest first, capped at 100
+// on the backend, RMY-13), so the counts are exact up to that cap.
 function matches(listing: Listing, type: string, flags: FilterFlags) {
   return (
     (!type || listing.propertyType === type) &&

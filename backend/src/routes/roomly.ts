@@ -7,7 +7,12 @@ import { releaseRoom } from "../lib/rooms.js";
 import { isValidImage, reencodeAsJpeg, uploadImageType, type PhotoBox } from "../lib/image.js";
 import { listingPhotoUploadLimiter } from "../middleware/rateLimit.js";
 import { signedProfilePhotoUrl } from "../lib/profile-photo.js";
-import { ROOM_PHOTO_BUCKET, createRoomPhotoSignedUrl, getRoomPhotoPath } from "../lib/room-photos.js";
+import {
+  ROOM_PHOTO_BUCKET,
+  createRoomPhotoSignedUrl,
+  createRoomPhotoSignedUrls,
+  getRoomPhotoPath,
+} from "../lib/room-photos.js";
 import { isUserVerified } from "../lib/verification.js";
 import {
   SEARCH_RADIUS_KM,
@@ -52,6 +57,13 @@ const ROOM_PHOTO_CACHE_CONTROL_MAX_AGE_SECONDS = "31536000" as const;
 const PHOTO_LIMIT_DB_ERROR_CODE = "23514" as const;
 /** Coordinate change tolerance used when deciding whether to update a listing location (degrees). */
 const COORDINATE_CHANGE_TOLERANCE_DEGREES = 0.000001 as const;
+/** Most listings returned by one GET /api/listings (RMY-13: bounds response size and photo signing). */
+const LISTINGS_RESULT_LIMIT = 100 as const;
+/**
+ * Most `stanze` rows read from the DB by one search, newest first, before the
+ * in-memory radius / furnished filters and the distance sort (RMY-13: no unbounded scan).
+ */
+const LISTINGS_SCAN_LIMIT = 1000 as const;
 
 type RoomRow = {
   id: number;
@@ -71,26 +83,42 @@ type RoomRow = {
 
 const router: IRouter = Router();
 
+/** A room's photos in display order (`ordine`), plus the index of its cover (flagged `copertina`, else the first). */
+const orderedRoomPhotos = (row: RoomRow) => {
+  const photos = [...(row.stanze_foto ?? [])].sort(
+    (left, right) => (left.ordine ?? 0) - (right.ordine ?? 0),
+  );
+  const coverIndex = Math.max(0, photos.findIndex((photo) => photo.copertina));
+  return { photos, coverIndex };
+};
+
+/**
+ * Maps a `stanze` row to the API Listing.
+ * `signedCovers` (storedUrl -> signed URL) lets list endpoints pre-sign every
+ * card cover in one batch request; without it the cover is signed on its own.
+ */
 const mapRoomRowToListing = async (
   row: RoomRow,
   distanceKm?: number,
   includeGallery = false,
+  signedCovers?: Map<string, string>,
 ): Promise<Listing> => {
   const ownerName = row.utenti?.nome_utente ??
     (row.utenti?.nome && row.utenti?.cognome ? `${row.utenti.nome} ${row.utenti.cognome}` : "Unknown");
   // Tipologia / taglio / furnished / pets / smokers / feature groups are read from the columns of `stanze`.
   const listingFeatures = roomColumnsToListingFeatures(row);
-  const photos = [...(row.stanze_foto ?? [])].sort(
-    (left, right) => (left.ordine ?? 0) - (right.ordine ?? 0),
-  );
-  const coverIndex = Math.max(0, photos.findIndex((photo) => photo.copertina));
-  const coverPhoto = photos[coverIndex] ?? photos[0];
+  const { photos, coverIndex } = orderedRoomPhotos(row);
+  const coverPhoto = photos[coverIndex];
   const signedPhotoUrls = includeGallery
     ? await Promise.all(photos.map((photo) => photo.url ? createRoomPhotoSignedUrl(photo.url) : null))
     : [];
   const coverPhotoUrl = includeGallery
     ? signedPhotoUrls[coverIndex]
-    : coverPhoto?.url ? await createRoomPhotoSignedUrl(coverPhoto.url) : null;
+    : !coverPhoto?.url
+      ? null
+      : signedCovers
+        ? signedCovers.get(coverPhoto.url) ?? null
+        : await createRoomPhotoSignedUrl(coverPhoto.url);
   // The owner's profile photo, only on the listing page (cards don't show the owner).
   const ownerPhotoUrl = includeGallery ? await signedProfilePhotoUrl(row.utenti?.foto_profilo) : null;
   // "Identità verificata" on the listing page only for owners with an approved verification.
@@ -184,20 +212,29 @@ router.get(API_ROUTE_PATHS.LISTINGS, requireAuth, requireAppAccess, async (req: 
     // trasforma anche "false" in true.
     const furnishedOnly = String(req.query.furnished) === "true";
 
-    dbQuery = dbQuery.eq("attiva", true).eq("stato", "disponibile");
+    // RMY-13: bounded, deterministic scan (newest first) instead of reading every room.
+    dbQuery = dbQuery
+      .eq("attiva", true)
+      .eq("stato", "disponibile")
+      .order("created_at", { ascending: false })
+      .range(0, LISTINGS_SCAN_LIMIT - 1);
 
     const { data, error } = await dbQuery;
     if (error) throw error;
 
     const rows = (data ?? []) as unknown as RoomRow[];
-    let listings: Listing[];
+
+    // 1) Filter and order the raw rows first, WITHOUT signing any photo, so the
+    //    signing work below only covers the rooms actually returned.
+    type Candidate = { row: RoomRow; distance: number | null };
+    let candidates: Candidate[];
 
     if (university && hasUniversityCoords) {
       const uni = university;
       // Entro il raggio, dalla più vicina alla più lontana; le stanze già
       // associate a questa università restano sempre (quelle senza coordinate
-      // finiscono in fondo).
-      const nearby = rows
+      // finiscono in fondo, ordinate per prezzo).
+      candidates = rows
         .map((row) => {
           const hasCoords = row.latitudine != null && row.longitudine != null;
           const distance = hasCoords
@@ -211,36 +248,50 @@ router.get(API_ROUTE_PATHS.LISTINGS, requireAuth, requireAppAccess, async (req: 
           const linked = String(row.universita_id ?? "") === String(uni.id);
           return { row, distance, linked };
         })
-        .filter(({ distance, linked }) => linked || (distance !== null && distance <= SEARCH_RADIUS_KM));
-      const ranked = await Promise.all(
-        nearby.map(async ({ row, distance }) => ({
-          listing: {
-            ...(await mapRoomRowToListing(
-              row,
-              distance !== null ? Math.round(distance * 10) / 10 : undefined,
-            )),
-            // La distanza è calcolata dall'università cercata, quindi la card deve
-            // mostrare quella (non l'università più vicina associata alla stanza).
-            zone: uni.nome,
-          },
-          distance,
-        })),
-      );
-      ranked.sort((a, b) => {
-        if (a.distance === null && b.distance === null) return a.listing.price - b.listing.price;
+        .filter(({ distance, linked }) => linked || (distance !== null && distance <= SEARCH_RADIUS_KM))
+        .map(({ row, distance }) => ({ row, distance }));
+      candidates.sort((a, b) => {
+        if (a.distance === null && b.distance === null) return Number(a.row.prezzo ?? 0) - Number(b.row.prezzo ?? 0);
         if (a.distance === null) return 1;
         if (b.distance === null) return -1;
         return a.distance - b.distance;
       });
-      listings = ranked.map((item) => item.listing);
     } else {
-      const mappedListings = await Promise.all(rows.map((row) => mapRoomRowToListing(row)));
-      listings = mappedListings.filter(
-        (listing) => !query.zone || listing.zone.toLowerCase().includes(query.zone.toLowerCase()),
-      );
+      // Ripiego per nome: stessa regola di prima (zone = nome dell'università associata).
+      const wantedZone = query.zone?.toLowerCase();
+      candidates = rows
+        .filter((row) => !wantedZone || (row.universita?.nome ?? "").toLowerCase().includes(wantedZone))
+        .map((row) => ({ row, distance: null }));
     }
 
-    if (furnishedOnly) listings = listings.filter((listing) => listing.furnished);
+    if (furnishedOnly) {
+      candidates = candidates.filter(({ row }) => roomColumnsToListingFeatures(row).furnished);
+    }
+
+    // 2) Cap the response, then sign every card cover with ONE storage request.
+    const page = candidates.slice(0, LISTINGS_RESULT_LIMIT);
+    const coverUrls = page
+      .map(({ row }) => {
+        const { photos, coverIndex } = orderedRoomPhotos(row);
+        return photos[coverIndex]?.url;
+      })
+      .filter((url): url is string => Boolean(url));
+    const signedCovers = await createRoomPhotoSignedUrls(coverUrls);
+
+    // 3) Map to the API shape (no further storage calls: covers come from the batch).
+    const listings: Listing[] = await Promise.all(
+      page.map(async ({ row, distance }) => {
+        const listing = await mapRoomRowToListing(
+          row,
+          distance !== null ? Math.round(distance * 10) / 10 : undefined,
+          false,
+          signedCovers,
+        );
+        // La distanza è calcolata dall'università cercata, quindi la card deve
+        // mostrare quella (non l'università più vicina associata alla stanza).
+        return university && hasUniversityCoords ? { ...listing, zone: university.nome } : listing;
+      }),
+    );
 
     return res.json(ListListingsResponse.parse(listings));
   } catch (error) {
