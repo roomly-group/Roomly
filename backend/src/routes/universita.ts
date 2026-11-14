@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
+import { errorForLog, logger } from "../lib/logger.js";
 
 const router: IRouter = Router();
 
@@ -24,7 +25,7 @@ router.get("/", async (_req, res) => {
     const universityNames = data.map((uni) => uni.nome);
     res.json(universityNames);
   } catch (error) {
-    console.error("Error fetching universities:", error);
+    logger.error({ error: errorForLog(error) }, "Error fetching universities");
     res.status(500).json({ error: "Internal server error" });
   }
 });

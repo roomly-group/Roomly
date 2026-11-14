@@ -12,6 +12,7 @@ import {
   VERIFICATION_REJECTION_REASONS,
   type VerificationRejectionReason,
 } from "@workspace/api-zod";
+import { errorForLog, logger } from "../lib/logger.js";
 
 // Admin dashboard (/admin in the frontend): counts across the app and the
 // work queues the team handles by hand. Only counts and the few rows the
@@ -241,7 +242,7 @@ router.get(API_ROUTE_PATHS.ADMIN_STATS, requireAuth, requireAdmin, async (_req, 
       }),
     );
   } catch (error) {
-    console.error("Error building admin stats:", error);
+    logger.error({ error: errorForLog(error) }, "Error building admin stats");
     return res.status(500).json({ error: "Internal server error" });
   }
 });

@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "./supabase-admin.js";
+import { errorForLog, logger } from "./logger.js";
 
 /** Supabase storage bucket for profile photos (private, see migrations/006_onboarding.sql). */
 export const PROFILE_PHOTO_BUCKET = "foto_profilo" as const;
@@ -12,7 +13,7 @@ export async function signedProfilePhotoUrl(path: string | null | undefined): Pr
     .from(PROFILE_PHOTO_BUCKET)
     .createSignedUrl(path, PROFILE_PHOTO_URL_TTL_SECONDS);
   if (error) {
-    console.warn("Failed to sign profile photo URL:", error.message);
+    logger.warn({ error: errorForLog(error) }, "Failed to sign profile photo URL");
     return null;
   }
   return data.signedUrl;

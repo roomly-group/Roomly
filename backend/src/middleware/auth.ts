@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { ACCOUNT_SUSPENDED_ERROR_CODE } from "@workspace/api-zod";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
+import { errorForLog, logger } from "../lib/logger.js";
 
 export type AuthenticatedRequest = Request & {
   userId: string;
@@ -90,7 +91,7 @@ export async function requireAuth(
     .maybeSingle();
   if (accountError) {
     // Fail closed: if we can't read the status, we don't let the call through.
-    console.error("Error checking account status:", accountError);
+    logger.error({ error: errorForLog(accountError) }, "Error checking account status");
     res.status(500).json({ error: "Internal server error" });
     return;
   }
@@ -118,7 +119,7 @@ export async function requireAdmin(
   const { userId } = req as AuthenticatedRequest;
   const { data, error } = await supabaseAdmin.from("utenti").select("admin").eq("id", userId).maybeSingle();
   if (error) {
-    console.error("Error checking admin account:", error);
+    logger.error({ error: errorForLog(error) }, "Error checking admin account");
     res.status(500).json({ error: "Internal server error" });
     return;
   }

@@ -21,6 +21,7 @@ import {
   type StudentContractStage,
   type StudentJourneyItem,
 } from "@workspace/api-zod";
+import { errorForLog, logger } from "../lib/logger.js";
 
 // ===================== CONFIGURATION =====================
 
@@ -164,7 +165,7 @@ const toContract = (row: ContractRow, today: string): OwnerContractItem => ({
 });
 
 function serverError(res: Response, label: string, error: unknown) {
-  console.error(label, error);
+  logger.error({ error: errorForLog(error) }, label);
   return res.status(500).json({ error: "Internal server error" });
 }
 
@@ -459,7 +460,7 @@ router.post(API_ROUTE_PATHS.OWNER_CONTRACT_STATUS, requireAuth, requireOwnerAcco
     if (action === "mark_ended") {
       const releaseError = await releaseRoom(data[0].stanza_id, userId);
       if (releaseError && releaseError.code !== "RM006") {
-        console.error("Contract ended but the room could not be freed:", releaseError);
+        logger.error({ error: errorForLog(releaseError) }, "Contract ended but the room could not be freed");
       }
     }
     return res.json({ success: true });

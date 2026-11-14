@@ -30,6 +30,7 @@ import {
   USER_PREFERENCE_OPTIONS,
 } from "@workspace/api-zod";
 import { z } from "zod";
+import { errorForLog, logger } from "../lib/logger.js";
 
 const router: IRouter = Router();
 
@@ -113,7 +114,7 @@ router.patch(API_ROUTE_PATHS.ME_PROFILE, requireAuth, async (req: AuthenticatedR
       return;
     }
   } catch (lockError) {
-    console.error("Failed to check identity lock:", lockError);
+    logger.error({ error: errorForLog(lockError) }, "Failed to check identity lock");
     res.status(500).json({ error: "Impossibile salvare il profilo" });
     return;
   }
@@ -129,7 +130,7 @@ router.patch(API_ROUTE_PATHS.ME_PROFILE, requireAuth, async (req: AuthenticatedR
     .single();
 
   if (error || !data) {
-    console.error("Failed to update user profile:", error);
+    logger.error({ error: errorForLog(error) }, "Failed to update user profile");
     res.status(500).json({ error: "Impossibile salvare il profilo" });
     return;
   }
@@ -156,7 +157,7 @@ router.patch(API_ROUTE_PATHS.ME_LANGUAGE, requireAuth, async (req: Authenticated
     .eq("id", userId);
 
   if (error) {
-    console.error("Failed to update language:", error);
+    logger.error({ error: errorForLog(error) }, "Failed to update language");
     res.status(500).json({ error: "Impossibile salvare la lingua" });
     return;
   }
@@ -182,7 +183,7 @@ router.get(API_ROUTE_PATHS.ME_PREFERENCES, requireAuth, async (req: Authenticate
     .maybeSingle();
 
   if (error) {
-    console.error("Failed to fetch user preferences:", error);
+    logger.error({ error: errorForLog(error) }, "Failed to fetch user preferences");
     res.status(500).json({ error: "Impossibile caricare le preferenze" });
     return;
   }
@@ -212,7 +213,7 @@ router.put(API_ROUTE_PATHS.ME_PREFERENCES, requireAuth, async (req: Authenticate
     .single();
 
   if (error || !data) {
-    console.error("Failed to save user preferences:", error);
+    logger.error({ error: errorForLog(error) }, "Failed to save user preferences");
     res.status(500).json({ error: "Impossibile salvare le preferenze" });
     return;
   }
@@ -241,7 +242,7 @@ router.get(API_ROUTE_PATHS.ME_EXPORT, requireAuth, accountDataLimiter, async (re
     res.type("application/json");
     res.send(JSON.stringify(data, null, EXPORT_JSON_INDENT));
   } catch (error) {
-    console.error("Failed to export account data:", error);
+    logger.error({ error: errorForLog(error) }, "Failed to export account data");
     res.status(500).json({ error: "Impossibile preparare i tuoi dati" });
   }
 });
@@ -285,7 +286,7 @@ router.delete(API_ROUTE_PATHS.ME, requireAuth, accountDataLimiter, async (req, r
     clearAuthCookies(res);
     res.json({ ok: true });
   } catch (error) {
-    console.error("Failed to delete account:", error);
+    logger.error({ error: errorForLog(error) }, "Failed to delete account");
     res.status(500).json({ error: "Impossibile eliminare l'account, riprova" });
   }
 });
@@ -337,7 +338,7 @@ async function emailChangeMethod(userId: string): Promise<EmailChangeMethod | nu
     .getUserById(userId)
     .catch((thrown: unknown) => ({ data: { user: null }, error: thrown }));
   if (error || !data.user) {
-    console.error("Failed to read auth user for email change:", error);
+    logger.error({ error: errorForLog(error) }, "Failed to read auth user for email change");
     return null;
   }
   const providers = [
@@ -351,7 +352,7 @@ async function emailChangeMethod(userId: string): Promise<EmailChangeMethod | nu
 async function endProofSession(accessToken: string | undefined): Promise<void> {
   if (!accessToken) return;
   const { error } = await supabaseAdmin.auth.admin.signOut(accessToken, "local");
-  if (error) console.error("Failed to end the email-change check session:", error);
+  if (error) logger.error({ error: errorForLog(error) }, "Failed to end the email-change check session");
 }
 
 const emailChangeError = (code: (typeof EMAIL_CHANGE_ERROR_CODES)[keyof typeof EMAIL_CHANGE_ERROR_CODES], error: string) => ({
@@ -405,7 +406,7 @@ router.post(API_ROUTE_PATHS.ME_EMAIL_CODE, requireAuth, emailChangeLimiter, asyn
       res.status(429).json(emailChangeError(EMAIL_CHANGE_ERROR_CODES.TOO_MANY_REQUESTS, "Troppi tentativi, riprova più tardi"));
       return;
     }
-    console.error("Failed to send email-change code:", { status: error.status, code: error.code });
+    logger.error({ error: errorForLog(error) }, "Failed to send email-change code");
     res.status(500).json({ error: "Internal server error" });
     return;
   }
@@ -497,7 +498,7 @@ router.patch(API_ROUTE_PATHS.ME_EMAIL, requireAuth, emailChangeLimiter, async (r
         res.status(429).json(emailChangeError(EMAIL_CHANGE_ERROR_CODES.TOO_MANY_REQUESTS, "Troppi tentativi, riprova più tardi"));
         return;
       }
-      console.error("Email change refused by Supabase:", { status: error.status, code: error.code });
+      logger.error({ error: errorForLog(error) }, "Email change refused by Supabase");
       res.status(500).json({ error: "Internal server error" });
       return;
     }
@@ -511,7 +512,7 @@ router.patch(API_ROUTE_PATHS.ME_EMAIL, requireAuth, emailChangeLimiter, async (r
     setPkceVerifierCookie(res, verifier, EMAIL_LINK_VERIFIER_MAX_AGE_SECONDS);
     res.json({ email: userEmail, pending: true });
   } catch (error) {
-    console.error("Failed to change email:", error);
+    logger.error({ error: errorForLog(error) }, "Failed to change email");
     res.status(500).json({ error: "Internal server error" });
   }
 });

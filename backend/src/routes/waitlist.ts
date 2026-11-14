@@ -3,6 +3,7 @@ import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { waitlistPosition } from "../lib/waitlist.js";
 import { API_ROUTE_PATHS } from "@workspace/api-zod";
+import { errorForLog, logger } from "../lib/logger.js";
 
 const router: IRouter = Router();
 
@@ -20,14 +21,14 @@ router.get(API_ROUTE_PATHS.WAITLIST_COUNT, async (_req, res) => {
       .select("*", { count: "exact", head: true });
 
     if (error) {
-      console.error("Failed to load waitlist count:", error);
+      logger.error({ error: errorForLog(error) }, "Failed to load waitlist count");
       res.status(500).json({ error: "Unable to load waitlist count" });
       return;
     }
 
     res.json({ count: count ?? 0 });
   } catch (err) {
-    console.error("Unexpected error in waitlist count:", err);
+    logger.error({ error: errorForLog(err) }, "Unexpected error in waitlist count");
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -44,7 +45,7 @@ router.get(API_ROUTE_PATHS.WAITLIST_ME, requireAuth, async (req: AuthenticatedRe
       .single();
 
     if (error) {
-      console.error(`[waitlist/me] Supabase error for user ${userId}:`, error);
+      logger.error({ error: errorForLog(error) }, "[waitlist/me] Supabase error");
       res.status(500).json({ error: "Unable to load waitlist position" });
       return;
     }
@@ -56,7 +57,7 @@ router.get(API_ROUTE_PATHS.WAITLIST_ME, requireAuth, async (req: AuthenticatedRe
 
     res.json({ position: await waitlistPosition(userId, data.posizione) });
   } catch (err) {
-    console.error("Error fetching waitlist position:", err);
+    logger.error({ error: errorForLog(err) }, "Error fetching waitlist position");
     res.status(500).json({ error: "Internal server error" });
   }
 });

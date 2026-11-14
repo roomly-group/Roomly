@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "./supabase-admin.js";
+import { errorForLog, logger } from "./logger.js";
 
 /**
  * Frees a rented room: public.libera_stanza cancels the accepted request,
@@ -22,6 +23,6 @@ export async function releaseRoom(roomId: number, ownerId: string) {
     .eq("stanza_id", roomId)
     .eq("proprietario_id", ownerId)
     .in("stato", ["bozza", "in_attesa_firma"]);
-  if (contractsError) console.error("Failed to cancel unsigned contracts of a released room:", contractsError);
+  if (contractsError) logger.error({ error: errorForLog(contractsError) }, "Failed to cancel unsigned contracts of a released room");
   return null;
 }

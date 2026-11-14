@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "./supabase-admin.js";
+import { errorForLog, logger } from "./logger.js";
 
 // ===================== CONFIGURATION =====================
 
@@ -148,12 +149,12 @@ async function computeAndStore(roomId: number, latitude: number, longitude: numb
         .from("stanze")
         .update({ luoghi_vicini: places, luoghi_vicini_aggiornati: new Date().toISOString() })
         .eq("id", roomId);
-      if (error) console.warn(`Could not store nearby places for room ${roomId}:`, error.message);
+      if (error) logger.warn({ error: errorForLog(error) }, `Could not store nearby places for room ${roomId}`);
       return;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (attempt === OVERPASS_ATTEMPTS) {
-        console.warn(`Could not compute nearby places for room ${roomId}:`, message);
+        logger.warn({ error: errorForLog(message) }, `Could not compute nearby places for room ${roomId}`);
         return;
       }
       await wait(OVERPASS_RETRY_DELAY_MS * attempt);

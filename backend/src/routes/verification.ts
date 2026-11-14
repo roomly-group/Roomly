@@ -33,6 +33,7 @@ import {
   type VerificationRejectionReason,
   type VerificationStatus,
 } from "@workspace/api-zod";
+import { errorForLog, logger } from "../lib/logger.js";
 
 // Identity verification ("Verifica identità", /verifica in the frontend).
 //
@@ -89,7 +90,7 @@ const IdParam = z.coerce.number().int().positive();
 // ===================== HELPERS =====================
 
 function serverError(res: Response, label: string, error: unknown) {
-  console.error(label, error);
+  logger.error({ error: errorForLog(error) }, label);
   return res.status(500).json({ error: "Internal server error" });
 }
 
@@ -360,7 +361,7 @@ router.post(
         video = await stripVideoMetadata(req.body, extension);
       } catch (err) {
         if (err instanceof VideoProcessingError) {
-          console.warn("Verification video rejected:", err.message);
+          logger.warn({ error: errorForLog(err) }, "Verification video rejected");
           return res.status(400).json({ error: "This video cannot be read" });
         }
         throw err;

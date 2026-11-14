@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "./supabase-admin.js";
+import { errorForLog, logger } from "./logger.js";
 
 // Listing photos: shared by the listing routes (routes/roomly.ts) and by
 // account deletion / data export (lib/account.ts).
@@ -40,7 +41,7 @@ export const createRoomPhotoSignedUrl = async (storedUrl: string): Promise<strin
     .createSignedUrl(path, ROOM_PHOTO_URL_TTL_SECONDS);
 
   if (error) {
-    console.warn("Failed to sign room photo URL:", error.message);
+    logger.warn({ error: errorForLog(error) }, "Failed to sign room photo URL");
     return null;
   }
 

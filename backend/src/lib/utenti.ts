@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "./supabase-admin.js";
+import { errorForLog, logger } from "./logger.js";
 
 // Crea il record in "utenti" per un utente che ha fatto login ma non ha
 // ancora una riga (lazy creation), es. quando una route viene chiamata
@@ -43,7 +44,7 @@ export async function ensureUtenteRecord(userId: string) {
 
   // If we got an error that is not because the record doesn't exist, return null
   if (selectError && selectError.code !== 'PGRST116') {
-    console.error("Failed to fetch utenti record:", selectError);
+    logger.error({ error: errorForLog(selectError) }, "Failed to fetch utenti record");
     return null;
   }
 
@@ -60,7 +61,7 @@ export async function ensureUtenteRecord(userId: string) {
     });
 
     if (insertError) {
-      console.error("Failed to create utenti record:", insertError);
+      logger.error({ error: errorForLog(insertError) }, "Failed to create utenti record");
       return null;
     }
   } else {
@@ -77,7 +78,7 @@ export async function ensureUtenteRecord(userId: string) {
         .eq("id", userId);
 
       if (updateError) {
-        console.error("Failed to update utenti record with data_nascita:", updateError);
+        logger.error({ error: errorForLog(updateError) }, "Failed to update utenti record with data_nascita");
         return null;
       }
     }

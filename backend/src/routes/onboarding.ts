@@ -20,6 +20,7 @@ import {
   PROFILE_PHOTO_MAX_SIZE_BYTES,
   USER_PREFERENCE_OPTIONS,
 } from "@workspace/api-zod";
+import { errorForLog, logger } from "../lib/logger.js";
 
 // The onboarding that follows signup (/onboarding in the frontend): the user
 // answers one question per screen and each answer is saved as they go, so
@@ -196,7 +197,7 @@ router.get(API_ROUTE_PATHS.ME_ONBOARDING, requireAuth, async (req: Authenticated
     }
     res.json(onboarding);
   } catch (error) {
-    console.error("Failed to load onboarding:", error);
+    logger.error({ error: errorForLog(error) }, "Failed to load onboarding");
     res.status(500).json({ error: "Impossibile caricare il profilo" });
   }
 });
@@ -225,7 +226,7 @@ router.patch(API_ROUTE_PATHS.ME_ONBOARDING, requireAuth, async (req: Authenticat
       return;
     }
   } catch (lockError) {
-    console.error("Failed to check identity lock:", lockError);
+    logger.error({ error: errorForLog(lockError) }, "Failed to check identity lock");
     res.status(500).json({ error: "Impossibile salvare, riprova tra poco" });
     return;
   }
@@ -299,7 +300,7 @@ router.patch(API_ROUTE_PATHS.ME_ONBOARDING, requireAuth, async (req: Authenticat
     const onboarding = await readOnboarding(userId);
     res.json(onboarding);
   } catch (error) {
-    console.error("Failed to save onboarding:", error);
+    logger.error({ error: errorForLog(error) }, "Failed to save onboarding");
     res.status(500).json({ error: "Impossibile salvare, riprova tra poco" });
   }
 });
@@ -364,7 +365,7 @@ router.post(
 
       res.status(201).json({ foto_profilo_url: await signedProfilePhotoUrl(path) });
     } catch (error) {
-      console.error("Failed to upload profile photo:", error);
+      logger.error({ error: errorForLog(error) }, "Failed to upload profile photo");
       res.status(500).json({ error: "Non siamo riusciti a caricare la foto, riprova" });
     }
   },
@@ -392,7 +393,7 @@ router.get(API_ROUTE_PATHS.ME_INVITE, requireAuth, async (req: AuthenticatedRequ
     ]);
     res.json({ codice: row.codice_invito, invitati, bonus: WAITLIST_INVITE_BONUS, posizione });
   } catch (error) {
-    console.error("Failed to load invite:", error);
+    logger.error({ error: errorForLog(error) }, "Failed to load invite");
     res.status(500).json({ error: "Impossibile caricare il tuo invito" });
   }
 });
@@ -443,7 +444,7 @@ router.post(API_ROUTE_PATHS.ME_INVITE_CLAIM, requireAuth, async (req: Authentica
     if (error) throw error;
     res.json({ ok: true });
   } catch (error) {
-    console.error("Failed to record invite:", error);
+    logger.error({ error: errorForLog(error) }, "Failed to record invite");
     res.status(500).json({ error: "Impossibile registrare l'invito" });
   }
 });

@@ -38,6 +38,7 @@ import {
   roomColumnsToListingFeatures,
   type RoomFeatureColumns,
 } from "@workspace/api-zod";
+import { errorForLog, logger } from "../lib/logger.js";
 
 // ===================== CONFIGURATION =====================
 
@@ -47,6 +48,8 @@ const ROOM_PHOTO_BOX: PhotoBox = { width: 2560, height: 2560, fit: "inside" };
 const UNIVERSITY_MATCH_LIMIT = 10 as const;
 /** Cache lifetime used for uploaded room photos (seconds, string required by storage API). */
 const ROOM_PHOTO_CACHE_CONTROL_MAX_AGE_SECONDS = "31536000" as const;
+/** Postgres check_violation: raised by the photo-limit trigger (migration 020) when a listing is full. */
+const PHOTO_LIMIT_DB_ERROR_CODE = "23514" as const;
 /** Coordinate change tolerance used when deciding whether to update a listing location (degrees). */
 const COORDINATE_CHANGE_TOLERANCE_DEGREES = 0.000001 as const;
 
@@ -241,7 +244,7 @@ router.get(API_ROUTE_PATHS.LISTINGS, requireAuth, requireAppAccess, async (req: 
 
     return res.json(ListListingsResponse.parse(listings));
   } catch (error) {
-    console.error("Error fetching listings:", error);
+    logger.error({ error: errorForLog(error) }, "Error fetching listings");
     return res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -307,7 +310,7 @@ router.get(API_ROUTE_PATHS.LISTING_BY_ID, requireAuth, requireAppAccess, async (
 
     return res.json(GetListingResponse.parse(listing));
   } catch (error) {
-    console.error("Error fetching listing by ID:", error);
+    logger.error({ error: errorForLog(error) }, "Error fetching listing by ID");
     return res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -326,7 +329,7 @@ router.post(API_ROUTE_PATHS.LISTINGS, requireAuth, async (req: Request, res: Res
       .maybeSingle();
 
     if (ownerCheckError) {
-      console.error("Failed to verify listing owner:", ownerCheckError);
+      logger.error({ error: errorForLog(ownerCheckError) }, "Failed to verify listing owner");
       return res.status(500).json({ error: "Unable to verify owner status" });
     }
     if (ownerRecord?.owner !== true) {
@@ -445,7 +448,7 @@ router.post(API_ROUTE_PATHS.LISTINGS, requireAuth, async (req: Request, res: Res
 
     return res.status(201).json(CreateListingResponse.parse(listing));
   } catch (error) {
-    console.error("Error creating listing:", error);
+    logger.error({ error: errorForLog(error) }, "Error creating listing");
     return res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -532,6 +535,12 @@ router.post(
         .select("id")
         .single();
 
+      // The DB trigger (migration 020) refused it: a parallel upload filled the
+      // listing first. Remove the stored file and answer like the count check above.
+      if (insertError?.code === PHOTO_LIMIT_DB_ERROR_CODE) {
+        await supabaseAdmin.storage.from(ROOM_PHOTO_BUCKET).remove([uploadedPath]);
+        return res.status(400).json({ error: `A listing can have at most ${ROOM_PHOTO_MAX_COUNT} photos` });
+      }
       if (insertError) throw insertError;
 
       return res.status(201).json({
@@ -543,7 +552,7 @@ router.post(
       if (uploadedPath) {
         await supabaseAdmin.storage.from(ROOM_PHOTO_BUCKET).remove([uploadedPath]);
       }
-      console.error("Error uploading room photo:", error);
+      logger.error({ error: errorForLog(error) }, "Error uploading room photo");
       return res.status(500).json({ error: "Unable to upload photo" });
     }
   },
@@ -598,7 +607,7 @@ router.delete(
           .limit(1);
 
         if (remainingPhotosError) {
-          console.warn("Photo was deleted, but a replacement cover could not be selected:", remainingPhotosError.message);
+          logger.warn({ error: errorForLog(remainingPhotosError) }, "Photo was deleted, but a replacement cover could not be selected");
         }
         if (remainingPhotos?.[0]) {
           const { error: updateCoverError } = await supabaseAdmin
@@ -607,7 +616,7 @@ router.delete(
             .eq("id", remainingPhotos[0].id);
 
           if (updateCoverError) {
-            console.warn("Photo was deleted, but its replacement cover could not be updated:", updateCoverError.message);
+            logger.warn({ error: errorForLog(updateCoverError) }, "Photo was deleted, but its replacement cover could not be updated");
           }
         }
       }
@@ -619,13 +628,13 @@ router.delete(
           .remove([photoPath]);
 
         if (storageError) {
-          console.warn("Photo record was deleted, but its file could not be removed from storage:", storageError.message);
+          logger.warn({ error: errorForLog(storageError) }, "Photo record was deleted, but its file could not be removed from storage");
         }
       }
 
       return res.json({ success: true });
     } catch (error) {
-      console.error("Error deleting listing photo:", error);
+      logger.error({ error: errorForLog(error) }, "Error deleting listing photo");
       return res.status(500).json({ error: "Unable to delete photo" });
     }
   },
@@ -682,7 +691,7 @@ router.get(API_ROUTE_PATHS.OWNER_LISTINGS, requireAuth, async (req: Request, res
 
     return res.json(listings);
   } catch (error) {
-    console.error("Error fetching owner listings:", error);
+    logger.error({ error: errorForLog(error) }, "Error fetching owner listings");
     return res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -756,7 +765,7 @@ router.get(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
 
     return res.json(response);
   } catch (error) {
-    console.error("Error fetching listing for owner:", error);
+    logger.error({ error: errorForLog(error) }, "Error fetching listing for owner");
     return res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -804,13 +813,13 @@ router.get(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
         if (rpcError.code === "RM006") {
           return res.status(409).json({ error: "Room is not accepted", code: "not_accepted" });
         }
-        console.error("Error releasing room:", rpcError);
+        logger.error({ error: errorForLog(rpcError) }, "Error releasing room");
         return res.status(500).json({ error: "Internal server error" });
       }
 
       return res.json({ success: true });
     } catch (error) {
-      console.error("Error releasing room:", error);
+      logger.error({ error: errorForLog(error) }, "Error releasing room");
       return res.status(500).json({ error: "Internal server error" });
     }
   });
@@ -955,7 +964,7 @@ router.put(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
       .eq("proprietario_id", authedReq.userId);
 
     if (updateError) {
-      console.error("Error updating listing:", updateError);
+      logger.error({ error: errorForLog(updateError) }, "Error updating listing");
       return res.status(500).json({ error: "Internal server error" });
     }
     // The room moved: its nearby places are recomputed in the background.
@@ -965,7 +974,7 @@ router.put(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
 
     return res.json({ id });
   } catch (error) {
-    console.error("Error updating listing for owner:", error);
+    logger.error({ error: errorForLog(error) }, "Error updating listing for owner");
     return res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -1068,13 +1077,13 @@ router.delete(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Requ
         .remove(photoPaths);
 
       if (storageError) {
-        console.warn("Listing was deleted, but its photos could not be removed from storage:", storageError.message);
+        logger.warn({ error: errorForLog(storageError) }, "Listing was deleted, but its photos could not be removed from storage");
       }
     }
 
     return res.json({ success: true });
   } catch (error) {
-    console.error("Error deleting owner listing:", error);
+    logger.error({ error: errorForLog(error) }, "Error deleting owner listing");
     return res.status(500).json({ error: "Internal server error" });
   }
 });

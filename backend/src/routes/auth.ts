@@ -3,7 +3,7 @@ import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { createRequestAuthClient, supabaseAuthClient } from "../lib/supabase-auth.js";
 import { loginEmailLimiter, loginLimiter, oauthLimiter, refreshLimiter, signupLimiter, verifyLimiter } from "../middleware/rateLimit.js";
 import { sendAccountSuspended } from "../middleware/auth.js";
-import { logger } from "../lib/logger.js";
+import { errorForLog, hashEmail, logger } from "../lib/logger.js";
 import { isAllowedOrigin } from "../lib/origins.js";
 import {
   createPkcePair,
@@ -208,8 +208,10 @@ const { password, captchaToken } = req.body as { password?: string; captchaToken
       // login never reveals whether an account exists). Without this log,
       // "email not confirmed" and "wrong password" were indistinguishable
       // from the outside, including to us when debugging a support report.
+      // The email is hashed (RMY-10): support can hash the address a user
+      // gives them and find the matching lines, but the logs hold no addresses.
       logger.warn(
-        { email, authErrorCode, authErrorMessage: authError?.message },
+        { emailHash: hashEmail(email), authErrorCode, error: errorForLog(authError) },
         'Login failed',
       );
       // Bad CAPTCHA: Supabase never checked the password. Answer 400 (not 401)
@@ -251,7 +253,7 @@ const { password, captchaToken } = req.body as { password?: string; captchaToken
       }
     });
   } catch (error) {
-    console.error('Login error:', error);
+    logger.error({ error: errorForLog(error) }, 'Login error');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -290,7 +292,7 @@ router.post(API_ROUTE_PATHS.REFRESH, refreshLimiter, async (req: Request, res: R
     if (!body) return res.status(401).json({ error: 'Invalid or expired token' });
     return res.json(body);
   } catch (error) {
-    console.error('Refresh error:', error);
+    logger.error({ error: errorForLog(error) }, 'Refresh error');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -343,12 +345,12 @@ router.post(API_ROUTE_PATHS.VERIFY, verifyLimiter, async (req: Request, res: Res
 
       return res.json(sessionBody(userData.user, exp));
     } catch (decodeError) {
-      console.error('JWT decode error:', decodeError);
+      logger.error({ error: errorForLog(decodeError) }, 'JWT decode error');
       // Treat decoding failures as invalid tokens
       return res.status(401).json({ error: 'Invalid token' });
     }
   } catch (error) {
-    console.error('Verify error:', error);
+    logger.error({ error: errorForLog(error) }, 'Verify error');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -363,11 +365,11 @@ router.post(API_ROUTE_PATHS.LOGOUT, async (req: Request, res: Response) => {
       // process and holds whichever user logged in last, so it signed out
       // somebody else instead of the caller.
       const { error } = await supabaseAdmin.auth.admin.signOut(token, 'local');
-      if (error) console.error('Error during signOut:', error);
+      if (error) logger.error({ error: errorForLog(error) }, 'Error during signOut');
     } catch (error) {
       // Log the error but continue with cookie clearance
       // We still want to clear cookies even if signOut fails
-      console.error('Error during signOut:', error);
+      logger.error({ error: errorForLog(error) }, 'Error during signOut');
     }
   }
   clearAuthCookies(res);
@@ -457,7 +459,7 @@ router.post(API_ROUTE_PATHS.REGISTER, signupLimiter, async (req: Request, res: R
     setPkceVerifierCookie(res, verifier, EMAIL_LINK_VERIFIER_MAX_AGE_SECONDS);
     return res.json({ requiresEmailConfirmation: true });
   } catch (error) {
-    console.error('Register error:', error);
+    logger.error({ error: errorForLog(error) }, 'Register error');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -517,7 +519,7 @@ router.post(API_ROUTE_PATHS.OAUTH_EXCHANGE, oauthLimiter, async (req: Request, r
     setSessionCookies(res, session, expiresAt);
     return res.json(sessionBody(session.user, expiresAt));
   } catch (error) {
-    console.error('Code exchange error:', error);
+    logger.error({ error: errorForLog(error) }, 'Code exchange error');
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

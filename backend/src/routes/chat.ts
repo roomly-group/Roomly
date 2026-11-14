@@ -16,6 +16,7 @@ import {
   MESSAGES_PAGE_SIZE,
   SAFETY_ERROR_CODES,
 } from "@workspace/api-zod";
+import { errorForLog, logger } from "../lib/logger.js";
 
 // ===================== CONFIGURATION =====================
 
@@ -216,13 +217,13 @@ async function insertMessage(
     .from("conversazioni")
     .update({ updated_at: message.created_at })
     .eq("id", conversationId);
-  if (updateError) console.error("Failed to bump conversation updated_at:", updateError);
+  if (updateError) logger.error({ error: errorForLog(updateError) }, "Failed to bump conversation updated_at");
 
   return message;
 }
 
 function serverError(res: Response, label: string, error: unknown) {
-  console.error(label, error);
+  logger.error({ error: errorForLog(error) }, label);
   return res.status(500).json({ error: "Internal server error" });
 }
 
@@ -442,7 +443,7 @@ router.get(API_ROUTE_PATHS.CONVERSATION_MESSAGES, requireAuth, chatReadLimiter, 
         .eq("conversazione_id", id.data)
         .neq("mittente_id", userId)
         .eq("letto", false);
-      if (readError) console.error("Failed to mark messages as read:", readError);
+      if (readError) logger.error({ error: errorForLog(readError) }, "Failed to mark messages as read");
     }
 
     return res.json(ListMessagesResponse.parse(rows.map((row) => toMessage(row, found.ownerId))));
@@ -524,7 +525,7 @@ async function postSystemMessage(conversationId: number, userId: string, text: s
   try {
     await insertMessage(conversationId, userId, text, "sistema");
   } catch (error) {
-    console.error("Failed to insert system message:", error);
+    logger.error({ error: errorForLog(error) }, "Failed to insert system message");
   }
 }
 
@@ -591,7 +592,7 @@ router.post(API_ROUTE_PATHS.CONVERSATION_ACCEPT, requireAuth, messageLimiter, as
       if (roomError) throw roomError;
       roomTaken = (roomRows ?? []).length > 0;
     } catch (roomError) {
-      console.error("Failed to mark room as rented:", roomError);
+      logger.error({ error: errorForLog(roomError) }, "Failed to mark room as rented");
     }
     if (!roomTaken) {
       const { error: rollbackError } = await supabaseAdmin
@@ -599,7 +600,7 @@ router.post(API_ROUTE_PATHS.CONVERSATION_ACCEPT, requireAuth, messageLimiter, as
         .update({ stato_richiesta: "in_attesa" })
         .eq("id", id.data)
         .eq("stato_richiesta", "accettata");
-      if (rollbackError) console.error("Failed to roll back accepted request:", rollbackError);
+      if (rollbackError) logger.error({ error: errorForLog(rollbackError) }, "Failed to roll back accepted request");
       return res.status(409).json({ error: "Room not available" });
     }
 
@@ -612,7 +613,7 @@ router.post(API_ROUTE_PATHS.CONVERSATION_ACCEPT, requireAuth, messageLimiter, as
       .eq("stanza_id", ctx.stanza_id)
       .neq("id", id.data)
       .eq("stato_richiesta", "in_attesa");
-    if (othersOnRoom.error) console.error("Failed to reject other requests:", othersOnRoom.error);
+    if (othersOnRoom.error) logger.error({ error: errorForLog(othersOnRoom.error) }, "Failed to reject other requests");
 
     await postSystemMessage(id.data, userId, "Richiesta accettata");
     return res.json({ success: true });

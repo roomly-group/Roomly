@@ -1,5 +1,6 @@
 import { WAITLIST_INVITE_BONUS } from "@workspace/api-zod";
 import { supabaseAdmin } from "./supabase-admin.js";
+import { errorForLog, logger } from "./logger.js";
 
 /**
  * The waitlist position shown to a user: their signup order, moved up
@@ -13,7 +14,7 @@ export async function waitlistPosition(userId: string, signupOrder: number | nul
     p_bonus: WAITLIST_INVITE_BONUS,
   });
   if (error || data === null || data === undefined) {
-    if (error) console.warn("posizione_in_lista failed, showing signup order:", error.message);
+    if (error) logger.warn({ error: errorForLog(error) }, "posizione_in_lista failed, showing signup order");
     return signupOrder;
   }
   return Number(data);

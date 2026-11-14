@@ -4,7 +4,7 @@ import { forgetUser, requireAdmin, requireAuth, type AuthenticatedRequest } from
 import { messageLimiter, reportLimiter } from "../middleware/rateLimit.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { BLOCKS_TABLE } from "../lib/blocks.js";
-import { logger } from "../lib/logger.js";
+import { errorForLog, logger } from "../lib/logger.js";
 import {
   ADMIN_REPORT_MESSAGES_LIMIT,
   ADMIN_REPORTS_PAGE_SIZE,
@@ -68,7 +68,7 @@ const displayName = (person: Person | undefined) =>
   `${person?.nome ?? ""} ${person?.cognome ?? ""}`.trim() || person?.nome_utente || "—";
 
 function serverError(res: Response, label: string, error: unknown) {
-  console.error(label, error);
+  logger.error({ error: errorForLog(error) }, label);
   return res.status(500).json({ error: "Internal server error" });
 }
 
