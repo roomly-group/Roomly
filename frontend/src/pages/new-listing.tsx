@@ -18,7 +18,14 @@ import {
   LISTING_PRICE_INPUT_PADDING_LEFT_PX,
   LISTING_PRICE_PLACEHOLDER,
 } from '@/lib/constants';
-import { API_BASE_PATH, API_ROUTE_PATHS, ROOM_PHOTO_MAX_COUNT, ROOM_PHOTO_MAX_SIZE_BYTES } from '@workspace/api-zod';
+import {
+  API_BASE_PATH,
+  API_ROUTE_PATHS,
+  LISTING_INPUT_LIMITS,
+  ROOM_PHOTO_MAX_COUNT,
+  ROOM_PHOTO_MAX_SIZE_BYTES,
+} from '@workspace/api-zod';
+import { useFormat } from '@/hooks/use-format';
 
 // ===================== CONFIGURATION =====================
 
@@ -47,6 +54,7 @@ function Field({ label, hint, children }: { label: string; hint: string; childre
 
 export function NewListingPage() {
   const { t } = useLanguage();
+  const format = useFormat();
   const [, setLocation] = useLocation();
   const createListing = useCreateListing();
   const [addressError, setAddressError] = useState(false);
@@ -132,9 +140,17 @@ export function NewListingPage() {
         : current,
     );
 
+  // Monthly rent above the limit the server accepts (RMY-16): flagged right under the field.
+  const priceTooHigh = Number(form.price) > LISTING_INPUT_LIMITS.PRICE_MAX_EUR;
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const fieldsOk = !!form.title.trim() && !!form.description.trim() && form.price >= 1;
+    // Same limits as the server (ListingInputBody, RMY-16).
+    const fieldsOk =
+      !!form.title.trim() &&
+      !!form.description.trim() &&
+      form.price >= LISTING_INPUT_LIMITS.PRICE_MIN_EUR &&
+      !priceTooHigh;
     const addressOk = !!form.latitude && !!form.longitude;
     setFieldsError(!fieldsOk);
     setAddressError(!addressOk);
@@ -213,6 +229,7 @@ export function NewListingPage() {
                 value={form.title}
                 onChange={(event) => update('title', event.target.value)}
                 placeholder={t('newListing.titlePlaceholder')}
+                maxLength={LISTING_INPUT_LIMITS.TITLE_MAX_CHARS}
                 className="form-input"
                 data-testid={LISTING_FORM_TEST_IDS.INPUT_LISTING_TITLE}
               />
@@ -238,15 +255,23 @@ export function NewListingPage() {
                 <span className="absolute left-4 top-3 font-black text-[#0F6E56]">€</span>
                 <input
                   type="number"
-                  min="1"
+                  min={LISTING_INPUT_LIMITS.PRICE_MIN_EUR}
+                  max={LISTING_INPUT_LIMITS.PRICE_MAX_EUR}
                   value={form.price || ''}
                   onChange={(event) => update('price', event.target.value)}
                   placeholder={LISTING_PRICE_PLACEHOLDER}
                   className="form-input"
                   style={{ paddingLeft: LISTING_PRICE_INPUT_PADDING_LEFT_PX }}
+                  aria-invalid={priceTooHigh}
                   data-testid={LISTING_FORM_TEST_IDS.INPUT_LISTING_PRICE}
                 />
               </div>
+              {priceTooHigh && (
+                <span className="mt-2 flex items-center gap-1.5 text-xs font-bold text-[#a74b32]" role="alert">
+                  <CircleAlert size={14} />{' '}
+                  {t('newListing.priceTooHigh').replace('{price}', format.price(LISTING_INPUT_LIMITS.PRICE_MAX_EUR))}
+                </span>
+              )}
             </Field>
 
             <Field label={t('newListing.detailsLabel')} hint={t('newListing.detailsHint')}>
@@ -255,6 +280,7 @@ export function NewListingPage() {
                 onChange={(event) => update('description', event.target.value)}
                 rows={6}
                 placeholder={t('newListing.detailsPlaceholder')}
+                maxLength={LISTING_INPUT_LIMITS.DESCRIPTION_MAX_CHARS}
                 className="form-input resize-none"
                 data-testid={LISTING_FORM_TEST_IDS.TEXTAREA_LISTING_DESCRIPTION}
               />

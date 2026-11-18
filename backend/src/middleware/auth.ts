@@ -144,6 +144,16 @@ export function forgetUser(userId: string): void {
   appAccessCache.delete(userId);
 }
 
+/**
+ * Drops one access token from the cache. Called on logout (RMY-23): the
+ * session is revoked in Supabase, and without this the token kept passing
+ * requireAuth for up to TOKEN_CACHE_TTL_MS. The user's other sessions
+ * (other devices) are not touched.
+ */
+export function forgetToken(token: string): void {
+  tokenCache.delete(token);
+}
+
 // Pre-launch, the listings part of the app is open only to admins and owners
 // (the frontend gates the same pages with RequireAdmin allowOwner). Without
 // this, anyone could page through /api/listings and collect owner names,

@@ -23,7 +23,7 @@ import {
 } from "../lib/geo.js";
 import {
   type Listing,
-  CreateListingBody,
+  ListingInputBody,
   GetListingParams,
   ListListingsQueryParams,
   CreateListingResponse,
@@ -34,9 +34,6 @@ import {
   ROOM_PHOTO_MAX_SIZE_BYTES,
   API_ROUTE_PATHS,
   ROOM_FEATURE_COLUMNS,
-  ListingApartmentLayoutSchema,
-  ListingFeatureGroupsSchema,
-  ListingPropertyTypeSchema,
   emptyListingFeatureGroups,
   hasWifiIncluded,
   listingFeaturesToRoomColumns,
@@ -370,24 +367,32 @@ router.get(API_ROUTE_PATHS.LISTING_BY_ID, requireAuth, requireAppAccess, async (
  * POST /api/listings
  * Create a new listing (requires authentication).
  */
+/**
+ * Whether the user has owner status (utenti.owner = true): required to create
+ * AND to edit listings (RMY-16). Throws on a database error.
+ */
+async function isOwnerAccount(userId: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from("utenti")
+    .select("owner")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) {
+    logger.error({ error: errorForLog(error) }, "Failed to verify listing owner");
+    throw error;
+  }
+  return data?.owner === true;
+}
+
 router.post(API_ROUTE_PATHS.LISTINGS, requireAuth, async (req: Request, res: Response) => {
   try {
     const authedReq = req as typeof req & { userId: string; userEmail?: string };
-    const { data: ownerRecord, error: ownerCheckError } = await supabaseAdmin
-      .from("utenti")
-      .select("owner")
-      .eq("id", authedReq.userId)
-      .maybeSingle();
-
-    if (ownerCheckError) {
-      logger.error({ error: errorForLog(ownerCheckError) }, "Failed to verify listing owner");
-      return res.status(500).json({ error: "Unable to verify owner status" });
-    }
-    if (ownerRecord?.owner !== true) {
+    if (!(await isOwnerAccount(authedReq.userId))) {
       return res.status(403).json({ error: "Only verified owners can create listings" });
     }
 
-    const parsed = CreateListingBody.safeParse(req.body);
+    // Shared with the edit route (RMY-16): lengths, price range, postcode, coordinates.
+    const parsed = ListingInputBody.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: "Dati non validi", details: parsed.error.issues });
     }
@@ -438,7 +443,7 @@ router.post(API_ROUTE_PATHS.LISTINGS, requireAuth, async (req: Request, res: Res
     // Tipologia / taglio / furnished / pets / smokers / feature groups -> columns of `stanze`
     // (tipologia_proprieta, taglio_appartamento, mobili_inclusi, animali_consentiti,
     // fumatori_consentiti, spese_incluse, elettrodomestici, arredi, servizi).
-    // Values were validated by CreateListingBody; the layout is dropped unless it is an apartment.
+    // Values were validated by ListingInputBody; the layout is dropped unless it is an apartment.
     const featureColumns = listingFeaturesToRoomColumns({
       propertyType: input.propertyType ?? null,
       apartmentLayout: input.apartmentLayout ?? null,
@@ -887,7 +892,17 @@ router.put(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
 
     const authedReq = req as typeof req & { userId: string };
 
-    // Validate request body
+    // Same rule as creating (RMY-16): an account that lost owner status can no longer edit.
+    if (!(await isOwnerAccount(authedReq.userId))) {
+      return res.status(403).json({ error: "Only verified owners can edit listings" });
+    }
+
+    // Same schema as POST (RMY-16): lengths, price range, postcode, numeric
+    // coordinates, and only values of the database enums for the features.
+    const parsed = ListingInputBody.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Dati non validi", details: parsed.error.issues });
+    }
     const {
       title,
       description,
@@ -903,24 +918,7 @@ router.put(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
       postcode,
       latitude,
       longitude,
-    } = req.body;
-
-    if (typeof title !== "string" || title.trim() === "") {
-      return res.status(400).json({ error: "Title is required" });
-    }
-    if (typeof description !== "string" || description.trim() === "") {
-      return res.status(400).json({ error: "Description is required" });
-    }
-    if (typeof price !== "number" || !Number.isFinite(price) || price < 1) {
-      return res.status(400).json({ error: "Price must be a number greater than or equal to 1" });
-    }
-    // Only values of the database enums (and the known `servizi` options) are accepted.
-    const parsedPropertyType = ListingPropertyTypeSchema.optional().safeParse(propertyType);
-    const parsedApartmentLayout = ListingApartmentLayoutSchema.optional().safeParse(apartmentLayout);
-    const parsedFeatures = ListingFeatureGroupsSchema.optional().safeParse(features);
-    if (!parsedPropertyType.success || !parsedApartmentLayout.success || !parsedFeatures.success) {
-      return res.status(400).json({ error: "Invalid listing features" });
-    }
+    } = parsed.data;
 
     // Load current row to verify ownership and get the current feature columns
     const { data: currentRow, error: fetchError } = await supabaseAdmin
@@ -948,22 +946,20 @@ router.put(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
     const currentFeatures = roomColumnsToListingFeatures(currentFeatureColumns);
     const featureColumns = listingFeaturesToRoomColumns(
       {
-        propertyType:
-          parsedPropertyType.data !== undefined ? parsedPropertyType.data : currentFeatures.propertyType,
-        apartmentLayout:
-          parsedApartmentLayout.data !== undefined ? parsedApartmentLayout.data : currentFeatures.apartmentLayout,
-        furnished: typeof furnished === "boolean" ? furnished : currentFeatures.furnished,
-        petsAllowed: typeof petsAllowed === "boolean" ? petsAllowed : currentFeatures.petsAllowed,
-        smokersAllowed: typeof smokersAllowed === "boolean" ? smokersAllowed : currentFeatures.smokersAllowed,
-        features: parsedFeatures.data ?? currentFeatures.features,
+        propertyType: propertyType !== undefined ? propertyType : currentFeatures.propertyType,
+        apartmentLayout: apartmentLayout !== undefined ? apartmentLayout : currentFeatures.apartmentLayout,
+        furnished: furnished ?? currentFeatures.furnished,
+        petsAllowed: petsAllowed ?? currentFeatures.petsAllowed,
+        smokersAllowed: smokersAllowed ?? currentFeatures.smokersAllowed,
+        features: features ?? currentFeatures.features,
       },
       currentFeatureColumns.servizi,
     );
 
-    // Build update object
-    const updateData: any = {
-      titolo: title.trim(),
-      descrizione: description.trim(),
+    // Build update object (title and description are already trimmed by the schema)
+    const updateData: Record<string, unknown> & { latitudine?: number; longitudine?: number } = {
+      titolo: title,
+      descrizione: description,
       prezzo: price,
       ...featureColumns,
       updated_at: new Date().toISOString(),
@@ -975,7 +971,7 @@ router.put(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
       longitude !== undefined &&
       !(latitude === 0 && longitude === 0);
 
-    if (hasCoords) {
+    if (hasCoords && latitude !== undefined && longitude !== undefined) {
       const latDiff =
         Math.abs(Number(currentRow.latitudine || 0) - latitude) > COORDINATE_CHANGE_TOLERANCE_DEGREES;
       const lngDiff =
@@ -989,20 +985,18 @@ router.put(API_ROUTE_PATHS.OWNER_LISTING_BY_ID, requireAuth, async (req: Request
         updateData.longitudine = longitude;
 
         // Find nearest university (same logic as POST route)
-        if (latitude !== undefined && longitude !== undefined) {
-          const { data: universities, error: uniError } = await supabaseAdmin
-            .from("universita")
-            .select("id, nome, latitudine, longitudine");
-          if (!uniError && universities) {
-            const match = nearestUniversity(
-              latitude,
-              longitude,
-              (universities as unknown as UniversityPoint[]),
-            );
-            // Nessuna università nel raggio: si scollega quella vecchia, altrimenti
-            // la stanza continuerebbe a comparire nelle ricerche di quella zona.
-            updateData.universita_id = match ? match.university.id : null;
-          }
+        const { data: universities, error: uniError } = await supabaseAdmin
+          .from("universita")
+          .select("id, nome, latitudine, longitudine");
+        if (!uniError && universities) {
+          const match = nearestUniversity(
+            latitude,
+            longitude,
+            (universities as unknown as UniversityPoint[]),
+          );
+          // Nessuna università nel raggio: si scollega quella vecchia, altrimenti
+          // la stanza continuerebbe a comparire nelle ricerche di quella zona.
+          updateData.universita_id = match ? match.university.id : null;
         }
       }
     }

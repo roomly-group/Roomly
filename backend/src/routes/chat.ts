@@ -22,8 +22,15 @@ import { errorForLog, logger } from "../lib/logger.js";
 
 /** Maximum characters shown in a conversation preview (characters). */
 const MESSAGE_PREVIEW_LENGTH_CHARS = 120 as const;
-/** Maximum pending requests allowed for one room (requests). */
+/**
+ * Maximum pending requests allowed for one room (requests). Also enforced by
+ * the DB trigger limita_richieste_in_attesa (migration 023): keep both equal.
+ */
 const MAX_PENDING_REQUESTS_PER_ROOM = 10 as const;
+/** SQLSTATE raised by that trigger when the room already has the maximum (RMY-21). */
+const PENDING_LIMIT_DB_ERROR_CODE = "RM009" as const;
+/** Answer when the room has too many pending requests (backend check or DB trigger). */
+const TOO_MANY_PENDING_MESSAGE = "Too many pending requests for this room" as const;
 
 const router: IRouter = Router();
 
@@ -342,8 +349,10 @@ router.post(API_ROUTE_PATHS.CONVERSATIONS, requireAuth, requireAppAccess, messag
       .eq("stanza_id", listingId)
       .eq("stato_richiesta", "in_attesa");
     if (countError) throw countError;
+    // Quick answer for the common case. Two requests at the same moment can
+    // both pass this count: the DB trigger then refuses the extra one (below).
     if (count && count >= MAX_PENDING_REQUESTS_PER_ROOM) {
-      return res.status(409).json({ error: "Too many pending requests for this room" });
+      return res.status(409).json({ error: TOO_MANY_PENDING_MESSAGE });
     }
 
     // No existing chat, create a new one
@@ -352,6 +361,12 @@ router.post(API_ROUTE_PATHS.CONVERSATIONS, requireAuth, requireAppAccess, messag
       .insert({ stanza_id: listingId, studente_id: userId, stato_richiesta: "in_attesa" })
       .select("id")
       .single();
+
+    // The DB trigger (migration 023) refused it: other requests filled the
+    // room in the meantime. Same answer as the count check above (RMY-21).
+    if ((createError as { code?: string } | null)?.code === PENDING_LIMIT_DB_ERROR_CODE) {
+      return res.status(409).json({ error: TOO_MANY_PENDING_MESSAGE });
+    }
 
     if (createError) {
       // 23505 = violazione di unicità: due richieste hanno provato a creare la

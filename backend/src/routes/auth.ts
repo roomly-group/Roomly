@@ -13,7 +13,7 @@ import {
   verifyLimiter,
 } from "../middleware/rateLimit.js";
 import { z } from "zod";
-import { sendAccountSuspended } from "../middleware/auth.js";
+import { forgetToken, sendAccountSuspended } from "../middleware/auth.js";
 import { errorForLog, hashEmail, logger } from "../lib/logger.js";
 import { isAllowedOrigin } from "../lib/origins.js";
 import {
@@ -453,7 +453,9 @@ router.post(API_ROUTE_PATHS.VERIFY, verifyLimiter, async (req: Request, res: Res
 // Logout endpoint
 router.post(API_ROUTE_PATHS.LOGOUT, async (req: Request, res: Response) => {
   const token = req.cookies?.[ACCESS_TOKEN_COOKIE_NAME];
-  if (token) {
+  if (typeof token === 'string' && token) {
+    // Stop accepting this token right away, not after the cache TTL (RMY-23).
+    forgetToken(token);
     try {
       // Revoke only the caller's session, identified by their own access token.
       // Never call signOut() on supabaseAuthClient: it is shared by the whole
@@ -466,6 +468,9 @@ router.post(API_ROUTE_PATHS.LOGOUT, async (req: Request, res: Response) => {
       // We still want to clear cookies even if signOut fails
       logger.error({ error: errorForLog(error) }, 'Error during signOut');
     }
+    // Once more after the revocation: a request that arrived while it was
+    // running may have put the token back in the cache.
+    forgetToken(token);
   }
   clearAuthCookies(res);
   res.json({ ok: true });

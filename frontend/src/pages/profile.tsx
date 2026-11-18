@@ -13,7 +13,8 @@ import {
   type EmailChangeMethod,
   type UserPreferences,
 } from '@workspace/api-zod';
-import { clearAuthSession } from '@/lib/auth-session';
+import { useQueryClient } from '@tanstack/react-query';
+import { endLocalSession, logOut } from '@/lib/logout';
 import { useLanguage } from '@/lib/i18n';
 import { TurnstileWidget } from '@/components/shared/turnstile';
 import { AppShell, Avatar } from '@/components/layout/app-shell';
@@ -33,8 +34,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { clearRoleCache } from '@/lib/role-cache';
-import { clearAccountCache, patchAccount, useAccount } from '@/lib/account-cache';
+import { patchAccount, useAccount } from '@/lib/account-cache';
 import { APP_ROUTES, PASSWORD_FIELD_PLACEHOLDER } from '@/lib/constants';
 import { fetchOnboarding, fromBoolean, isAdult, toBoolean, type OnboardingData, type YesNoAny } from '@/lib/onboarding';
 import { ChipGroup, ChoiceChip } from '@/components/onboarding/choice';
@@ -658,13 +658,6 @@ function attachmentFileName(header: string | null): string {
   return match?.[1] ?? EXPORT_FALLBACK_FILE_NAME;
 }
 
-/** Ends the session in this browser: the logged-in user and cached profile/role. */
-async function endLocalSession() {
-  clearAuthSession();
-  clearRoleCache();
-  clearAccountCache();
-}
-
 /**
  * "Your data", at the bottom of the profile: download a copy of everything
  * Roomly stores about the user (GET /api/me/export), then delete the account
@@ -675,6 +668,7 @@ function AccountDataSection() {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
 
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -734,8 +728,8 @@ function AccountDataSection() {
       });
 
       if (response.ok) {
-        // The backend already cleared the session cookies.
-        await endLocalSession();
+        // The backend already cleared the session cookies: forget the user here too (RMY-23).
+        endLocalSession(queryClient);
         toast({ title: t('account.deleted') });
         setLocation(APP_ROUTES.ROOT);
         return;
@@ -761,8 +755,7 @@ function AccountDataSection() {
   // Log out completely and open the login page: the next login is "fresh"
   // and lets the user delete the account.
   async function logInAgain() {
-    await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.LOGOUT}`, { method: 'POST', credentials: 'include' }).catch(() => undefined);
-    await endLocalSession();
+    await logOut(queryClient);
     setLocation(APP_ROUTES.LOGIN);
   }
 

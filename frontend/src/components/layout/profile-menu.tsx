@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import { clearRoleCache, peekLastKnownRole, peekRoleCache } from '@/lib/role-cache';
-import { clearAccountCache, useAccount } from '@/lib/account-cache';
+import { useQueryClient } from '@tanstack/react-query';
+import { peekLastKnownRole, peekRoleCache } from '@/lib/role-cache';
+import { useAccount } from '@/lib/account-cache';
 import { Link, useLocation } from 'wouter';
 import { ArrowRight, Home, ListOrdered, LogOut, Mail, Menu, ShieldCheck, UserRound } from 'lucide-react';
-import { clearAuthSession, getAuthSession } from '@/lib/auth-session';
+import { getAuthSession } from '@/lib/auth-session';
+import { logOut } from '@/lib/logout';
 import { useLanguage } from '@/lib/i18n';
 import { Avatar } from '@/components/shared/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { APP_ROUTES } from '@/lib/constants';
 import { mainPageFor } from '@/lib/auth-role';
-import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 
 // ===================== CONFIGURATION =====================
 
@@ -41,6 +42,7 @@ export function ProfileMenu({
 }) {
   const { t } = useLanguage();
   const [location, setLocation] = useLocation();
+  const queryClient = useQueryClient();
   // Shared /api/me cache: fetched once per app load and kept across pages and
   // reloads, so the header never shows a skeleton again after the first time.
   const { account, loading: accountLoading } = useAccount();
@@ -65,11 +67,9 @@ export function ProfileMenu({
   }, []);
 
   async function handleLogout() {
-    await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.LOGOUT}`, { method: 'POST', credentials: 'include' });
-    // Forget the user in this tab too (also stops the scheduled cookie refresh).
-    clearAuthSession();
-    clearRoleCache();
-    clearAccountCache();
+    // Ends the session on the server and always forgets the user in this tab,
+    // cached API data included, even if the request fails (RMY-23).
+    await logOut(queryClient);
     setLocation(logoutRedirect);
   }
 
