@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { clearRoleCache } from '@/lib/role-cache';
 import { clearAccountCache } from '@/lib/account-cache';
 import { Link, useLocation } from 'wouter';
@@ -23,7 +23,14 @@ const REGISTER_TEST_IDS = {
   LINK_GO_LOGIN: 'link-go-login',
   STATUS_CHECK_EMAIL: 'status-check-email',
   BUTTON_CHANGE_EMAIL: 'button-change-email',
+  CHECK_ACCEPT_TERMS: 'check-accept-terms',
 } as const;
+
+/** Id of the consent checkbox and of its error line (linked with aria-describedby). */
+const CONSENT_INPUT_ID = 'register-accept-terms' as const;
+const CONSENT_ERROR_ID = 'register-accept-terms-error' as const;
+/** The legal pages open in a new tab, so the half-filled form is not lost. */
+const LEGAL_LINK_TARGET = { target: '_blank', rel: 'noopener noreferrer' } as const;
 
 /**
  * Signup asks only for email and password (or Google). Name, date of
@@ -43,10 +50,28 @@ export function RegisterPage() {
   // Bumped whenever we need to force the Turnstile widget to remount and
   // issue a fresh token (e.g. after a failed submit consumed the old one).
   const [turnstileKey, setTurnstileKey] = useState(0);
+  // "I accept the Terms and Privacy Policy" (RMY-15): required for both the
+  // email form and Google, because both can create a new account.
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [consentError, setConsentError] = useState(false);
+  const consentRef = useRef<HTMLInputElement>(null);
+
+  // Box not ticked: show the hint right under it and bring it into view
+  // (the Google button sits at the top of the page, far from the box).
+  function showConsentRequired() {
+    setConsentError(true);
+    consentRef.current?.focus();
+    consentRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+
+    if (!acceptedTerms) {
+      showConsentRequired();
+      return;
+    }
 
     if (!new RegExp(PASSWORD_REQUIREMENTS_PATTERN).test(password)) {
       setError(t('auth.passwordPattern'));
@@ -66,7 +91,8 @@ export function RegisterPage() {
       const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.REGISTER}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, captchaToken }),
+        // The backend checks acceptedTerms again and saves when it was given.
+        body: JSON.stringify({ email, password, captchaToken, acceptedTerms }),
       });
       // An empty or non-JSON reply (backend down, proxy error) must surface as a
       // normal error message, not a JSON.parse crash.
@@ -145,7 +171,7 @@ export function RegisterPage() {
 
   return (
     <AuthShell title={t('auth.registerTitle')} subtitle={t('auth.registerSubtitle')} footer={footer}>
-      <OAuthButtons />
+      <OAuthButtons consent={{ accepted: acceptedTerms, onMissing: showConsentRequired }} />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4" data-testid={REGISTER_TEST_IDS.FORM_REGISTER}>
         <div className="flex flex-col gap-1.5">
@@ -192,6 +218,42 @@ export function RegisterPage() {
             </button>
           </div>
           <p id="register-password-hint" className="text-xs leading-5 text-sage">{t('auth.passwordHint')}</p>
+        </div>
+
+        {/* Consent (RMY-15). The whole label is the tap target; the links open the texts in a new tab. */}
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor={CONSENT_INPUT_ID} className="flex min-h-11 cursor-pointer items-start gap-3 text-sm leading-6 text-ink">
+            <input
+              ref={consentRef}
+              id={CONSENT_INPUT_ID}
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={(event) => {
+                setAcceptedTerms(event.target.checked);
+                if (event.target.checked) setConsentError(false);
+              }}
+              aria-invalid={consentError}
+              aria-describedby={consentError ? CONSENT_ERROR_ID : undefined}
+              className="mt-1 h-4 w-4 shrink-0 accent-shutter"
+              data-testid={REGISTER_TEST_IDS.CHECK_ACCEPT_TERMS}
+            />
+            <span>
+              {t('auth.consentPrefix')}
+              <a href={APP_ROUTES.TERMS} {...LEGAL_LINK_TARGET} className="font-extrabold text-shutter underline underline-offset-2 hover:text-pine">
+                {t('auth.consentTerms')}
+              </a>
+              {t('auth.consentMiddle')}
+              <a href={APP_ROUTES.PRIVACY} {...LEGAL_LINK_TARGET} className="font-extrabold text-shutter underline underline-offset-2 hover:text-pine">
+                {t('auth.consentPrivacy')}
+              </a>
+              {t('auth.consentSuffix')}
+            </span>
+          </label>
+          {consentError ? (
+            <p id={CONSENT_ERROR_ID} className="text-sm font-semibold text-terracotta" role="alert">
+              {t('auth.consentRequired')}
+            </p>
+          ) : null}
         </div>
 
         <div>

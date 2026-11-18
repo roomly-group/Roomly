@@ -154,13 +154,15 @@ export function signUpWithPkce(params: {
   captchaToken: string;
   redirectTo?: string;
   challenge: string;
+  /** Saved as the account's user_metadata (server-made values only, e.g. signup consent). */
+  metadata?: Record<string, string>;
 }): Promise<AuthResult<AuthSession | AuthUser>> {
   return authRequest<AuthSession | AuthUser>("POST", "/signup", {
     query: { redirect_to: params.redirectTo },
     body: {
       email: params.email,
       password: params.password,
-      data: {},
+      data: params.metadata ?? {},
       gotrue_meta_security: { captcha_token: params.captchaToken },
       code_challenge: params.challenge,
       code_challenge_method: PKCE_CHALLENGE_METHOD,

@@ -7,7 +7,9 @@ import router from "./routes/index.js";
 import { logger } from "./lib/logger.js";
 import { isAllowedOrigin } from "./lib/origins.js";
 import { requireOriginSecret } from "./middleware/originSecret.js";
-import { API_BASE_PATH } from "@workspace/api-zod";
+import { requireCsrfToken } from "./middleware/csrf.js";
+import { errorHandler, HttpError } from "./middleware/errorHandler.js";
+import { API_BASE_PATH, CSRF_HEADER_NAME } from "@workspace/api-zod";
 
 // ===================== CONFIGURATION =====================
 
@@ -30,7 +32,9 @@ const CSP_SOURCES = {
 /** HTTP methods enabled for cross-origin API requests. */
 const CORS_ALLOWED_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] as const;
 /** HTTP headers enabled for cross-origin API requests. */
-const CORS_ALLOWED_HEADERS = ["Content-Type", "Authorization", "X-Requested-With"] as const;
+const CORS_ALLOWED_HEADERS = ["Content-Type", "Authorization", "X-Requested-With", CSRF_HEADER_NAME] as const;
+/** Status for a request from an origin CORS does not allow (handled by middleware/errorHandler.ts). */
+const CORS_REJECT_STATUS = 403 as const;
 /**
  * Number of X-Forwarded-For entries Railway's edge adds: the IP that connected
  * to Railway + the edge's own IP (measured in production). With 2, req.ip is
@@ -77,7 +81,8 @@ app.use(cors({
       return;
     }
 
-    callback(new Error(`Origin not allowed by CORS: ${origin}`));
+    // 403 (not 500): the error handler at the end of this file answers with it.
+    callback(new HttpError(CORS_REJECT_STATUS, `Origin not allowed by CORS: ${origin}`));
   },
   credentials: true,
   methods: [...CORS_ALLOWED_METHODS],
@@ -119,6 +124,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-app.use(API_BASE_PATH, router);
+// CSRF check on every state-changing /api request (RMY-20), before any route runs.
+app.use(API_BASE_PATH, requireCsrfToken, router);
+
+// Must stay LAST: turns any error thrown above into a short JSON answer (RMY-20).
+app.use(errorHandler);
 
 export default app;

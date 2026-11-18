@@ -110,6 +110,23 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
 export const CSRF_TOKEN_COOKIE_NAME = "csrf-token" as const;
 
 /**
+ * Request header that must echo the CSRF cookie on every state-changing /api
+ * call (RMY-20). The frontend adds it automatically (frontend/src/lib/csrf-fetch.ts).
+ */
+export const CSRF_HEADER_NAME = "X-CSRF-Token" as const;
+
+/** `code` of the 403 answer when the CSRF header is missing or does not match the cookie. */
+export const CSRF_INVALID_CODE = "csrf_invalid" as const;
+
+/**
+ * Version of the Terms of Service + Privacy Policy a new user accepts at
+ * signup (RMY-15), saved in `utenti.termini_versione`. It is the date of the
+ * most recent of the two texts (frontend/src/lib/legal-content.ts, `updated`):
+ * change it whenever either text changes.
+ */
+export const SIGNUP_CONSENT_VERSION = "2026-11-14" as const;
+
+/**
  * Password character rules (regex source) checked by the signup page, the
  * reset-password page and POST /api/password/reset: at least 8 characters,
  * with a lowercase and an uppercase letter, a digit and a symbol.

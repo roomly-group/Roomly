@@ -22,13 +22,20 @@ function loadGoogleEnabled(): Promise<boolean> {
   return googleEnabledRequest;
 }
 
+/** Signup-page consent (RMY-15): whether the Terms/Privacy box is ticked, and what to do when it is not. */
+type OAuthConsent = { accepted: boolean; onMissing: () => void };
+
 /**
  * "Continua con Google", followed by an "oppure" divider before the email
  * form. Live, the button only appears once Google is switched on in Supabase,
  * so nobody meets a button that cannot work. In development it always shows,
  * so the layout can be checked before the provider is set up.
+ *
+ * `consent` (signup page only): Google can create a new account, so it waits
+ * for the Terms/Privacy box like the email form does, and tells the backend
+ * the box was ticked so the acceptance is saved on the account.
  */
-export function OAuthButtons() {
+export function OAuthButtons({ consent }: { consent?: OAuthConsent } = {}) {
   const { t } = useLanguage();
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [pending, setPending] = useState(false);
@@ -48,6 +55,11 @@ export function OAuthButtons() {
 
   async function start() {
     setError(null);
+    // Box not ticked: the signup page explains it next to the box.
+    if (consent && !consent.accepted) {
+      consent.onMissing();
+      return;
+    }
     if (!enabled) {
       setError(t('auth.oauthGoogleUnavailable'));
       return;
@@ -61,6 +73,9 @@ export function OAuthButtons() {
       const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.OAUTH_GOOGLE}`, {
         method: 'POST',
         credentials: 'include',
+        ...(consent
+          ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acceptedTerms: true }) }
+          : {}),
       });
       const { url } = (response.ok ? await response.json() : {}) as { url?: unknown };
       // Only ever leave for our own Supabase project, never for an unexpected address.

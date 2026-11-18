@@ -1,4 +1,4 @@
-import { API_BASE_PATH, API_ROUTE_PATHS, CSRF_TOKEN_COOKIE_NAME } from '@workspace/api-zod';
+import { API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
 
 // Who is logged in, as told by the backend. Replaces the browser Supabase
 // client: the access and refresh tokens now live ONLY in HttpOnly cookies, so
@@ -14,8 +14,6 @@ const REFRESH_MARGIN_MS = 60_000 as const;
 const MIN_REFRESH_DELAY_MS = 5_000 as const;
 /** Longest delay setTimeout accepts (ms, 2^31 - 1). */
 const MAX_TIMER_DELAY_MS = 2_147_483_647 as const;
-/** Regex source matching the CSRF cookie the backend sets (readable on purpose). */
-const CSRF_COOKIE_PATTERN = `(?:^|; )${CSRF_TOKEN_COOKIE_NAME}=([^;]*)` as const;
 /** Query parameter of a PKCE redirect (Google, signup or email-change link) carrying the one-time code. */
 const AUTH_CODE_PARAM = 'code' as const;
 /** Query parameters Supabase adds when a redirect failed (e.g. expired link, Google cancelled). */
@@ -84,20 +82,6 @@ if (typeof document !== 'undefined') {
   });
 }
 
-const getCsrfToken = () => {
-  const match = document.cookie.match(new RegExp(CSRF_COOKIE_PATTERN));
-  return match ? decodeURIComponent(match[1]) : '';
-};
-
-// /refresh requires the CSRF cookie echoed in a header. A session that was not
-// created by /login (e.g. right after signup) may not have one yet: ask for it.
-async function ensureCsrfToken(): Promise<string> {
-  const existing = getCsrfToken();
-  if (existing) return existing;
-  await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.CSRF}`, { credentials: 'include' }).catch(() => undefined);
-  return getCsrfToken();
-}
-
 // Accepts only the expected shape: { session: { user: { id, email }, expires_at } }.
 function parseSession(body: unknown): AuthSession | null {
   const session = (body as { session?: { user?: { id?: unknown; email?: unknown }; expires_at?: unknown } } | null)?.session;
@@ -116,10 +100,10 @@ function parseSession(body: unknown): AuthSession | null {
 export function refreshSession(): Promise<AuthSession | null> {
   refreshInflight ??= (async () => {
     try {
+      // The X-CSRF-Token header is added by lib/csrf-fetch.ts, like on every POST to /api.
       const response = await fetch(`${API_BASE_PATH}${API_ROUTE_PATHS.REFRESH}`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'X-CSRF-Token': await ensureCsrfToken() },
       });
       if (response.ok) {
         setAuthSession(parseSession(await response.json()));

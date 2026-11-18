@@ -37,7 +37,9 @@ import {
   PASSWORD_MAX_LENGTH,
   PASSWORD_REQUIREMENTS_PATTERN,
   PASSWORD_RESET_ERROR_CODES,
+  SIGNUP_CONSENT_VERSION,
 } from "@workspace/api-zod";
+import { recordSignupConsent, SIGNUP_CONSENT_METADATA_KEYS } from "../lib/utenti.js";
 
 import crypto from 'crypto';
 
@@ -55,6 +57,8 @@ const ACCESS_TOKEN_COOKIE_MAX_AGE_SECONDS = 604800 as const;
 const REFRESH_TOKEN_COOKIE_MAX_AGE_SECONDS = 2592000 as const;
 /** Random byte length used to create CSRF cookie values (bytes). */
 const CSRF_TOKEN_RANDOM_BYTES = 32 as const;
+/** Shape of a CSRF token created here: the random bytes above, in hex. */
+const CSRF_TOKEN_PATTERN = new RegExp(`^[0-9a-f]{${CSRF_TOKEN_RANDOM_BYTES * 2}}$`);
 /** Frontend page the signup confirmation email links to (mirrors APP_ROUTES.ONBOARDING). */
 const ONBOARDING_APP_PATH = '/onboarding' as const;
 /** Supabase auth error code returned when the Turnstile CAPTCHA token is invalid/expired/reused. */
@@ -100,6 +104,15 @@ const SUPABASE_SAME_PASSWORD_CODE = 'same_password' as const;
 const SUPABASE_WEAK_PASSWORD_CODE = 'weak_password' as const;
 /** Scope of admin.signOut that ends every session of the user except the given one. */
 const SIGN_OUT_OTHER_SESSIONS = 'others' as const;
+/**
+ * Cookie remembering, during the round trip to Google, that the user ticked
+ * "I accept the Terms and Privacy Policy" on the signup page (RMY-15). Holds
+ * only the time of acceptance (epoch ms). HttpOnly, sent only to the
+ * code-exchange route, which saves it on the account.
+ */
+const SIGNUP_CONSENT_COOKIE_NAME = 'sb-signup-consent' as const;
+/** Friendly message when signup is attempted without accepting the terms. */
+const CONSENT_REQUIRED_MESSAGE = 'Per creare un account devi accettare i Termini di servizio e l’Informativa sulla privacy' as const;
 
 const router: IRouter = Router();
 
@@ -181,12 +194,48 @@ function clearPkceVerifierCookie(res: Response) {
   res.clearCookie(PKCE_VERIFIER_COOKIE_NAME, { httpOnly: true, secure: isProd, sameSite: 'strict', path: PKCE_VERIFIER_COOKIE_PATH });
 }
 
+// Signup consent given before leaving for Google (RMY-15): same scope and
+// lifetime as the PKCE verifier it travels with.
+function setSignupConsentCookie(res: Response, acceptedAtMs: number) {
+  res.cookie(SIGNUP_CONSENT_COOKIE_NAME, String(acceptedAtMs), {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: 'strict',
+    maxAge: secondsToMs(OAUTH_VERIFIER_MAX_AGE_SECONDS),
+    path: PKCE_VERIFIER_COOKIE_PATH,
+  });
+}
+
+function clearSignupConsentCookie(res: Response) {
+  res.clearCookie(SIGNUP_CONSENT_COOKIE_NAME, { httpOnly: true, secure: isProd, sameSite: 'strict', path: PKCE_VERIFIER_COOKIE_PATH });
+}
+
+/** When the consent in the cookie was given, if it is a valid time within the Google round-trip window. */
+function signupConsentFromCookie(value: unknown): Date | null {
+  if (typeof value !== 'string' || !/^\d{1,15}$/.test(value)) return null;
+  const acceptedAtMs = Number(value);
+  const ageMs = Date.now() - acceptedAtMs;
+  return ageMs >= 0 && ageMs <= secondsToMs(OAUTH_VERIFIER_MAX_AGE_SECONDS) ? new Date(acceptedAtMs) : null;
+}
+
+/** A new random CSRF token. */
+const newCsrfToken = () => crypto.randomBytes(CSRF_TOKEN_RANDOM_BYTES).toString('hex');
+
 // Turns a fresh Supabase session into our cookies: access + refresh tokens
-// (HttpOnly) and a new CSRF token. The tokens never go into a response body.
-function setSessionCookies(res: Response, session: Pick<AuthSession, 'access_token' | 'refresh_token'>, expiresAtSeconds: number | undefined) {
+// (HttpOnly) and a CSRF token. The tokens never go into a response body.
+// `keepCsrfToken`: the current CSRF cookie, reused when it has the shape we
+// create (a refresh of the same session); otherwise a new token is made
+// (a new login, so a token planted before it is never carried over).
+function setSessionCookies(
+  res: Response,
+  session: Pick<AuthSession, 'access_token' | 'refresh_token'>,
+  expiresAtSeconds: number | undefined,
+  keepCsrfToken?: unknown,
+) {
   setAuthCookie(res, session.access_token, expiresAtSeconds ? { maxAge: msUntil(expiresAtSeconds) } : {});
   setRefreshCookie(res, session.refresh_token);
-  setCsrfCookie(res, crypto.randomBytes(CSRF_TOKEN_RANDOM_BYTES).toString('hex'));
+  const reusable = typeof keepCsrfToken === 'string' && CSRF_TOKEN_PATTERN.test(keepCsrfToken);
+  setCsrfCookie(res, reusable ? keepCsrfToken : newCsrfToken());
 }
 
 // What the frontend gets to know about a session: who is logged in and when
@@ -311,32 +360,30 @@ const { password, captchaToken } = req.body as { password?: string; captchaToken
 // token expires (lib/auth-session.ts). Tokens never travel in the request or
 // the response body: the browser only learns who is logged in and the new expiry.
 // Returns null (and clears the cookies) when the refresh token is no longer valid.
-async function refreshFromCookie(res: Response, refreshToken: string) {
+// Same session, so the CSRF token is kept (only its cookie lifetime is
+// extended): a new one here would make any request already on its way with
+// the old header fail the CSRF check (RMY-20).
+async function refreshFromCookie(req: Request, res: Response, refreshToken: string) {
   const { data, error } = await createRequestAuthClient().auth.refreshSession({ refresh_token: refreshToken });
   if (error || !data.session || !data.user) {
     clearAuthCookies(res);
     return null;
   }
   const expiresAt = data.session.expires_at;
-  setSessionCookies(res, data.session, expiresAt);
+  setSessionCookies(res, data.session, expiresAt, req.cookies?.[CSRF_TOKEN_COOKIE_NAME]);
   return sessionBody(data.user, expiresAt);
 }
 
+// The CSRF header is checked for this route (and every other POST) by
+// middleware/csrf.ts, mounted in app.ts (RMY-20).
 router.post(API_ROUTE_PATHS.REFRESH, refreshLimiter, async (req: Request, res: Response) => {
-  // CSRF protection: require custom header to prevent cross-site requests
-  const csrfTokenCookie = req.cookies?.[CSRF_TOKEN_COOKIE_NAME];
-  const csrfTokenHeader = req.headers['x-csrf-token'];
-  if (!csrfTokenCookie || !csrfTokenHeader || csrfTokenCookie !== csrfTokenHeader) {
-    return res.status(403).json({ error: 'CSRF token missing or invalid' });
-  }
-
   const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME];
   if (!refreshToken) {
     return res.status(401).json({ error: 'No refresh cookie' });
   }
 
   try {
-    const body = await refreshFromCookie(res, refreshToken);
+    const body = await refreshFromCookie(req, res, refreshToken);
     if (!body) return res.status(401).json({ error: 'Invalid or expired token' });
     return res.json(body);
   } catch (error) {
@@ -368,7 +415,7 @@ router.post(API_ROUTE_PATHS.VERIFY, verifyLimiter, async (req: Request, res: Res
       if (!refreshToken) {
         return res.status(401).json({ error: 'Invalid or expired token' });
       }
-      const body = await refreshFromCookie(res, refreshToken);
+      const body = await refreshFromCookie(req, res, refreshToken);
       if (!body) return res.status(401).json({ error: 'Invalid or expired token' });
       return res.json(body);
     }
@@ -453,15 +500,22 @@ router.get(API_ROUTE_PATHS.AUTH_CONFIG, (_req: Request, res: Response) => {
 // Signup asks only for email and password: name, date of birth and the rest
 // are collected right after, by the onboarding (/onboarding, routes/onboarding.ts).
 router.post(API_ROUTE_PATHS.REGISTER, signupLimiter, async (req: Request, res: Response) => {
-  const { password, captchaToken } = req.body as {
+  const { password, captchaToken, acceptedTerms } = req.body as {
     email?: string;
     password?: string;
     captchaToken?: string;
+    acceptedTerms?: unknown;
   };
   const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : req.body?.email;
 
   if (!email || !password) {
     return res.status(400).json({ error: 'Email e password sono obbligatorie' });
+  }
+
+  // The "I accept the Terms and Privacy Policy" box must be ticked (RMY-15).
+  // Checked here too: the page could be bypassed.
+  if (acceptedTerms !== true) {
+    return res.status(400).json({ error: CONSENT_REQUIRED_MESSAGE });
   }
 
   if (!captchaToken) {
@@ -481,12 +535,20 @@ router.post(API_ROUTE_PATHS.REGISTER, signupLimiter, async (req: Request, res: R
     // the user is logged in automatically when they open the link here. On
     // another device the email is still confirmed; they just log in.
     const { verifier, challenge } = createPkcePair();
+    // Proof of consent (RMY-15): time and policy version are set HERE, never
+    // taken from the browser. They travel in the account metadata until the
+    // `utenti` row exists (it is created when the email is confirmed, by the
+    // DB trigger handle_email_confirmed or lib/utenti.ts), which copies them.
     const { data, error: signUpError } = await signUpWithPkce({
       email,
       password,
       captchaToken,
       redirectTo: emailRedirectTo,
       challenge,
+      metadata: {
+        [SIGNUP_CONSENT_METADATA_KEYS.ACCEPTED_AT]: new Date().toISOString(),
+        [SIGNUP_CONSENT_METADATA_KEYS.VERSION]: SIGNUP_CONSENT_VERSION,
+      },
     });
 
     if (signUpError) {
@@ -528,6 +590,9 @@ router.get(API_ROUTE_PATHS.CSRF, (req: Request, res: Response) => {
 // "Continue with Google", step 1 (PKCE). Creates a secret verifier, keeps it
 // in an HttpOnly cookie, and returns the Supabase URL to send the browser to.
 // Google then comes back to /onboarding with `?code=` (no tokens in the URL).
+// From the signup page the body is { acceptedTerms: true } (RMY-15): the time
+// of acceptance is kept in a cookie and saved on the account after the code
+// exchange. From the login page there is no body and nothing is saved.
 router.post(API_ROUTE_PATHS.OAUTH_GOOGLE, oauthLimiter, (req: Request, res: Response) => {
   const redirectTo = returnUrl(req, ONBOARDING_APP_PATH);
   if (!redirectTo) {
@@ -535,6 +600,11 @@ router.post(API_ROUTE_PATHS.OAUTH_GOOGLE, oauthLimiter, (req: Request, res: Resp
   }
   const { verifier, challenge } = createPkcePair();
   setPkceVerifierCookie(res, verifier, OAUTH_VERIFIER_MAX_AGE_SECONDS);
+  if ((req.body as { acceptedTerms?: unknown } | undefined)?.acceptedTerms === true) {
+    setSignupConsentCookie(res, Date.now());
+  } else {
+    clearSignupConsentCookie(res);
+  }
   res.set('Cache-Control', 'no-store');
   return res.json({ url: oauthAuthorizeUrl(GOOGLE_PROVIDER, redirectTo, challenge) });
 });
@@ -548,8 +618,11 @@ router.post(API_ROUTE_PATHS.OAUTH_GOOGLE, oauthLimiter, (req: Request, res: Resp
 router.post(API_ROUTE_PATHS.OAUTH_EXCHANGE, oauthLimiter, async (req: Request, res: Response) => {
   const code = (req.body as { code?: unknown } | undefined)?.code;
   const verifier = req.cookies?.[PKCE_VERIFIER_COOKIE_NAME];
-  // A verifier is single-use: drop it whatever happens next.
+  // Consent ticked on the signup page before going to Google (RMY-15), if any.
+  const signupConsentAt = signupConsentFromCookie(req.cookies?.[SIGNUP_CONSENT_COOKIE_NAME]);
+  // A verifier (and the consent travelling with it) is single-use: drop both whatever happens next.
   clearPkceVerifierCookie(res);
+  clearSignupConsentCookie(res);
 
   if (!isValidAuthCode(code) || !isValidPkceVerifier(verifier)) {
     return res.status(400).json({ error: 'Invalid or expired link' });
@@ -561,6 +634,13 @@ router.post(API_ROUTE_PATHS.OAUTH_EXCHANGE, oauthLimiter, async (req: Request, r
       if (error?.status === 0) throw new Error(error.message);
       logger.warn({ status: error?.status, code: error?.code }, 'PKCE code exchange refused');
       return res.status(400).json({ error: 'Invalid or expired link' });
+    }
+
+    // Save the consent on the account. Only fills an empty value, so an
+    // existing user who comes through the signup page keeps their original
+    // record. A failure is logged inside and never blocks the login.
+    if (signupConsentAt) {
+      await recordSignupConsent(session.user.id, signupConsentAt);
     }
 
     const expiresAt = sessionExpiresAt(session);

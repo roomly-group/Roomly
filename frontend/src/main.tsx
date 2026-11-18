@@ -6,7 +6,12 @@ import { APP_ROUTES, AUTH_ACCOUNT_SUSPENDED_QUERY, AUTH_LINK_FAILED_QUERY, WAITL
 import { clearRoleCache } from '@/lib/role-cache';
 import { clearAccountCache } from '@/lib/account-cache';
 import { rememberInviteFromUrl } from '@/lib/onboarding';
+import { installCsrfFetch } from '@/lib/csrf-fetch';
 import './index.css';
+
+// First of all: every POST/PUT/PATCH/DELETE to /api must carry the CSRF
+// header (RMY-20), including the session calls made just below.
+installCsrfFetch();
 
 async function initializeApp() {
   try {
