@@ -33,6 +33,8 @@ import {
   ROOM_PHOTO_MAX_COUNT,
   ROOM_PHOTO_MAX_SIZE_BYTES,
   API_ROUTE_PATHS,
+  LISTINGS_PAGE_QUERY_PARAM,
+  LISTINGS_PAGE_SIZE,
   ROOM_FEATURE_COLUMNS,
   emptyListingFeatureGroups,
   hasWifiIncluded,
@@ -55,12 +57,20 @@ const PHOTO_LIMIT_DB_ERROR_CODE = "23514" as const;
 /** Coordinate change tolerance used when deciding whether to update a listing location (degrees). */
 const COORDINATE_CHANGE_TOLERANCE_DEGREES = 0.000001 as const;
 /** Most listings returned by one GET /api/listings (RMY-13: bounds response size and photo signing). */
-const LISTINGS_RESULT_LIMIT = 100 as const;
+const LISTINGS_RESULT_LIMIT = LISTINGS_PAGE_SIZE;
 /**
  * Most `stanze` rows read from the DB by one search, newest first, before the
  * in-memory radius / furnished filters and the distance sort (RMY-13: no unbounded scan).
  */
 const LISTINGS_SCAN_LIMIT = 1000 as const;
+/**
+ * Highest ?page accepted. The scan never yields more than LISTINGS_SCAN_LIMIT
+ * rooms, so this last page is always empty or partial: the search page then
+ * knows it reached the end, and never gets an error for asking one page too many.
+ */
+const LISTINGS_MAX_PAGE = Math.ceil(LISTINGS_SCAN_LIMIT / LISTINGS_RESULT_LIMIT);
+/** Only plain non-negative whole numbers are a valid ?page (no "1e3", "-0", "0x1"). */
+const LISTINGS_PAGE_PATTERN = /^\d{1,4}$/;
 
 type RoomRow = {
   id: number;
@@ -171,6 +181,15 @@ router.get(API_ROUTE_PATHS.LISTINGS, requireAuth, requireAppAccess, async (req: 
   try {
     const query = ListListingsQueryParams.parse(req.query);
 
+    // ?page (0-based, RMY-13): which slice of LISTINGS_RESULT_LIMIT results to
+    // return. Missing = first page, so callers that never page (home, listing
+    // detail) get exactly what they got before.
+    const rawPage = req.query[LISTINGS_PAGE_QUERY_PARAM];
+    const page = rawPage === undefined ? 0 : typeof rawPage === "string" && LISTINGS_PAGE_PATTERN.test(rawPage) ? Number(rawPage) : NaN;
+    if (!Number.isInteger(page) || page > LISTINGS_MAX_PAGE) {
+      return res.status(400).json({ error: "Invalid page" });
+    }
+
     let dbQuery = supabaseAdmin.from("stanze").select(ROOM_SELECT);
 
     // Ricerca per università: se conosciamo le sue coordinate mostriamo le
@@ -265,9 +284,10 @@ router.get(API_ROUTE_PATHS.LISTINGS, requireAuth, requireAppAccess, async (req: 
       candidates = candidates.filter(({ row }) => roomColumnsToListingFeatures(row).furnished);
     }
 
-    // 2) Cap the response, then sign every card cover with ONE storage request.
-    const page = candidates.slice(0, LISTINGS_RESULT_LIMIT);
-    const coverUrls = page
+    // 2) Take the requested page, then sign every card cover with ONE storage request.
+    const pageStart = page * LISTINGS_RESULT_LIMIT;
+    const pageRows = candidates.slice(pageStart, pageStart + LISTINGS_RESULT_LIMIT);
+    const coverUrls = pageRows
       .map(({ row }) => {
         const { photos, coverIndex } = orderedRoomPhotos(row);
         return photos[coverIndex]?.url;
@@ -277,7 +297,7 @@ router.get(API_ROUTE_PATHS.LISTINGS, requireAuth, requireAppAccess, async (req: 
 
     // 3) Map to the API shape (no further storage calls: covers come from the batch).
     const listings: Listing[] = await Promise.all(
-      page.map(async ({ row, distance }) => {
+      pageRows.map(async ({ row, distance }) => {
         const listing = await mapRoomRowToListing(
           row,
           distance !== null ? Math.round(distance * 10) / 10 : undefined,

@@ -592,6 +592,16 @@ router.get(API_ROUTE_PATHS.ME_CONTRACT, requireAuth, chatReadLimiter, async (req
     const verifiedEntries = await Promise.all([...ownerIds].map(async (id) => [id, await isUserVerified(id)] as const));
     const verified = new Map(verifiedEntries);
 
+    // Owner photos: foto_profilo is a path in the private bucket, so it is
+    // turned into a short-lived signed URL (ONE storage request for all of
+    // them). The raw path is never sent: it was a broken image and leaked the
+    // owner's user id (RMY-17). Unsigned photos fall back to initials.
+    const ownerPhotoUrls = await signedProfilePhotoUrls([
+      ...contracts.map((row) => row.proprietario?.foto_profilo),
+      ...requests.map((row) => row.stanza?.proprietario?.foto_profilo),
+    ]);
+    const ownerPhotoUrl = (path: string | null | undefined) => (path && ownerPhotoUrls.get(path)) || null;
+
     const liveJourneys: StudentJourneyItem[] = contracts
       .filter((row) => !isPastContract(row, today))
       .map((row) => {
@@ -607,7 +617,7 @@ router.get(API_ROUTE_PATHS.ME_CONTRACT, requireAuth, chatReadLimiter, async (req
           roomTitle: row.stanza?.titolo ?? "",
           roomAddress: roomAddress(row.stanza),
           ownerName: displayName(row.proprietario, OWNER_FALLBACK_NAME),
-          ownerPhotoUrl: row.proprietario?.foto_profilo ?? null,
+          ownerPhotoUrl: ownerPhotoUrl(row.proprietario?.foto_profilo),
           ownerVerified: verified.get(row.proprietario_id) ?? false,
           contract: {
             id: row.id,
@@ -637,7 +647,7 @@ router.get(API_ROUTE_PATHS.ME_CONTRACT, requireAuth, chatReadLimiter, async (req
         roomTitle: row.stanza?.titolo ?? "",
         roomAddress: roomAddress(row.stanza),
         ownerName: displayName(row.stanza?.proprietario, OWNER_FALLBACK_NAME),
-        ownerPhotoUrl: row.stanza?.proprietario?.foto_profilo ?? null,
+        ownerPhotoUrl: ownerPhotoUrl(row.stanza?.proprietario?.foto_profilo),
         ownerVerified: row.stanza?.proprietario_id ? verified.get(row.stanza.proprietario_id) ?? false : false,
         contract: null,
       }));

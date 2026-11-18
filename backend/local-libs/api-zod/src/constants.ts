@@ -196,3 +196,12 @@ export const MINIMUM_SIGNUP_AGE_YEARS = 18 as const;
 
 /** Maximum length of the short self-introduction (`utenti.bio`, characters). */
 export const PROFILE_BIO_MAX_LENGTH_CHARS = 400 as const;
+
+/**
+ * Listings returned by one GET /api/listings call (RMY-13). The search page
+ * loads the next page while scrolling; a page shorter than this is the last one.
+ */
+export const LISTINGS_PAGE_SIZE = 100 as const;
+
+/** Query parameter of GET /api/listings with the 0-based page to return (RMY-13). */
+export const LISTINGS_PAGE_QUERY_PARAM = "page" as const;
