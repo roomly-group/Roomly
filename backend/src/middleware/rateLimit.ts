@@ -250,6 +250,30 @@ export const photoUploadLimiter = rateLimit({
   },
 });
 
+/** Verification-video uploads allowed per user per 15 minutes (uploads; RMY-19). */
+const VERIFICATION_VIDEO_UPLOAD_RATE_LIMIT_MAX_REQUESTS = 5 as const;
+
+/**
+ * Rate limiter for the identity-verification video (RMY-19). Each upload is
+ * up to 30 MB, held in memory and run through ffmpeg, so it gets its own,
+ * much tighter budget than photos: a few retakes, not a loop. Keyed by user;
+ * mount after requireAuth and BEFORE the body parser, so a blocked request is
+ * refused before its bytes are read.
+ */
+export const verificationVideoUploadLimiter = rateLimit({
+  windowMs: RATE_LIMIT_WINDOW_15_MINUTES_MS,
+  max: VERIFICATION_VIDEO_UPLOAD_RATE_LIMIT_MAX_REQUESTS,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const userId = (req as Request & { userId?: string }).userId;
+    return userId ? `verification-video:${userId}` : extractIP(req);
+  },
+  handler: (_req: Request, res: Response) => {
+    res.status(429).json({ error: 'Too many video uploads, please try again in a few minutes.' });
+  },
+});
+
 /**
  * Listing-photo uploads allowed per user per window (uploads). A listing holds
  * at most ROOM_PHOTO_MAX_COUNT (10) photos, uploaded one by one: 20/min lets an

@@ -1,0 +1,71 @@
+# CI (RMY-25): every push to main deploys to production (Vercel + Railway),
+# so every pull request and every push to main is checked first:
+# - TypeScript typecheck of the backend and the frontend;
+# - npm audit: fails on a high/critical advisory (except the ones listed,
+#   with a reason, in .github/scripts/audit.mjs).
+# Make "Typecheck and audit" a required status check in the branch
+# protection of main, so a red CI blocks the merge.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Read-only token: this workflow never writes to the repository.
+permissions:
+  contents: read
+
+# A newer push to the same branch cancels the run still going.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Same major version as local development.
+  NODE_VERSION: "22"
+
+jobs:
+  checks:
+    name: Typecheck and audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      # --ignore-scripts: typecheck and audit need no install scripts (no
+      # ffmpeg or native binary downloads), and no package code runs in CI.
+      # The backend goes first: the frontend uses @workspace/api-zod from
+      # backend/local-libs, which needs the backend's zod.
+      - name: Install backend
+        working-directory: backend
+        run: npm ci --ignore-scripts
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci --ignore-scripts
+
+      - name: Typecheck backend
+        working-directory: backend
+        run: npm run typecheck
+
+      - name: Typecheck frontend
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Audit backend
+        working-directory: backend
+        run: node ../.github/scripts/audit.mjs
+
+      - name: Audit frontend
+        working-directory: frontend
+        run: node ../.github/scripts/audit.mjs

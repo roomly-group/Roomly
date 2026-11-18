@@ -58,6 +58,10 @@ export function Home() {
 
   // Redirect non-admin users away from the home page
   useEffect(() => {
+    // RMY-24: the role request can answer after the user already left this
+    // page; then it must not redirect them or touch this page's state.
+    let cancelled = false;
+
     async function checkAuthAndRole() {
       if (!getAuthSession()) {
         setLocation(APP_ROUTES.LOGIN);
@@ -69,22 +73,28 @@ export function Home() {
           // No Authorization header needed - relying on HttpOnly cookie
           credentials: 'include',
         });
+        if (cancelled) return;
         if (!response.ok) {
           // Fail safe: treat as non-admin
           setLocation(APP_ROUTES.WAITLIST_CONFIRMED);
           return;
         }
         const { role, owner } = (await response.json()) as { role?: string; owner?: boolean };
+        if (cancelled) return;
         setIsOwner(owner === true);
         if (role !== 'admin' && owner !== true) {
           setLocation(APP_ROUTES.WAITLIST_CONFIRMED);
         }
       } catch (err) {
+        if (cancelled) return;
         console.error('Failed to fetch role:', err);
         setLocation(APP_ROUTES.WAITLIST_CONFIRMED);
       }
     }
-    checkAuthAndRole();
+    void checkAuthAndRole();
+    return () => {
+      cancelled = true;
+    };
   }, [setLocation]);
 
   return (

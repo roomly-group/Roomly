@@ -2,10 +2,10 @@ import { raw, Router, type IRouter, type Request, type Response } from "express"
 import { randomInt } from "node:crypto";
 import { z } from "zod";
 import { requireAdmin, requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
-import { messageLimiter, photoUploadLimiter } from "../middleware/rateLimit.js";
+import { messageLimiter, photoUploadLimiter, verificationVideoUploadLimiter } from "../middleware/rateLimit.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { isValidImage, reencodeAsJpeg, uploadImageType, type PhotoBox } from "../lib/image.js";
-import { stripVideoMetadata, VideoProcessingError } from "../lib/video.js";
+import { stripVideoMetadata, VideoProcessingError, VideoTooLongError } from "../lib/video.js";
 import {
   VERIFICATION_BUCKET,
   VERIFICATION_TABLE,
@@ -26,6 +26,7 @@ import {
   VERIFICATION_GESTURES,
   VERIFICATION_STATUSES,
   VERIFICATION_VIDEO_MAX_SIZE_BYTES,
+  VERIFICATION_VIDEO_TOO_LONG_CODE,
   VerificationDocumentSideSchema,
   type AdminVerification,
   type MyVerificationAttemptItem,
@@ -343,7 +344,8 @@ router.post(
 router.post(
   API_ROUTE_PATHS.ME_VERIFICATION_VIDEO,
   requireAuth,
-  photoUploadLimiter,
+  // Own, tighter budget (RMY-19): runs before raw(), so a blocked upload is never read into memory.
+  verificationVideoUploadLimiter,
   raw({ type: () => true, limit: VERIFICATION_VIDEO_MAX_SIZE_BYTES }),
   async (req: Request, res: Response) => {
     const { userId } = req as AuthenticatedRequest;
@@ -362,6 +364,10 @@ router.post(
       try {
         video = await stripVideoMetadata(req.body, extension);
       } catch (err) {
+        // Longer than the recorder allows (RMY-19): a code the page turns into a clear message.
+        if (err instanceof VideoTooLongError) {
+          return res.status(400).json({ error: "This video is too long", code: VERIFICATION_VIDEO_TOO_LONG_CODE });
+        }
         if (err instanceof VideoProcessingError) {
           logger.warn({ error: errorForLog(err) }, "Verification video rejected");
           return res.status(400).json({ error: "This video cannot be read" });

@@ -352,6 +352,9 @@ function ConversationPanel({
   const sendMessage = useSendMessage();
   const [body, setBody] = useState('');
   const [copied, setCopied] = useState(false);
+  // Timer hiding the "Copied" feedback: cleared on unmount so it never fires on a closed chat (RMY-24).
+  const copiedTimerRef = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(copiedTimerRef.current), []);
   const [serverClosedChat, setServerClosedChat] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   // The same inbox lists chats where the person is the student AND chats where
@@ -494,6 +497,8 @@ function ConversationPanel({
       await client.invalidateQueries({ queryKey: getListConversationsQueryKey() });
     } catch {
       setShowDeleteDialog(false);
+      // RMY-24: the failure used to be silent; now the user knows the chat is still there.
+      toast({ title: t('messages.actionFailed'), variant: 'destructive' });
     }
   };
   const releaseRoom = () =>
@@ -657,12 +662,22 @@ function ConversationPanel({
   // Placeholder of the disabled composer: a block explains itself, otherwise the request is closed.
   const closedLabel = isBlocked ? t('safety.blockedChat') : t('messages.closedChat');
 
+  // RMY-24: "Copied" only when the copy really worked (the clipboard can be
+  // missing or refused, e.g. without HTTPS or permission); the feedback timer
+  // is replaced on a new copy and cleared when the chat closes.
   const copyListing = () => {
-    if (conversation?.listingTitle) {
-      void navigator.clipboard?.writeText(conversation.listingTitle);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), COPY_FEEDBACK_RESET_MS);
-    }
+    const title = conversation?.listingTitle;
+    if (!title) return;
+    const copy = navigator.clipboard?.writeText(title) ?? Promise.reject(new Error('Clipboard unavailable'));
+    copy
+      .then(() => {
+        setCopied(true);
+        if (copiedTimerRef.current !== undefined) window.clearTimeout(copiedTimerRef.current);
+        copiedTimerRef.current = window.setTimeout(() => setCopied(false), COPY_FEEDBACK_RESET_MS);
+      })
+      .catch(() => {
+        toast({ title: t('messages.actionFailed'), variant: 'destructive' });
+      });
   };
 
   return (

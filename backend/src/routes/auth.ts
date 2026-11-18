@@ -37,6 +37,7 @@ import {
   PASSWORD_MAX_LENGTH,
   PASSWORD_REQUIREMENTS_PATTERN,
   PASSWORD_RESET_ERROR_CODES,
+  REGISTER_ERROR_CODES,
   SIGNUP_CONSENT_VERSION,
 } from "@workspace/api-zod";
 import { recordSignupConsent, SIGNUP_CONSENT_METADATA_KEYS } from "../lib/utenti.js";
@@ -111,6 +112,10 @@ const SIGN_OUT_OTHER_SESSIONS = 'others' as const;
  * code-exchange route, which saves it on the account.
  */
 const SIGNUP_CONSENT_COOKIE_NAME = 'sb-signup-consent' as const;
+/** Supabase error codes meaning the address already has an account (RMY-14: never revealed). */
+const SUPABASE_EXISTING_ACCOUNT_CODES: readonly string[] = ['user_already_exists', 'email_exists'];
+/** Supabase error codes meaning the address itself was refused. */
+const SUPABASE_INVALID_EMAIL_CODES: readonly string[] = ['email_address_invalid', 'email_address_not_authorized', 'validation_failed'];
 /** Friendly message when signup is attempted without accepting the terms. */
 const CONSENT_REQUIRED_MESSAGE = 'Per creare un account devi accettare i Termini di servizio e l’Informativa sulla privacy' as const;
 
@@ -255,6 +260,28 @@ function sessionBody(user: { id: string; email?: string | null }, expiresAtSecon
 function returnUrl(req: Request, path: string): string | undefined {
   const origin = req.header('origin');
   return isAllowedOrigin(origin) ? `${origin}${path}` : undefined;
+}
+
+/**
+ * Body of a refused signup (RMY-14): a generic Italian text (fallback only)
+ * and a REGISTER_ERROR_CODES code the signup page translates.
+ */
+function signUpErrorBody(supabaseCode: string | null | undefined) {
+  const code = SUPABASE_CAPTCHA_CODES.includes(supabaseCode ?? '')
+    ? REGISTER_ERROR_CODES.CAPTCHA_FAILED
+    : supabaseCode === SUPABASE_WEAK_PASSWORD_CODE
+      ? REGISTER_ERROR_CODES.WEAK_PASSWORD
+      : SUPABASE_INVALID_EMAIL_CODES.includes(supabaseCode ?? '')
+        ? REGISTER_ERROR_CODES.INVALID_EMAIL
+        : SUPABASE_RATE_LIMIT_CODES.includes(supabaseCode ?? '')
+          ? REGISTER_ERROR_CODES.TOO_MANY_REQUESTS
+          : REGISTER_ERROR_CODES.SIGNUP_FAILED;
+  return { error: 'Registrazione non riuscita. Controlla i dati e riprova.', code };
+}
+
+/** 429 for Supabase's rate limits, 400 for everything else it refuses. */
+function signUpErrorStatus(error: { status?: number; code?: string | null }): number {
+  return error.status === 429 || SUPABASE_RATE_LIMIT_CODES.includes(error.code ?? '') ? 429 : 400;
 }
 
 // Login endpoint
@@ -514,17 +541,17 @@ router.post(API_ROUTE_PATHS.REGISTER, signupLimiter, async (req: Request, res: R
   const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : req.body?.email;
 
   if (!email || !password) {
-    return res.status(400).json({ error: 'Email e password sono obbligatorie' });
+    return res.status(400).json({ error: 'Email e password sono obbligatorie', code: REGISTER_ERROR_CODES.MISSING_FIELDS });
   }
 
   // The "I accept the Terms and Privacy Policy" box must be ticked (RMY-15).
   // Checked here too: the page could be bypassed.
   if (acceptedTerms !== true) {
-    return res.status(400).json({ error: CONSENT_REQUIRED_MESSAGE });
+    return res.status(400).json({ error: CONSENT_REQUIRED_MESSAGE, code: REGISTER_ERROR_CODES.CONSENT_REQUIRED });
   }
 
   if (!captchaToken) {
-    return res.status(400).json({ error: 'Verifica di sicurezza mancante o scaduta' });
+    return res.status(400).json({ error: CAPTCHA_ERROR_MESSAGE, code: REGISTER_ERROR_CODES.CAPTCHA_FAILED });
   }
 
   // The confirmation link brings the user straight into the onboarding. Supabase
@@ -558,7 +585,16 @@ router.post(API_ROUTE_PATHS.REGISTER, signupLimiter, async (req: Request, res: R
 
     if (signUpError) {
       if (signUpError.status === 0) throw new Error(signUpError.message);
-      return res.status(400).json({ error: signUpError.message });
+      // RMY-14: never pass Supabase's text on. Log the real reason (no email,
+      // RMY-10) and send a code the page turns into a friendly message.
+      logger.warn({ status: signUpError.status, code: signUpError.code }, 'Signup refused by Supabase');
+      // Address already registered: answer exactly like a new signup waiting
+      // for confirmation, so this form cannot be used to find out who has an
+      // account (Supabase does the same when email confirmation is on).
+      if (SUPABASE_EXISTING_ACCOUNT_CODES.includes(signUpError.code ?? '')) {
+        return res.json({ requiresEmailConfirmation: true });
+      }
+      return res.status(signUpErrorStatus(signUpError)).json(signUpErrorBody(signUpError.code));
     }
 
     if (isAuthSession(data)) {

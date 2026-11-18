@@ -35,6 +35,17 @@ const adminVerificationsQueryKey = (status: VerificationStatus) => [adminVerific
 export class DocumentReadError extends Error {}
 /** The video is larger than the backend accepts. */
 export class VideoTooLargeError extends Error {}
+/** The backend refused an upload: its HTTP status and, when sent, its error `code` (e.g. video_too_long). */
+export class UploadRejectedError extends Error {
+  readonly status: number;
+  readonly code: string | undefined;
+
+  constructor(status: number, code: string | undefined) {
+    super(`Upload failed (${status})`);
+    this.status = status;
+    this.code = code;
+  }
+}
 
 // ===================== USER =====================
 
@@ -57,7 +68,11 @@ async function sendFile(url: string, file: Blob, contentType: string): Promise<M
     headers: { 'Content-Type': contentType },
     body: file,
   });
-  if (!response.ok) throw new Error(`Upload failed (${response.status})`);
+  if (!response.ok) {
+    // The body may not be JSON (proxy error page): then there is simply no code.
+    const body = (await response.json().catch(() => null)) as { code?: unknown } | null;
+    throw new UploadRejectedError(response.status, typeof body?.code === 'string' ? body.code : undefined);
+  }
   return (await response.json()) as MyVerification;
 }
 

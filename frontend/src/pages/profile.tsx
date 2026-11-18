@@ -114,13 +114,9 @@ async function emailChangeErrorText(response: Response, t: Translate, fallback: 
   }
 }
 
+// A failed save. The server's own wording is never shown (RMY-14): the page
+// shows its translated "could not save" text instead.
 async function profileError(response: Response): Promise<Error> {
-  try {
-    const body = (await response.json()) as { error?: unknown };
-    if (typeof body.error === 'string') return new Error(body.error);
-  } catch {
-    // Fall back to the HTTP status when the server did not return JSON.
-  }
   return new Error(`Request failed (${response.status})`);
 }
 
@@ -360,7 +356,8 @@ export function ProfilePage({ owner = false }: { owner?: boolean }) {
       }
       setEditing(false);
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : t('profile.saveError'));
+      // RMY-14: always the translated text, never a server or network message.
+      setSaveError(t('profile.saveError'));
     } finally {
       setSaving(false);
     }

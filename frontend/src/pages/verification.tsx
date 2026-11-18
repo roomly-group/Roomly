@@ -17,6 +17,7 @@ import {
 import {
   VERIFICATION_DOCUMENT_TYPES,
   VERIFICATION_VIDEO_MAX_SECONDS,
+  VERIFICATION_VIDEO_TOO_LONG_CODE,
   type MyVerification,
   type MyVerificationAttemptItem,
   type VerificationDocumentSide,
@@ -30,6 +31,7 @@ import {
   DOCUMENT_PHOTO_ACCEPT,
   DocumentReadError,
   VideoTooLargeError,
+  UploadRejectedError,
   myVerificationQueryKey,
   shrinkDocumentPhoto,
   useMyVerification,
@@ -55,6 +57,8 @@ type TranslationKey = Parameters<ReturnType<typeof useLanguage>['t']>[0];
 
 /** `/verifica?preview` in development: the whole flow with sample data, nothing saved, no login needed. */
 const VERIFICATION_PREVIEW_QUERY = 'preview' as const;
+/** Status the backend answers when the video upload limit is reached (RMY-19). */
+const HTTP_TOO_MANY_REQUESTS = 429 as const;
 /** Bits per second of the recorded video: about 4 MB for 30 seconds, plenty for a face and a document. */
 const RECORDER_VIDEO_BITS_PER_SECOND = 1_000_000 as const;
 /** Recording formats tried in order; the first one the browser supports is used. */
@@ -768,10 +772,20 @@ function VideoStep({
       onPreview(URL.createObjectURL(video));
       onContinue();
     } catch (err) {
-      setError(err instanceof VideoTooLargeError ? t('verification.videoTooLarge') : t('verification.error'));
+      setError(videoUploadErrorText(err));
     } finally {
       setBusy(false);
     }
+  }
+
+  // Friendly text for each way the video upload can fail (RMY-19).
+  function videoUploadErrorText(err: unknown): string {
+    if (err instanceof VideoTooLargeError) return t('verification.videoTooLarge');
+    if (err instanceof UploadRejectedError) {
+      if (err.code === VERIFICATION_VIDEO_TOO_LONG_CODE) return t('verification.videoTooLong');
+      if (err.status === HTTP_TOO_MANY_REQUESTS) return t('verification.videoTooManyUploads');
+    }
+    return t('verification.error');
   }
 
   const live = state === 'ready' || state === 'recording';

@@ -43,6 +43,8 @@ export const VERIFICATION_CHALLENGE_GESTURE_COUNT = 2 as const;
 export const VERIFICATION_VIDEO_MAX_SECONDS = 30 as const;
 /** Largest challenge video accepted by the backend (bytes, 30 MB). */
 export const VERIFICATION_VIDEO_MAX_SIZE_BYTES = 31457280 as const;
+/** `code` of the 400 answer when the uploaded video is longer than VERIFICATION_VIDEO_MAX_SECONDS (RMY-19). */
+export const VERIFICATION_VIDEO_TOO_LONG_CODE = "video_too_long" as const;
 /** Largest document photo accepted by the backend before re-encoding (bytes, 10 MB). */
 export const VERIFICATION_DOCUMENT_MAX_SIZE_BYTES = 10485760 as const;
 /** Days the files of a decided attempt are kept when the user did not consent to training (days). */

@@ -5,6 +5,7 @@ import { chatReadLimiter, messageLimiter } from "../middleware/rateLimit.js";
 import { supabaseAdmin } from "../lib/supabase-admin.js";
 import { releaseRoom } from "../lib/rooms.js";
 import { isUserVerified } from "../lib/verification.js";
+import { signedProfilePhotoUrls } from "../lib/profile-photo.js";
 import { ACTIVE_CONTRACT_ERROR, studentHasActiveContract } from "../lib/active-contract.js";
 import {
   API_ROUTE_PATHS,
@@ -138,7 +139,13 @@ const groupOf = (row: Pick<ContractRow, "stato" | "data_fine">, today: string): 
   return "active";
 };
 
-const toContract = (row: ContractRow, today: string): OwnerContractItem => ({
+/**
+ * `studentPhotoUrls`: storage path -> signed URL, made in one batch by the
+ * caller (RMY-17). Without it (CSV export) no photo is returned. The stored
+ * value is a private path ("<user uuid>/<file>.jpg"), never a usable URL, so
+ * it must not be sent as is: the image was broken and the student's id leaked.
+ */
+const toContract = (row: ContractRow, today: string, studentPhotoUrls?: Map<string, string>): OwnerContractItem => ({
   id: row.id,
   status: row.stato,
   group: groupOf(row, today),
@@ -146,7 +153,7 @@ const toContract = (row: ContractRow, today: string): OwnerContractItem => ({
   roomTitle: row.stanza?.titolo ?? "",
   roomAddress: roomAddress(row.stanza),
   studentName: displayName(row.studente),
-  studentPhotoUrl: row.studente?.foto_profilo ?? null,
+  studentPhotoUrl: (row.studente?.foto_profilo && studentPhotoUrls?.get(row.studente.foto_profilo)) || null,
   studentUniversity: row.studente?.universita?.nome ?? null,
   studentCourse: row.studente?.corso_di_studio ?? null,
   conversationId: row.conversazione_id,
@@ -248,9 +255,12 @@ router.get(API_ROUTE_PATHS.OWNER_CONTRACTS, requireAuth, requireOwnerAccount, as
         suggestedEndDate: row.stanza?.disponibile_a ?? null,
       }));
 
+    // Every student photo signed in one storage request (RMY-17).
+    const studentPhotoUrls = await signedProfilePhotoUrls(rows.map((row) => row.studente?.foto_profilo));
+
     return res.json(
       ListOwnerContractsResponse.parse({
-        contracts: rows.map((row) => toContract(row, today)),
+        contracts: rows.map((row) => toContract(row, today, studentPhotoUrls)),
         candidates,
         publishedRooms: rooms.count ?? 0,
         today,

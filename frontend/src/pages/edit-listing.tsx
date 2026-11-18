@@ -4,7 +4,7 @@ import { Link, useLocation, useRoute } from 'wouter';
 import { useLanguage } from '@/lib/i18n';
 import { AppShell } from '@/components/layout/app-shell';
 import { PageIntro } from '@/components/shared/page-intro';
-import AddressAutocomplete from '@/components/AddressAutocomplete';
+import AddressAutocomplete, { type AddressFeature } from '@/components/AddressAutocomplete';
 import {
   EMPTY_LISTING_FEATURES,
   ListingFeaturesFields,
@@ -147,7 +147,7 @@ export function EditListingPage() {
       });
   }, [listingId]);
 
-  const handleAddressSelect = (feature: any) => {
+  const handleAddressSelect = (feature: AddressFeature) => {
     if (!feature) return;
     const props = feature.properties || {};
     const address =

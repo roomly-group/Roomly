@@ -115,6 +115,30 @@ export const CSRF_TOKEN_COOKIE_NAME = "csrf-token" as const;
  */
 export const CSRF_HEADER_NAME = "X-CSRF-Token" as const;
 
+/**
+ * Days a student waits before asking the same room again after the owner
+ * REJECTED their request (RMY-18). A request the student cancelled can be
+ * sent again at once.
+ */
+export const REQUEST_REJECTION_COOLDOWN_DAYS = 30 as const;
+
+/** `code` of the 409 answer while that wait is running; the body also has `retryAfter` (ISO date). */
+export const REQUEST_COOLDOWN_CODE = "request_cooldown" as const;
+
+/**
+ * `code` of a refused POST /api/register (RMY-14). The signup page turns each
+ * into a friendly, translated text; Supabase's own wording is never shown.
+ */
+export const REGISTER_ERROR_CODES = {
+  MISSING_FIELDS: "missing_fields",
+  CONSENT_REQUIRED: "consent_required",
+  CAPTCHA_FAILED: "captcha_failed",
+  WEAK_PASSWORD: "weak_password",
+  INVALID_EMAIL: "invalid_email",
+  TOO_MANY_REQUESTS: "too_many_requests",
+  SIGNUP_FAILED: "signup_failed",
+} as const;
+
 /** `code` of the 403 answer when the CSRF header is missing or does not match the cookie. */
 export const CSRF_INVALID_CODE = "csrf_invalid" as const;
 

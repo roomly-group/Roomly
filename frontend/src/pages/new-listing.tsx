@@ -6,7 +6,7 @@ import type { ListingInput } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
 import { AppShell } from '@/components/layout/app-shell';
 import { PageIntro } from '@/components/shared/page-intro';
-import AddressAutocomplete from '@/components/AddressAutocomplete';
+import AddressAutocomplete, { type AddressFeature } from '@/components/AddressAutocomplete';
 import {
   EMPTY_LISTING_FEATURES,
   ListingFeaturesFields,
@@ -113,7 +113,7 @@ export function NewListingPage() {
     setSelectedPhotos((current) => [...current, ...validSize.slice(0, remaining)]);
   };
 
-  const handleAddressSelect = (feature: any) => {
+  const handleAddressSelect = (feature: AddressFeature) => {
     if (!feature) return;
     const props = feature.properties || {};
     const address =
@@ -139,6 +139,9 @@ export function NewListingPage() {
         ? { ...current, address: '', city: '', postcode: '', latitude: 0, longitude: 0 }
         : current,
     );
+
+  // HTTP status of a failed publish, to pick the message (RMY-24: no `any`).
+  const createListingErrorStatus = (createListing.error as { status?: unknown } | null)?.status;
 
   // Monthly rent above the limit the server accepts (RMY-16): flagged right under the field.
   const priceTooHigh = Number(form.price) > LISTING_INPUT_LIMITS.PRICE_MAX_EUR;
@@ -301,9 +304,9 @@ export function NewListingPage() {
             {createListing.isError && (
               <p className="mt-5 flex items-center gap-2 rounded-xl bg-[#f7ddd1] px-4 py-3 text-sm font-bold text-[#a74b32]">
                 <CircleAlert size={16} />{' '}
-                {(createListing.error as any)?.status === 401
+                {createListingErrorStatus === 401
                   ? t('newListing.publishErrorAuth')
-                  : (createListing.error as any)?.status === 400
+                  : createListingErrorStatus === 400
                     ? t('newListing.publishErrorAddress')
                     : t('newListing.publishError')}
               </p>

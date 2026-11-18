@@ -55,14 +55,9 @@ function isOneOf<T extends readonly string[]>(options: T, value: string): value 
   return options.some((option) => option === value);
 }
 
+// A failed request. The server's own wording is never shown (RMY-14): the
+// page shows its translated load/save error text instead.
 async function apiError(response: Response): Promise<Error> {
-  try {
-    const body = (await response.json()) as { error?: unknown };
-    if (typeof body.error === 'string') return new Error(body.error);
-  } catch {
-    // Fall back to the HTTP status when the server did not return JSON.
-  }
-
   return new Error(`Request failed (${response.status})`);
 }
 
@@ -105,7 +100,7 @@ export function UserPreferencesPage({ owner = false }: { owner?: boolean }) {
       } catch (loadError) {
         if (!controller.signal.aborted) {
           setLoadFailed(true);
-          setError(loadError instanceof Error ? loadError.message : t('preferences.loadError'));
+          setError(t('preferences.loadError')); // RMY-14: never the raw message
         }
       } finally {
         if (!controller.signal.aborted) setLoading(false);
@@ -152,7 +147,7 @@ export function UserPreferencesPage({ owner = false }: { owner?: boolean }) {
       });
       setSaved(true);
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : t('preferences.saveError'));
+      setError(t('preferences.saveError')); // RMY-14: never the raw message
     } finally {
       setSaving(false);
     }

@@ -4,6 +4,7 @@ import {
   GeoapifyContext,
   GeoapifyGeocoderAutocomplete,
 } from "@geoapify/react-geocoder-autocomplete";
+import type { SupportedLanguage } from "@geoapify/geocoder-autocomplete";
 import { useLanguage } from "@/lib/i18n";
 import { SUPPORTED_LANGUAGE_CODES } from "@workspace/api-zod";
 
@@ -18,9 +19,33 @@ const ADDRESS_SUGGESTION_LIMIT = 6 as const;
 /** Delay before Geoapify requests suggestions after typing stops (ms). */
 const ADDRESS_AUTOCOMPLETE_DEBOUNCE_MS = 250 as const;
 
+/**
+ * The part of a Geoapify suggestion (GeoJSON feature) the listing forms read
+ * (RMY-24: typed instead of `any`). Every field may be missing.
+ */
+export type AddressFeature = {
+  properties?: {
+    formatted?: string;
+    address_line1?: string;
+    name?: string;
+    street?: string;
+    housenumber?: string;
+    city?: string;
+    town?: string;
+    village?: string;
+    county?: string;
+    postcode?: string;
+    lat?: number;
+    lon?: number;
+  };
+};
+
+/** What Geoapify returns when a suggestion request ends (only the count is read). */
+type SuggestionsResponse = { features?: unknown[] };
+
 interface AddressAutocompleteProps {
   /** Chiamato quando l'utente sceglie un suggerimento (feature GeoJSON di Geoapify). */
-  onPlaceSelect: (feature: any) => void;
+  onPlaceSelect: (feature: AddressFeature) => void;
   /** Chiamato quando l'utente modifica o svuota il testo: la selezione precedente non è più valida. */
   onClear?: () => void;
 }
@@ -46,7 +71,10 @@ export default function AddressAutocomplete({ onPlaceSelect, onClear }: AddressA
     );
   }
 
-  const lang = (SUPPORTED_LANGUAGE_CODES as readonly string[]).includes(language) ? (language as any) : "en";
+  // Every app language (it, en, es, fr, de, pt) is also a Geoapify language.
+  const lang: SupportedLanguage = (SUPPORTED_LANGUAGE_CODES as readonly string[]).includes(language)
+    ? (language as SupportedLanguage)
+    : "en";
 
   return (
     <div>
@@ -62,7 +90,7 @@ export default function AddressAutocomplete({ onPlaceSelect, onClear }: AddressA
           skipIcons
           allowNonVerifiedHouseNumber
           allowNonVerifiedStreet
-          placeSelect={(feature: any) => {
+          placeSelect={(feature: AddressFeature | null) => {
             if (!feature) return;
             selected.current = {
               text: feature.properties?.formatted ?? feature.properties?.address_line1 ?? "",
@@ -83,7 +111,7 @@ export default function AddressAutocomplete({ onPlaceSelect, onClear }: AddressA
             setStatus("idle");
             onClear?.();
           }}
-          onRequestEnd={(success: boolean, data?: any) => {
+          onRequestEnd={(success: boolean, data?: SuggestionsResponse) => {
             if (!success) setStatus("error");
             else if (!data?.features?.length) setStatus("empty");
             else setStatus("idle");

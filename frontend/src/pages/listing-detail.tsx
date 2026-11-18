@@ -48,7 +48,12 @@ import { ListingPhotoPlaceholder } from '@/components/shared/listing-card';
 import { QueryError } from '@/components/shared/query-error';
 import { getAuthSession } from '@/lib/auth-session';
 import { cn } from '@/lib/utils';
-import { MESSAGE_MAX_LENGTH_CHARS, SAFETY_ERROR_CODES } from '@workspace/api-zod';
+import {
+  MESSAGE_MAX_LENGTH_CHARS,
+  REQUEST_COOLDOWN_CODE,
+  REQUEST_REJECTION_COOLDOWN_DAYS,
+  SAFETY_ERROR_CODES,
+} from '@workspace/api-zod';
 import { apiErrorCode } from '@/lib/api-error';
 import { ReportDialog } from '@/components/shared/report-dialog';
 
@@ -68,7 +73,10 @@ const DETAIL_TEST_IDS = {
   LINK_EDIT_OWN: 'link-edit-own-listing',
   LINK_SIMILAR: 'link-similar-rooms',
   BUTTON_REPORT_LISTING: 'button-report-listing',
+  STATUS_REQUEST: 'status-listing-request',
 } as const;
+/** Milliseconds in a day, for the wait after a rejected request (RMY-18). */
+const MS_PER_DAY = 86_400_000 as const;
 
 const SECTION_TITLE_CLASS = 'text-[22px] font-black leading-[1.1] tracking-[-0.04em] text-pine';
 
@@ -230,11 +238,24 @@ export function ListingDetail() {
   // Il proprietario non può inviare richieste al proprio annuncio.
   const isOwnListing = Boolean(currentUserId && listing?.ownerId && listing.ownerId === currentUserId);
 
-  const existingListingConversation = conversations?.find(
+  const studentConversation = conversations?.find(
     (conv) =>
       conv.role === 'student' &&
       conv.roomId === listingId
   );
+  // RMY-18: a closed request can be sent again. Cancelled by the student: at
+  // once. Rejected by the owner: after REQUEST_REJECTION_COOLDOWN_DAYS, counted
+  // from the rejection (its system message is the chat's last update). The
+  // backend checks the exact date again and answers 409 if it is too early.
+  const requestStatus = studentConversation?.requestStatus;
+  const rejectedRetryAt =
+    requestStatus === 'rifiutata' && studentConversation
+      ? new Date(new Date(studentConversation.updatedAt).getTime() + REQUEST_REJECTION_COOLDOWN_DAYS * MS_PER_DAY)
+      : null;
+  const inRejectionCooldown = rejectedRetryAt !== null && rejectedRetryAt > new Date();
+  const canAskAgain = requestStatus === 'annullata' || (requestStatus === 'rifiutata' && !inRejectionCooldown);
+  // The open chat the page links to instead of the request button.
+  const existingListingConversation = studentConversation && !canAskAgain ? studentConversation : undefined;
   // An accepted request on another room does not block new ones: only an active
   // rental contract does, and the backend answers that with a 409 (see below).
   const canRequest = Boolean(listing?.available) && !isOwnListing && !existingListingConversation;
@@ -262,6 +283,16 @@ export function ListingDetail() {
       }
       if (backendError === 'Too many pending requests for this room') {
         return t('listingDetail.tooManyRequests');
+      }
+      // RMY-18: rejected less than 30 days ago; the backend sends the exact date.
+      if (apiErrorCode(error) === REQUEST_COOLDOWN_CODE) {
+        const retryAfter =
+          typeof data === 'object' && data !== null && 'retryAfter' in data && typeof data.retryAfter === 'string'
+            ? data.retryAfter
+            : null;
+        return retryAfter
+          ? t('listingDetail.requestCooldown').replace('{date}', format.date(retryAfter))
+          : t('messages.sendError');
       }
       if (backendError === 'Room not available') {
         return t('listingDetail.roomUnavailable');
@@ -403,7 +434,11 @@ export function ListingDetail() {
     </div>
   ) : existingListingConversation ? (
     <div>
-      <p className="text-sm leading-6 text-ink">{t('listingDetail.alreadyRequested')}</p>
+      <p className="text-sm leading-6 text-ink" data-testid={DETAIL_TEST_IDS.STATUS_REQUEST}>
+        {inRejectionCooldown && rejectedRetryAt
+          ? t('listingDetail.requestCooldown').replace('{date}', format.date(rejectedRetryAt))
+          : t('listingDetail.alreadyRequested')}
+      </p>
       <Link
         href={`${APP_ROUTES.MESSAGES}/${existingListingConversation.id}`}
         className="mt-3 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-mint-mist text-sm font-extrabold text-pine transition-colors hover:bg-mint-wash"

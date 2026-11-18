@@ -9,11 +9,12 @@ import { Label } from '@/components/ui/label';
 import { AuthShell } from '@/components/layout/auth-shell';
 import { TurnstileWidget } from '@/components/shared/turnstile';
 import { OAuthButtons } from '@/components/shared/oauth-buttons';
-import { restoreSession } from '@/lib/auth-session';
+import { restoreSession, type AuthUser } from '@/lib/auth-session';
 import { postAuthRoute } from '@/lib/auth-role';
 import { APP_ROUTES, PASSWORD_FIELD_PLACEHOLDER, SHARED_TEST_IDS } from '@/lib/constants';
-import { API_BASE_PATH, API_ROUTE_PATHS, PASSWORD_REQUIREMENTS_PATTERN } from '@workspace/api-zod';
+import { API_BASE_PATH, API_ROUTE_PATHS, PASSWORD_REQUIREMENTS_PATTERN, REGISTER_ERROR_CODES } from '@workspace/api-zod';
 import { trackEvent } from '@/lib/analytics';
+import { UserFacingError, userFacingMessage } from '@/lib/api-error';
 
 // ===================== CONFIGURATION =====================
 
@@ -31,6 +32,11 @@ const CONSENT_INPUT_ID = 'register-accept-terms' as const;
 const CONSENT_ERROR_ID = 'register-accept-terms-error' as const;
 /** The legal pages open in a new tab, so the half-filled form is not lost. */
 const LEGAL_LINK_TARGET = { target: '_blank', rel: 'noopener noreferrer' } as const;
+/** Status of a rate-limited request. */
+const HTTP_TOO_MANY_REQUESTS = 429 as const;
+
+/** What POST /api/register answers; every field may be missing on an unexpected reply. */
+type RegisterResponseBody = { user?: AuthUser; code?: unknown };
 
 /**
  * Signup asks only for email and password (or Google). Name, date of
@@ -62,6 +68,24 @@ export function RegisterPage() {
     setConsentError(true);
     consentRef.current?.focus();
     consentRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+
+  // Friendly text for a refused signup, from the backend's code (RMY-14).
+  function registerErrorText(code: unknown, status: number): string {
+    switch (code) {
+      case REGISTER_ERROR_CODES.CAPTCHA_FAILED:
+        return t('auth.captchaRequired');
+      case REGISTER_ERROR_CODES.WEAK_PASSWORD:
+        return t('auth.passwordPattern');
+      case REGISTER_ERROR_CODES.INVALID_EMAIL:
+        return t('auth.emailInvalid');
+      case REGISTER_ERROR_CODES.CONSENT_REQUIRED:
+        return t('auth.consentRequired');
+      case REGISTER_ERROR_CODES.TOO_MANY_REQUESTS:
+        return t('auth.tooManyAttempts');
+      default:
+        return status === HTTP_TOO_MANY_REQUESTS ? t('auth.tooManyAttempts') : t('auth.registerError');
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -96,14 +120,14 @@ export function RegisterPage() {
       });
       // An empty or non-JSON reply (backend down, proxy error) must surface as a
       // normal error message, not a JSON.parse crash.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const body: any = await response.json().catch(() => ({}));
+      const body = (await response.json().catch(() => ({}))) as RegisterResponseBody;
 
       if (!response.ok) {
         // The token is single-use: clear it and remount the widget so a retry gets a fresh one.
         setCaptchaToken(null);
         setTurnstileKey((key) => key + 1);
-        throw new Error(body.error ?? t('auth.registerError'));
+        // RMY-14: only our own translated texts, never the server's wording.
+        throw new UserFacingError(registerErrorText(body.code, response.status));
       }
 
       // Waitlist sign-up completed: GA4 key event (sent only if the visitor accepted analytics).
@@ -112,7 +136,7 @@ export function RegisterPage() {
       if (body.user) {
         // Email confirmation disabled in Supabase: the account is already
         // logged in. Read the session from the cookies, as /login does.
-        if (!(await restoreSession())) throw new Error(t('auth.registerError'));
+        if (!(await restoreSession())) throw new UserFacingError(t('auth.registerError'));
         clearRoleCache();
         clearAccountCache();
 
@@ -123,7 +147,8 @@ export function RegisterPage() {
       // Email confirmation enabled: the link in the email opens the onboarding.
       setSentTo(email.trim());
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('auth.registerError'));
+      // A network failure ("Failed to fetch") gets the generic text, never its own wording.
+      setError(userFacingMessage(err, t('auth.registerError')));
     } finally {
       setIsSubmitting(false);
     }

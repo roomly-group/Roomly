@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Bus, Coffee, Dumbbell, GraduationCap, Library, Pill, ShoppingCart, type LucideIcon } from 'lucide-react';
+import { Bus, Coffee, Dumbbell, GraduationCap, Library, MapPin, Pill, ShoppingCart, type LucideIcon } from 'lucide-react';
 import type { ListingLocation, ListingNearbyPlace, ListingUniversity } from '@workspace/api-client-react';
 import { useLanguage } from '@/lib/i18n';
 import { useFormat } from '@/hooks/use-format';
@@ -29,6 +29,15 @@ const CATEGORIES: { key: string; label: TranslationKey; icon: LucideIcon }[] = [
   { key: 'gym', label: 'poi.gym', icon: Dumbbell },
   { key: 'library', label: 'poi.library', icon: Library },
 ];
+/** Icon for a place category this page does not know yet (RMY-24). */
+const UNKNOWN_CATEGORY_ICON: LucideIcon = MapPin;
+
+/**
+ * The category's label and icon, or undefined for a category the backend
+ * added later. Before, a `find(...)!` on an unknown one crashed the whole
+ * listing page (RMY-24); now such a place shows its name with a pin icon.
+ */
+const categoryOf = (key: string) => CATEGORIES.find((c) => c.key === key);
 
 /** Straight-line distance between two points (m). */
 function metersBetween(aLat: number, aLon: number, bLat: number, bLon: number) {
@@ -84,7 +93,9 @@ export function ListingMap({
         bounds.extend(uni);
       }
       for (const place of places ?? []) {
-        L.marker([place.latitude, place.longitude], { icon: L.divIcon({ html: pinHtml('#0f6e56', DOT_PATH, 22), className: '', iconSize: [22, 22], iconAnchor: [11, 11] }), title: place.name || t(CATEGORIES.find((c) => c.key === place.category)!.label) }).addTo(map);
+        const category = categoryOf(place.category);
+        const title = place.name || (category ? t(category.label) : '');
+        L.marker([place.latitude, place.longitude], { icon: L.divIcon({ html: pinHtml('#0f6e56', DOT_PATH, 22), className: '', iconSize: [22, 22], iconAnchor: [11, 11] }), title }).addTo(map);
         bounds.extend([place.latitude, place.longitude]);
       }
       map.fitBounds(bounds.pad(0.25), { maxZoom: 16 });
@@ -116,17 +127,20 @@ export function ListingMap({
       ) : places.length ? (
         <ul className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {places.map((place) => {
-            const category = CATEGORIES.find((c) => c.key === place.category)!;
+            const category = categoryOf(place.category);
+            const Icon = category?.icon ?? UNKNOWN_CATEGORY_ICON;
+            const categoryLabel = category ? t(category.label) : '';
             const minutes = Math.max(1, Math.round(place.meters / WALK_M_PER_MIN));
+            const walk = t('listingDetail.walkMinutes').replace('{n}', String(minutes));
             return (
               <li key={place.category} className="flex min-h-[64px] items-center gap-3 rounded-xl border border-pine/10 bg-paper px-4 py-3">
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-mint-mist text-shutter" aria-hidden>
-                  <category.icon size={18} />
+                  <Icon size={18} />
                 </span>
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-extrabold text-ink">{place.name || t(category.label)}</span>
+                  <span className="block truncate text-sm font-extrabold text-ink">{place.name || categoryLabel}</span>
                   <span className="block text-xs font-bold text-sage">
-                    {t(category.label)} · {t('listingDetail.walkMinutes').replace('{n}', String(minutes))}
+                    {categoryLabel ? `${categoryLabel} · ${walk}` : walk}
                   </span>
                 </span>
               </li>

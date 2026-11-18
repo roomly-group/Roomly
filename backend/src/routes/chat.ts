@@ -14,6 +14,8 @@ import {
   DELETED_MESSAGE_TYPE,
   MESSAGE_MAX_LENGTH_CHARS,
   MESSAGES_PAGE_SIZE,
+  REQUEST_COOLDOWN_CODE,
+  REQUEST_REJECTION_COOLDOWN_DAYS,
   SAFETY_ERROR_CODES,
 } from "@workspace/api-zod";
 import { errorForLog, logger } from "../lib/logger.js";
@@ -31,6 +33,22 @@ const MAX_PENDING_REQUESTS_PER_ROOM = 10 as const;
 const PENDING_LIMIT_DB_ERROR_CODE = "RM009" as const;
 /** Answer when the room has too many pending requests (backend check or DB trigger). */
 const TOO_MANY_PENDING_MESSAGE = "Too many pending requests for this room" as const;
+/** Request states after which the student may ask the same room again (RMY-18). */
+const CLOSED_REQUEST_STATES: readonly string[] = ["annullata", "rifiutata"];
+/** System message shown in the chat when a closed request is sent again (same style as the others). */
+const NEW_REQUEST_SYSTEM_MESSAGE = "Nuova richiesta inviata" as const;
+const MS_PER_DAY = 86_400_000 as const;
+
+/**
+ * When a student whose request was rejected may ask the same room again.
+ * Counted from the decision (deciso_at). Chats rejected before deciso_at was
+ * recorded fall back to updated_at: the "Richiesta rifiutata" message is the
+ * last one in a closed chat, so it marks the rejection time.
+ */
+function rejectionRetryAfter(chat: { deciso_at: string | null; updated_at: string }): Date {
+  const decidedAt = new Date(chat.deciso_at ?? chat.updated_at).getTime();
+  return new Date(decidedAt + REQUEST_REJECTION_COOLDOWN_DAYS * MS_PER_DAY);
+}
 
 const router: IRouter = Router();
 
@@ -315,18 +333,33 @@ router.post(API_ROUTE_PATHS.CONVERSATIONS, requireAuth, requireAppAccess, messag
     // (senza nuovo messaggio) PRIMA dei controlli sulle nuove richieste,
     // altrimenti chi ha già una chat aperta su una stanza "piena" o già
     // accettata riceveva un 409 invece della propria chat.
+    // There is one chat per (room, student) (unique index), so a CLOSED one
+    // (cancelled or rejected) is reopened below instead (RMY-18).
     const { data: existingChat, error: existingError } = await supabaseAdmin
       .from("conversazioni")
-      .select("id")
+      .select("id, stato_richiesta, deciso_at, updated_at")
       .eq("stanza_id", listingId)
       .eq("studente_id", userId)
       .maybeSingle();
     if (existingError) throw existingError;
-    if (existingChat) {
+    const closedChat = existingChat && CLOSED_REQUEST_STATES.includes(existingChat.stato_richiesta) ? existingChat : null;
+    if (existingChat && !closedChat) {
       await ensureConversationParticipants(existingChat.id, userId, room.proprietario_id);
       return res
         .status(200)
         .json(ListConversationsResponse.parse([await conversationResponseFor(existingChat.id, userId)]));
+    }
+
+    // Rejected by the owner: the student may ask again only after the wait (RMY-18).
+    if (closedChat?.stato_richiesta === "rifiutata") {
+      const retryAfter = rejectionRetryAfter(closedChat);
+      if (retryAfter > new Date()) {
+        return res.status(409).json({
+          error: "Request rejected recently",
+          code: REQUEST_COOLDOWN_CODE,
+          retryAfter: retryAfter.toISOString(),
+        });
+      }
     }
 
     // RMY-12: no new requests between two people when one blocked the other.
@@ -353,6 +386,36 @@ router.post(API_ROUTE_PATHS.CONVERSATIONS, requireAuth, requireAppAccess, messag
     // both pass this count: the DB trigger then refuses the extra one (below).
     if (count && count >= MAX_PENDING_REQUESTS_PER_ROOM) {
       return res.status(409).json({ error: TOO_MANY_PENDING_MESSAGE });
+    }
+
+    // A closed chat for this room: reopen it as a new pending request (RMY-18),
+    // with the same checks as a brand-new request (above).
+    if (closedChat) {
+      // Conditional on the state we read: a parallel click cannot reopen it twice.
+      const { data: reopened, error: reopenError } = await supabaseAdmin
+        .from("conversazioni")
+        .update({ stato_richiesta: "in_attesa", deciso_at: null })
+        .eq("id", closedChat.id)
+        .eq("stato_richiesta", closedChat.stato_richiesta)
+        .select("id");
+      // The DB trigger (migration 023) refused it: the room filled up meanwhile.
+      if ((reopenError as { code?: string } | null)?.code === PENDING_LIMIT_DB_ERROR_CODE) {
+        return res.status(409).json({ error: TOO_MANY_PENDING_MESSAGE });
+      }
+      if (reopenError) throw reopenError;
+      // The student may have removed the chat from their inbox: put it back.
+      await ensureConversationParticipants(closedChat.id, userId, room.proprietario_id);
+      if ((reopened ?? []).length === 0) {
+        // Another request reopened it a moment ago: just return the chat.
+        return res
+          .status(200)
+          .json(ListConversationsResponse.parse([await conversationResponseFor(closedChat.id, userId)]));
+      }
+      await postSystemMessage(closedChat.id, userId, NEW_REQUEST_SYSTEM_MESSAGE);
+      await insertMessage(closedChat.id, userId, body);
+      return res
+        .status(201)
+        .json(ListConversationsResponse.parse([await conversationResponseFor(closedChat.id, userId)]));
     }
 
     // No existing chat, create a new one
@@ -550,7 +613,8 @@ async function postSystemMessage(conversationId: number, userId: string, text: s
 async function transitionPending(conversationId: number, next: "accettata" | "rifiutata" | "annullata") {
   const { data, error } = await supabaseAdmin
     .from("conversazioni")
-    .update({ stato_richiesta: next })
+    // deciso_at: when it was decided. The 30-day wait after a rejection counts from it (RMY-18).
+    .update({ stato_richiesta: next, deciso_at: new Date().toISOString() })
     .eq("id", conversationId)
     .eq("stato_richiesta", "in_attesa")
     .select("id");
@@ -612,7 +676,7 @@ router.post(API_ROUTE_PATHS.CONVERSATION_ACCEPT, requireAuth, messageLimiter, as
     if (!roomTaken) {
       const { error: rollbackError } = await supabaseAdmin
         .from("conversazioni")
-        .update({ stato_richiesta: "in_attesa" })
+        .update({ stato_richiesta: "in_attesa", deciso_at: null })
         .eq("id", id.data)
         .eq("stato_richiesta", "accettata");
       if (rollbackError) logger.error({ error: errorForLog(rollbackError) }, "Failed to roll back accepted request");
@@ -624,7 +688,7 @@ router.post(API_ROUTE_PATHS.CONVERSATION_ACCEPT, requireAuth, messageLimiter, as
     // con un contratto attivo, non con una richiesta accettata.
     const othersOnRoom = await supabaseAdmin
       .from("conversazioni")
-      .update({ stato_richiesta: "rifiutata" })
+      .update({ stato_richiesta: "rifiutata", deciso_at: new Date().toISOString() })
       .eq("stanza_id", ctx.stanza_id)
       .neq("id", id.data)
       .eq("stato_richiesta", "in_attesa");

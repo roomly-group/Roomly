@@ -6,7 +6,8 @@ import { Mail, Lock, EyeOff, Eye } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { restoreSession } from '@/lib/auth-session';
+import { restoreSession, type AuthUser } from '@/lib/auth-session';
+import { UserFacingError, userFacingMessage } from '@/lib/api-error';
 import { postAuthRoute } from '@/lib/auth-role';
 import { APP_ROUTES, AUTH_ACCOUNT_SUSPENDED_QUERY, AUTH_LINK_FAILED_QUERY, PASSWORD_FIELD_PLACEHOLDER, SHARED_TEST_IDS } from '@/lib/constants';
 import { ACCOUNT_SUSPENDED_ERROR_CODE, API_BASE_PATH, API_ROUTE_PATHS } from '@workspace/api-zod';
@@ -22,6 +23,9 @@ const LOGIN_TEST_IDS = {
   LINK_GO_REGISTER: 'link-go-register',
   LINK_FORGOT_PASSWORD: 'link-forgot-password',
 } as const;
+
+/** Statuses of POST /api/login the page explains to the user (RMY-14). */
+const HTTP_STATUS = { BAD_REQUEST: 400, UNAUTHORIZED: 401, TOO_MANY_REQUESTS: 429 } as const;
 
 export function LoginPage() {
   const { t } = useLanguage();
@@ -39,6 +43,15 @@ export function LoginPage() {
   const [linkFailed] = useState(() => window.location.search.includes(AUTH_LINK_FAILED_QUERY));
   // Set by main.tsx when Google login was refused because the account is suspended.
   const [suspendedOnArrival] = useState(() => window.location.search.includes(AUTH_ACCOUNT_SUSPENDED_QUERY));
+
+  // Friendly text for a refused login (RMY-14), from the backend's code and status.
+  function loginErrorText(code: unknown, status: number): string {
+    if (code === ACCOUNT_SUSPENDED_ERROR_CODE) return t('auth.accountSuspended'); // RMY-04
+    if (status === HTTP_STATUS.UNAUTHORIZED) return t('auth.invalidCredentials');
+    if (status === HTTP_STATUS.BAD_REQUEST) return t('auth.captchaRequired'); // the page always sends email and password
+    if (status === HTTP_STATUS.TOO_MANY_REQUESTS) return t('auth.tooManyAttempts');
+    return t('auth.loginError');
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -67,31 +80,32 @@ export function LoginPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        // RMY-14: a proxy error page is HTML, not JSON: no crash ("Unexpected token '<'").
+        const errorData = (await response.json().catch(() => ({}))) as { code?: unknown };
         // The token is single-use and short-lived; if the request failed for any
         // reason it's already been consumed (or may now be stale), so clear it and
         // make the widget re-render rather than let the user retry with a dead token.
         setCaptchaToken(null);
         setTurnstileKey((key) => key + 1);
-        // Suspended account (RMY-04): show our friendly, translated text.
-        const message = errorData.code === ACCOUNT_SUSPENDED_ERROR_CODE ? t('auth.accountSuspended') : errorData.error;
-        throw new Error(message || 'Login failed');
+        // Only our own translated texts, never the server's wording.
+        throw new UserFacingError(loginErrorText(errorData.code, response.status));
       }
 
       // Get user data from response (no longer contains tokens for security)
-      const { user } = await response.json();
+      const { user } = (await response.json().catch(() => ({}))) as { user?: AuthUser };
 
       // Read the new session from the cookies (user + expiry, never the tokens)
       // so the rest of the app knows who is logged in.
       if (!(await restoreSession())) {
-        throw new Error(t('auth.loginError'));
+        throw new UserFacingError(t('auth.loginError'));
       }
       clearRoleCache();
       clearAccountCache();
 
       setLocation(await postAuthRoute(user));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('auth.loginError'));
+      // A network failure ("Failed to fetch") gets the generic text, never its own wording.
+      setError(userFacingMessage(err, t('auth.loginError')));
     } finally {
       setIsSubmitting(false);
     }
