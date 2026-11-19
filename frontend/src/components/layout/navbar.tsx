@@ -155,7 +155,12 @@ export function useAppNav() {
 //                                "owner" mode: every /owner page, plus home,
 //                                search and listing pages for owners;
 //                                home and search add a second row with the search pill
-export function Navbar() {
+export function Navbar({
+  fullWidth = false,
+}: {
+  /** Full-screen pages (the chat): the bar spans the whole width, like the page under it. */
+  fullWidth?: boolean;
+} = {}) {
   const { t } = useLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { account } = useAccount();
@@ -186,7 +191,7 @@ export function Navbar() {
   if (isApp) {
     return (
       <header className="sticky top-0 z-30 border-b border-line bg-cream/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-[1320px] items-center justify-between gap-6 px-5 lg:px-8">
+        <div className={`mx-auto flex h-16 items-center justify-between gap-6 px-5 ${fullWidth ? 'max-w-none lg:px-7' : 'max-w-[1320px] lg:px-8'}`}>
           {logo}
 
           <nav aria-label={t('nav.primary')} className="mr-auto hidden items-center lg:flex">

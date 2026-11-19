@@ -3,6 +3,7 @@ import { verificationTranslations } from './i18n-verification';
 import { adminTranslations } from './i18n-admin';
 import { accountTranslations } from './i18n-account';
 import { safetyTranslations } from './i18n-safety';
+import { chatTranslations } from './i18n-chat';
 import { passwordResetTranslations } from './i18n-password-reset';
 import { studentContractTranslations } from './i18n-student-contract';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -75,6 +76,7 @@ export const translations = {
     ...verificationTranslations.en,
     ...adminTranslations.en,
     ...safetyTranslations.en,
+    ...chatTranslations.en,
     ...passwordResetTranslations.en,
     ...studentContractTranslations.en,
     'nav.findRoom': 'Find a room',
@@ -916,6 +918,7 @@ export const translations = {
     ...verificationTranslations.it,
     ...adminTranslations.it,
     ...safetyTranslations.it,
+    ...chatTranslations.it,
     ...passwordResetTranslations.it,
     ...studentContractTranslations.it,
     'nav.findRoom': 'Trova una stanza',
@@ -1752,6 +1755,7 @@ export const translations = {
     ...accountTranslations.es,
     ...verificationTranslations.es,
     ...safetyTranslations.es,
+    ...chatTranslations.es,
     ...passwordResetTranslations.es,
     ...studentContractTranslations.es,
     'nav.findRoom': 'Encontrar una habitación',
@@ -2427,6 +2431,7 @@ export const translations = {
     ...accountTranslations.fr,
     ...verificationTranslations.fr,
     ...safetyTranslations.fr,
+    ...chatTranslations.fr,
     ...passwordResetTranslations.fr,
     ...studentContractTranslations.fr,
     'nav.findRoom': 'Trouver une chambre',
@@ -3101,6 +3106,7 @@ export const translations = {
     ...accountTranslations.de,
     ...verificationTranslations.de,
     ...safetyTranslations.de,
+    ...chatTranslations.de,
     ...passwordResetTranslations.de,
     ...studentContractTranslations.de,
     'nav.findRoom': 'Zimmer finden',
@@ -3775,6 +3781,7 @@ export const translations = {
     ...accountTranslations.pt,
     ...verificationTranslations.pt,
     ...safetyTranslations.pt,
+    ...chatTranslations.pt,
     ...passwordResetTranslations.pt,
     ...studentContractTranslations.pt,
     'nav.findRoom': 'Encontrar um quarto',

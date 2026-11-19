@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Ban, Check, ChevronDown, ChevronLeft, Copy, Flag, Mail, MessageCircle, MoreHorizontal, Send, ShieldAlert, Trash2, X } from 'lucide-react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { ArrowRight, Ban, BadgeCheck, Check, ChevronDown, ChevronLeft, Copy, Flag, Home, Mail, MapPin, MessageCircle, MoreHorizontal, Search, ShieldAlert, Trash2, X } from 'lucide-react';
 import { Link, useLocation, useParams } from 'wouter';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -8,6 +8,7 @@ import {
   getListMessagesQueryKey,
   getGetListingQueryKey,
   getGetOwnerDashboardQueryKey,
+  useGetListing,
   useListConversations,
   useSendMessage,
 } from '@workspace/api-client-react';
@@ -23,7 +24,6 @@ import { isDeletedMessage, normalizeMessages, participantName } from '@/lib/chat
 import { useLanguage } from '@/lib/i18n';
 import { AppShell, Avatar } from '@/components/layout/app-shell';
 import { Button } from '@/components/shared/button';
-import { PageIntro } from '@/components/shared/page-intro';
 import { QueryError } from '@/components/shared/query-error';
 import { EmptyState } from '@/components/shared/empty-state';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
@@ -34,6 +34,7 @@ import { apiErrorCode } from '@/lib/api-error';
 import { hideSafetyTip, isSafetyTipHidden, looksLikeScamRisk } from '@/lib/scam-patterns';
 import { useSetBlocked } from '@/hooks/use-safety';
 import { ReportDialog, type ReportSubject } from '@/components/shared/report-dialog';
+import { useFormat } from '@/hooks/use-format';
 
 // ===================== CONFIGURATION =====================
 
@@ -47,14 +48,14 @@ const CONVERSATIONS_POLL_MS = 10000 as const;
 const POLL_OVERLAP = 5 as const;
 /** Duration before copied-listing feedback is hidden (ms). */
 const COPY_FEEDBACK_RESET_MS = 1800 as const;
-/** Number of milliseconds in one hour, used for relative message timestamps (ms/hour). */
-const HOUR_MS = 3600000 as const;
-/** Threshold below which timestamps display the just-now label (hours). */
-const JUST_NOW_THRESHOLD_HOURS = 1 as const;
-/** Threshold below which timestamps display an hours-ago label (hours). */
-const HOURS_AGO_THRESHOLD_HOURS = 24 as const;
-/** Threshold below which timestamps display the yesterday label (hours). */
-const YESTERDAY_THRESHOLD_HOURS = 48 as const;
+/** How long the room shown beside a chat stays fresh before it is fetched again (ms). */
+const LISTING_STALE_MS = 60000 as const;
+/** Days back within which the inbox shows a weekday instead of a date (days). */
+const INBOX_WEEKDAY_WINDOW_DAYS = 6 as const;
+/** Number of milliseconds in one day (ms/day). */
+const DAY_MS = 86400000 as const;
+/** Chat page height: the viewport under the navbar (64px + 1px border), above the 76px tab bar on phones (CSS length). */
+const CHAT_PAGE_HEIGHT = 'h-[calc(100dvh-65px-76px-env(safe-area-inset-bottom))] min-h-[420px] sm:h-[calc(100dvh-65px)]' as const;
 /** Scroll distance from the bottom that keeps the view pinned to the latest message (px). */
 const CHAT_SCROLL_BOTTOM_THRESHOLD_PX = 120 as const;
 /** Scroll position that triggers loading older messages (px). */
@@ -85,7 +86,69 @@ const MESSAGE_TEST_IDS = {
   SAFETY_TIP: 'safety-tip',
   BUTTON_HIDE_SAFETY_TIP: 'button-hide-safety-tip',
   BUTTON_TOGGLE_BLOCKED: 'button-toggle-blocked-chats',
+  INPUT_SEARCH_CONVERSATIONS: 'input-search-conversations',
+  PANEL_LISTING: 'panel-chat-listing',
+  LINK_VIEW_LISTING: 'link-chat-view-listing',
 } as const;
+
+type Translate = ReturnType<typeof useLanguage>['t'];
+
+/** Label and colors of a request status chip (in the inbox and the chat strip). */
+function requestStatusChip(
+  status: Conversation['requestStatus'],
+  t: Translate,
+): { text: string; dot: string } {
+  switch (status) {
+    case 'in_attesa':
+      return { text: t('messages.status.in_attesa'), dot: 'bg-sun' };
+    case 'accettata':
+      return { text: t('messages.status.accettata'), dot: 'bg-shutter' };
+    case 'rifiutata':
+      return { text: t('messages.status.rifiutata'), dot: 'bg-terracotta' };
+    case 'annullata':
+      return { text: t('messages.status.annullata'), dot: 'bg-sage/50' };
+    default:
+      return { text: status, dot: 'bg-sage/50' };
+  }
+}
+
+/** Midnight of the given date, local time, as a timestamp. */
+function startOfDay(date: Date): number {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+}
+
+/** Whole calendar days between the date and today (0 = today, 1 = yesterday). */
+function daysAgo(date: Date): number {
+  return Math.round((startOfDay(new Date()) - startOfDay(date)) / DAY_MS);
+}
+
+/** Clock time of a message, e.g. "10:16". */
+function formatClock(value: string, language: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit' }).format(date);
+}
+
+/** Inbox timestamp: the time today, "Yesterday", a weekday this week, else a short date. */
+function formatInboxTime(value: string, language: string, t: Translate): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const days = daysAgo(date);
+  if (days <= 0) return formatClock(value, language);
+  if (days === 1) return t('chat.yesterday');
+  if (days <= INBOX_WEEKDAY_WINDOW_DAYS) return new Intl.DateTimeFormat(language, { weekday: 'short' }).format(date);
+  return new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short' }).format(date);
+}
+
+/** Day separator in the chat: "Today", "Yesterday" or a full date. */
+function formatDayLabel(value: string, language: string, t: Translate): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const days = daysAgo(date);
+  if (days <= 0) return t('chat.today');
+  if (days === 1) return t('chat.yesterday');
+  return new Intl.DateTimeFormat(language, { weekday: 'long', day: 'numeric', month: 'long' }).format(date);
+}
 
 // Ordine unico e stabile: i messaggi confermati per id (l'ordine in cui il
 // database li ha salvati), senza doppioni; quelli ancora "in volo" (id
@@ -99,19 +162,6 @@ function sortMessages(list: Message[]): Message[] {
   return [...confirmed, ...pending];
 }
 
-// Quanti degli ultimi messaggi confermati rileggere a ogni poll.
-function TimeAgo({ value }: { value: string }) {
-  const { t } = useLanguage();
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return <>{value}</>;
-
-  const hours = Math.floor((Date.now() - date.getTime()) / HOUR_MS);
-  if (hours < JUST_NOW_THRESHOLD_HOURS) return <>{t('messages.justNow')}</>;
-  if (hours < HOURS_AGO_THRESHOLD_HOURS) return <>{t('messages.hoursAgo').replace('{h}', String(hours))}</>;
-  if (hours < YESTERDAY_THRESHOLD_HOURS) return <>{t('messages.yesterday')}</>;
-  return <>{date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</>;
-}
-
 function MessageBubble({
   message,
   viewerRole,
@@ -122,48 +172,52 @@ function MessageBubble({
   /** Opens the report dialog for this message; only given for the other person's texts. */
   onReport?: (messageId: number) => void;
 }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const mine = message.sender === viewerRole;
   // Its author deleted their account: the text is gone, only a placeholder is shown.
   const deleted = isDeletedMessage(message);
   const isSystem = message.kind === 'system';
   if (isSystem) {
     return (
-      <div className="flex justify-center items-center py-2" data-testid={`${MESSAGE_TEST_IDS.MESSAGE_ROW_PREFIX}${message.id}`}>
-        <p className="text-xs text-[#527067] italic">{message.body}</p>
+      <div className="flex justify-center py-1" data-testid={`${MESSAGE_TEST_IDS.MESSAGE_ROW_PREFIX}${message.id}`}>
+        <p className="max-w-[90%] rounded-xl bg-cream px-3.5 py-2 text-center text-[13px] leading-5 text-sage">{message.body}</p>
       </div>
     );
   }
   // RMY-12: the other person's text with an IBAN, phone, messaging app or link gets a scam warning.
   const incoming = !mine && !deleted && message.id > 0;
   const flagged = incoming && looksLikeScamRisk(message.body);
+  // Still being sent: shown at once, slightly faded until the server confirms it.
+  const sending = message.id < 0;
   return (
     <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`} data-testid={`${MESSAGE_TEST_IDS.MESSAGE_ROW_PREFIX}${message.id}`}>
-      <div className="max-w-[75%]">
+      <div className="max-w-[80%] lg:max-w-[min(70%,600px)]">
         <div
-          className={`rounded-2xl px-4 py-3 text-sm leading-6 ${
-            mine ? 'rounded-br-md bg-[#0F6E56] text-[#E1F5EE]' : 'rounded-bl-md bg-[#E1F5EE] text-[#085041]'
-          }`}
+          className={`rounded-[20px] px-4 py-3 text-[15px] leading-[1.5] lg:text-base ${
+            mine
+              ? 'rounded-br-[4px] bg-sun-soft text-sun-ink'
+              : 'rounded-bl-[4px] bg-cream text-ink'
+          } ${sending ? 'opacity-70' : ''}`}
         >
           <p className={`whitespace-pre-wrap break-words ${deleted ? 'italic opacity-80' : ''}`}>
             {deleted ? t('messages.deletedMessage') : message.body}
           </p>
-          <div className="mt-1 flex items-center justify-between gap-3">
-            <p className={`text-[10px] font-bold ${mine ? 'text-[#9FE1CB]' : 'text-[#527067]'}`}>
-              <TimeAgo value={message.sentAt} />
-            </p>
+          <div className="mt-1 flex items-center justify-end gap-1">
             {incoming && onReport ? (
               <button
                 type="button"
                 onClick={() => onReport(message.id)}
                 aria-label={t('safety.reportMessage')}
                 title={t('safety.reportMessage')}
-                className="-my-1 -mr-2 grid h-7 w-7 place-items-center rounded-full text-sage transition-colors hover:bg-paper hover:text-terracotta"
+                className="relative -my-1.5 grid h-7 w-7 place-items-center rounded-full text-sage transition-colors after:absolute after:-inset-2 after:content-[''] hover:bg-cream-deep hover:text-terracotta"
                 data-testid={`${MESSAGE_TEST_IDS.BUTTON_REPORT_MESSAGE_PREFIX}${message.id}`}
               >
                 <Flag size={12} aria-hidden />
               </button>
             ) : null}
+            <time dateTime={message.sentAt} className={`text-[11px] tabular-nums ${mine ? 'text-sun-ink/80' : 'text-sage'}`}>
+              {formatClock(message.sentAt, language)}
+            </time>
           </div>
         </div>
         {flagged ? (
@@ -193,108 +247,108 @@ function ConversationList({
   selectedId?: number;
   owner?: boolean;
 }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   // Opened by default when the chat on screen is one of the blocked ones.
   const [showBlocked, setShowBlocked] = useState(() => blocked.some((item) => item.id === selectedId));
-
-  const getStatusInfo = (status: Conversation['requestStatus']) => {
-    let text = '';
-    let colorBg = '';
-    let colorText = '';
-    switch (status) {
-      case 'in_attesa':
-        text = t('messages.status.in_attesa');
-        colorBg = 'bg-[#FFF4E5]';
-        colorText = 'text-[#B45309]';
-        break;
-      case 'accettata':
-        text = t('messages.status.accettata');
-        colorBg = 'bg-[#E1F5EE]';
-        colorText = 'text-[#0F6E56]';
-        break;
-      case 'rifiutata':
-        text = t('messages.status.rifiutata');
-        colorBg = 'bg-[#FEE2E2]';
-        colorText = 'text-[#a74b32]';
-        break;
-      case 'annullata':
-        text = t('messages.status.annullata');
-        colorBg = 'bg-[#E5E7EB]';
-        colorText = 'text-[#527067]';
-        break;
-      default:
-        text = status;
-        colorBg = 'bg-[#E5E7EB]';
-        colorText = 'text-[#527067]';
-    }
-    return { text, colorBg, colorText };
-  };
+  // Client-side filter on the person's name and the listing title.
+  const [query, setQuery] = useState('');
+  const needle = query.trim().toLocaleLowerCase();
+  const matches = (conversation: Conversation) =>
+    !needle ||
+    participantName(conversation, t('messages.deletedUser')).toLocaleLowerCase().includes(needle) ||
+    conversation.listingTitle.toLocaleLowerCase().includes(needle);
+  const shown = conversations.filter(matches);
+  const shownBlocked = blocked.filter(matches);
 
   const renderRow = (conversation: Conversation) => {
-        const { text: statusText, colorBg, colorText } = getStatusInfo(conversation.requestStatus);
-        return (
-          <Link
-            href={`${owner ? APP_ROUTES.OWNER_MESSAGES : APP_ROUTES.MESSAGES}/${conversation.id}`}
-            key={conversation.id}
-            className={`flex gap-3 p-4 transition-colors hover:bg-[#E1F5EE]/65 ${
-              selectedId === conversation.id ? 'bg-[#E1F5EE]' : ''
-            } ${conversation.blockedByMe ? 'opacity-70' : ''}`}
-            data-testid={`${MESSAGE_TEST_IDS.CONVERSATION_LINK_PREFIX}${conversation.id}`}
-          >
-            <Avatar name={participantName(conversation, t('messages.deletedUser'))} />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="truncate text-sm font-black text-[#085041]">{participantName(conversation, t('messages.deletedUser'))}</h3>
-                  <p className="truncate text-xs font-bold text-[#0F6E56]">{conversation.listingTitle}</p>
-                  <span className={`mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${colorBg} ${colorText}`}>
-                    {statusText}
-                  </span>
-                </div>
-                <span className="shrink-0 text-[11px] font-bold text-[#82978e]">
-                  <TimeAgo value={conversation.updatedAt} />
-                </span>
-              </div>
-              <div className="mt-1 flex items-center gap-2">
-                <p className={`truncate text-sm ${conversation.unread ? 'font-extrabold text-[#2C2C2A]' : 'text-[#527067]'}`}>
-                  {conversation.preview}
-                </p>
-                {conversation.unread && <span className="h-2 w-2 shrink-0 rounded-full bg-[#EF9F27]" />}
-              </div>
+    const status = requestStatusChip(conversation.requestStatus, t);
+    const name = participantName(conversation, t('messages.deletedUser'));
+    const selected = selectedId === conversation.id;
+    // Sage reads 4.3:1 on the darker selected row (below AA): a deeper green there.
+    const muted = selected ? 'text-pine-text' : 'text-sage';
+    return (
+      <li key={conversation.id}>
+        <Link
+          href={`${owner ? APP_ROUTES.OWNER_MESSAGES : APP_ROUTES.MESSAGES}/${conversation.id}`}
+          aria-current={selected ? 'page' : undefined}
+          className={`flex items-center gap-3.5 rounded-2xl px-4 py-4 transition-colors ${
+            selected ? 'bg-cream-deep' : 'hover:bg-cream-deep/50'
+          } ${conversation.blockedByMe ? 'opacity-70' : ''}`}
+          data-testid={`${MESSAGE_TEST_IDS.CONVERSATION_LINK_PREFIX}${conversation.id}`}
+        >
+          <Avatar name={name} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline justify-between gap-2">
+              <h3 className={`truncate text-[15px] text-ink ${conversation.unread ? 'font-black' : 'font-bold'}`}>{name}</h3>
+              <span className={`shrink-0 text-xs tabular-nums ${conversation.unread ? 'font-extrabold text-shutter' : muted}`}>
+                {formatInboxTime(conversation.updatedAt, language, t)}
+              </span>
             </div>
-          </Link>
-        );
+            <p className={`truncate text-[13px] ${muted}`}>{conversation.listingTitle}</p>
+            <div className="mt-0.5 flex items-center gap-2">
+              <p className={`min-w-0 flex-1 truncate text-sm ${conversation.unread ? 'font-extrabold text-ink' : muted}`}>
+                {conversation.preview}
+              </p>
+              {conversation.unread && <span className="h-2 w-2 shrink-0 rounded-full bg-sun" aria-hidden />}
+            </div>
+            <span className={`mt-1.5 inline-flex items-center gap-1.5 text-xs ${muted}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} aria-hidden />
+              {status.text}
+            </span>
+          </div>
+        </Link>
+      </li>
+    );
   };
 
   return (
-    <>
-      {conversations.length ? (
-        <div className="divide-y divide-[#e1ebe4]">{conversations.map(renderRow)}</div>
-      ) : (
-        <EmptyState
-          title={t('messages.inboxQuiet')}
-          text={owner ? t('messages.emptyOwnerInbox') : t('messages.emptyStudentInbox')}
-        />
-      )}
-      {blocked.length ? (
-        <div className="border-t border-[#e1ebe4]">
-          <button
-            type="button"
-            onClick={() => setShowBlocked((current) => !current)}
-            aria-expanded={showBlocked}
-            className="flex min-h-12 w-full items-center justify-between gap-2 px-4 text-sm font-extrabold text-[#527067] transition-colors hover:bg-[#E1F5EE]/65"
-            data-testid={MESSAGE_TEST_IDS.BUTTON_TOGGLE_BLOCKED}
-          >
-            <span className="flex items-center gap-2">
-              <Ban size={15} aria-hidden />
-              {t('safety.blockedSection').replace('{n}', String(blocked.length))}
-            </span>
-            <ChevronDown size={16} className={`transition-transform ${showBlocked ? 'rotate-180' : ''}`} aria-hidden />
-          </button>
-          {showBlocked ? <div className="divide-y divide-[#e1ebe4] border-t border-[#e1ebe4]">{blocked.map(renderRow)}</div> : null}
+    <div className="flex min-h-0 flex-1 flex-col">
+      {conversations.length + blocked.length > 0 && (
+        <div className="relative mx-5 mb-4">
+          <label htmlFor="search-conversations" className="sr-only">{t('chat.searchLabel')}</label>
+          <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sage" aria-hidden />
+          <input
+            id="search-conversations"
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t('chat.searchPlaceholder')}
+            className="h-12 w-full rounded-xl border border-field bg-cream pl-9 pr-3 text-sm text-ink outline-none transition-colors placeholder:text-sage focus:border-shutter focus:ring-[3px] focus:ring-mint-wash/40"
+            data-testid={MESSAGE_TEST_IDS.INPUT_SEARCH_CONVERSATIONS}
+          />
         </div>
-      ) : null}
-    </>
+      )}
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
+        {!conversations.length && !blocked.length ? (
+          <EmptyState
+            title={t('messages.inboxQuiet')}
+            text={owner ? t('messages.emptyOwnerInbox') : t('messages.emptyStudentInbox')}
+          />
+        ) : shown.length ? (
+          <ul className="space-y-1.5">{shown.map(renderRow)}</ul>
+        ) : needle ? (
+          <p className="px-3 py-6 text-center text-sm text-sage">{t('chat.noMatches')}</p>
+        ) : null}
+        {shownBlocked.length ? (
+          <div className="mt-2 border-t border-line pt-2">
+            <button
+              type="button"
+              onClick={() => setShowBlocked((current) => !current)}
+              aria-expanded={showBlocked}
+              className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-3 text-sm font-extrabold text-sage transition-colors hover:bg-cream-deep/50"
+              data-testid={MESSAGE_TEST_IDS.BUTTON_TOGGLE_BLOCKED}
+            >
+              <span className="flex items-center gap-2">
+                <Ban size={15} aria-hidden />
+                {t('safety.blockedSection').replace('{n}', String(shownBlocked.length))}
+              </span>
+              <ChevronDown size={16} className={`transition-transform ${showBlocked ? 'rotate-180' : ''}`} aria-hidden />
+            </button>
+            {showBlocked ? <ul className="mt-1 space-y-1.5">{shownBlocked.map(renderRow)}</ul> : null}
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -307,7 +361,7 @@ function ConversationPanel({
   conversation?: Conversation;
   owner: boolean;
 }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const client = useQueryClient();
   const messagesKey = getListMessagesQueryKey(conversationId);
   // Polling incrementale: dopo il primo caricamento chiede solo i messaggi con
@@ -360,41 +414,13 @@ function ConversationPanel({
   // The same inbox lists chats where the person is the student AND chats where
   // they are the owner, so "mine" depends on the role in THIS conversation.
   const viewerRole: 'owner' | 'student' = conversation?.role ?? (owner ? 'owner' : 'student');
-
-  const getStatusInfo = (status: Conversation['requestStatus']) => {
-    let text = '';
-    let colorBg = '';
-    let colorText = '';
-    switch (status) {
-      case 'in_attesa':
-        text = t('messages.status.in_attesa');
-        colorBg = 'bg-[#FFF4E5]';
-        colorText = 'text-[#B45309]';
-        break;
-      case 'accettata':
-        text = t('messages.status.accettata');
-        colorBg = 'bg-[#E1F5EE]';
-        colorText = 'text-[#0F6E56]';
-        break;
-      case 'rifiutata':
-        text = t('messages.status.rifiutata');
-        colorBg = 'bg-[#FEE2E2]';
-        colorText = 'text-[#a74b32]';
-        break;
-      case 'annullata':
-        text = t('messages.status.annullata');
-        colorBg = 'bg-[#E5E7EB]';
-        colorText = 'text-[#527067]';
-        break;
-      default:
-        text = status;
-        colorBg = 'bg-[#E5E7EB]';
-        colorText = 'text-[#527067]';
-    }
-    return { text, colorBg, colorText };
-  };
-
-  const statusInfo = conversation ? getStatusInfo(conversation.requestStatus) : { text: "", colorBg: "", colorText: "" };
+  const format = useFormat();
+  const status = conversation ? requestStatusChip(conversation.requestStatus, t) : null;
+  // The room this chat is about: price for the header and strip (shared cache with the listing panel).
+  const roomId = conversation?.roomId ?? 0;
+  const { data: listing } = useGetListing(roomId, {
+    query: { queryKey: getGetListingQueryKey(roomId), enabled: roomId > 0, retry: false, staleTime: LISTING_STALE_MS },
+  });
 
   const acceptConversation = useAcceptConversation();
   const rejectConversation = useRejectConversation();
@@ -444,7 +470,6 @@ function ConversationPanel({
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showReleaseDialog, setShowReleaseDialog] = useState(false);
-  const { text: statusText, colorBg: statusColorBg, colorText: statusColorText } = statusInfo;
   const actionPending =
     acceptConversation.isPending ||
     rejectConversation.isPending ||
@@ -682,202 +707,235 @@ function ConversationPanel({
 
   return (
     <>
-      <div className="flex h-[75vh] max-h-[720px] min-h-[520px] flex-col">
-        <div className="flex items-center justify-between border-b border-[#e1ebe4] p-5">
-          <div className="flex items-center gap-3">
-            <Link
-              href={owner ? APP_ROUTES.OWNER_MESSAGES : APP_ROUTES.MESSAGES}
-              className="-ml-2 rounded-lg p-2 text-[#527067] hover:bg-[#E1F5EE] lg:hidden"
-              aria-label={t('messages.back')}
-              data-testid={MESSAGE_TEST_IDS.LINK_BACK_TO_INBOX}
-            >
-              <ChevronLeft size={20} />
-            </Link>
-            {conversation && <Avatar name={participantName(conversation, t('messages.deletedUser'))} size="sm" />}
-            <div>
-              <h2 className="font-black text-[#085041]">
-                {conversation ? participantName(conversation, t('messages.deletedUser')) : t('messages.conversationFallback')}
-              </h2>
-              <p className="text-xs font-bold text-[#527067]">
-                {conversation?.listingTitle ?? t('messages.roomlyMessagesFallback')}
-              </p>
-              <span className={`mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusColorBg} ${statusColorText}`}>
-                {statusText}
+      <div className="flex h-full min-h-0 flex-col bg-cream-deep">
+        <header className="flex items-center gap-3 border-b border-line bg-cream py-3 pl-2 pr-3 lg:py-5 lg:pl-8 lg:pr-6">
+          <Link
+            href={owner ? APP_ROUTES.OWNER_MESSAGES : APP_ROUTES.MESSAGES}
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-ink transition-colors hover:bg-cream-deep lg:hidden"
+            aria-label={t('messages.back')}
+            data-testid={MESSAGE_TEST_IDS.LINK_BACK_TO_INBOX}
+          >
+            <ChevronLeft size={22} aria-hidden />
+          </Link>
+          {conversation && <Avatar name={otherName} />}
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-[15px] font-black leading-tight lg:text-lg text-ink">
+              {conversation ? otherName : t('messages.conversationFallback')}
+              {conversation && !conversation.participantDeleted && (
+                <span className="font-normal text-sage"> · {t(viewerRole === 'student' ? 'chat.roleOwner' : 'chat.roleStudent')}</span>
+              )}
+            </h2>
+            <p className="truncate text-xs leading-5 text-sage lg:text-sm">
+              {conversation?.listingTitle ?? t('messages.roomlyMessagesFallback')}
+              {viewerRole === 'student' && listing?.zone ? ` · ${listing.zone}` : ''}
+            </p>
+          </div>
+          {viewerRole === 'student' && listing && (
+            <span className="shrink-0 whitespace-nowrap rounded-lg bg-cream-deep px-2 py-1.5 text-xs font-extrabold text-ink">
+              {format.price(listing.price)}
+              {t('chat.perMonth')}
+            </span>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-sage transition-colors hover:bg-cream-deep hover:text-ink"
+                data-testid={MESSAGE_TEST_IDS.BUTTON_CONVERSATION_MORE}
+                aria-label={t('messages.moreOptions')}
+              >
+                <MoreHorizontal size={20} aria-hidden />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={copyListing} data-testid={MESSAGE_TEST_IDS.MENU_COPY_LISTING}>
+                <Copy size={15} className="mr-2" /> {t('messages.copyListingName')}
+              </DropdownMenuItem>
+              {requestStatus === 'annullata' && (
+                <DropdownMenuItem
+                  onSelect={() => setShowDeleteDialog(true)}
+                  className="text-terracotta"
+                  data-testid={MESSAGE_TEST_IDS.MENU_DELETE_CONVERSATION}
+                >
+                  <Trash2 size={15} className="mr-2" /> {t('messages.deleteChat')}
+                </DropdownMenuItem>
+              )}
+              {canModerate && (
+                <>
+                  <DropdownMenuItem onSelect={reportPerson} className="text-terracotta" data-testid={MESSAGE_TEST_IDS.MENU_REPORT_USER}>
+                    <Flag size={15} className="mr-2" /> {t('safety.reportUser').replace('{name}', otherName)}
+                  </DropdownMenuItem>
+                  {conversation?.blockedByMe ? (
+                    <DropdownMenuItem onSelect={() => void changeBlock(false)} data-testid={MESSAGE_TEST_IDS.MENU_BLOCK_USER}>
+                      <Ban size={15} className="mr-2" /> {t('safety.unblock')}
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem
+                      onSelect={() => setShowBlockDialog(true)}
+                      className="text-terracotta"
+                      data-testid={MESSAGE_TEST_IDS.MENU_BLOCK_USER}
+                    >
+                      <Ban size={15} className="mr-2" /> {t('safety.block').replace('{name}', otherName)}
+                    </DropdownMenuItem>
+                  )}
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </header>
+
+        {/* Info strip: what the chat is about, the request status and the actions on it. */}
+        {conversation && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line bg-cream px-4 py-2.5 lg:px-8 lg:py-3.5">
+            <p className="flex min-w-0 flex-1 basis-56 items-center gap-2 text-xs text-sage lg:text-sm">
+              <MapPin size={16} className="shrink-0 text-shutter" aria-hidden />
+              <span className="truncate">
+                {viewerRole === 'owner'
+                  ? t('chat.forListing').replace(
+                      '{title}',
+                      listing ? `${conversation.listingTitle} · ${format.price(listing.price)}${t('chat.perMonth')}` : conversation.listingTitle,
+                    )
+                  : listing?.zone ?? conversation.listingTitle}
               </span>
-              {conversation?.roomStatus === 'affittata' && (
-                <span className="ml-2 rounded-full bg-[#FCE8C8] px-2 py-0.5 text-xs font-bold text-[#8A4B08]">
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              {status && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-ink">
+                  <span className={`h-2 w-2 rounded-full ${status.dot}`} aria-hidden />
+                  {status.text}
+                </span>
+              )}
+              {conversation.roomStatus === 'affittata' && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-sage">
+                  <span className="h-2 w-2 rounded-full bg-sage/50" aria-hidden />
                   {t('messages.roomRented')}
                 </span>
               )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {conversation && (
-              <>
-                {conversation.requestStatus === 'in_attesa' && conversation.role === 'owner' && (
-                  <>
-                    {/* A blocked person cannot be accepted (the backend refuses it too). */}
-                    {!isBlocked && <Button
-                      variant="amber"
+              {conversation.requestStatus === 'in_attesa' && conversation.role === 'owner' && (
+                <>
+                  {/* A blocked person cannot be accepted (the backend refuses it too). */}
+                  {!isBlocked && (
+                    <Button
                       onClick={() => setShowAcceptDialog(true)}
                       disabled={actionPending}
-                      aria-label={t('messages.accept')}
-                      title={t('messages.accept')}
                       data-testid={MESSAGE_TEST_IDS.BUTTON_ACCEPT_CONVERSATION}
-                      className="h-11 rounded-full px-5"
+                      className="h-10 rounded-xl px-4"
                     >
-                      <Check size={16} /> {t('messages.accept')}
-                    </Button>}
-                    <Button
-                      variant="amber"
-                      onClick={() => setShowRejectDialog(true)}
-                      disabled={actionPending}
-                      aria-label={t('messages.reject')}
-                      title={t('messages.reject')}
-                      data-testid={MESSAGE_TEST_IDS.BUTTON_REJECT_CONVERSATION}
-                      className="h-11 rounded-full px-5"
-                    >
-                      <X size={16} /> {t('messages.reject')}
+                      <Check size={16} aria-hidden /> {t('messages.accept')}
                     </Button>
-                  </>
-                )}
-                {conversation.requestStatus === 'in_attesa' && conversation.role === 'student' && (
+                  )}
                   <Button
                     variant="outline"
-                    onClick={() => setShowCancelDialog(true)}
+                    onClick={() => setShowRejectDialog(true)}
                     disabled={actionPending}
-                    data-testid={MESSAGE_TEST_IDS.BUTTON_CANCEL_CONVERSATION}
+                    data-testid={MESSAGE_TEST_IDS.BUTTON_REJECT_CONVERSATION}
+                    className="h-10 rounded-xl px-4"
                   >
-                    <X size={16} /> {t('messages.cancelRequest')}
+                    <X size={16} aria-hidden /> {t('messages.reject')}
                   </Button>
-                )}
-                {conversation.requestStatus === 'accettata' && conversation.role === 'owner' && (
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowReleaseDialog(true)}
-                    disabled={actionPending}
-                    data-testid={MESSAGE_TEST_IDS.BUTTON_RELEASE_LISTING}
-                  >
-                    {t('messages.releaseRoom')}
-                  </Button>
-                )}
-              </>
-            )}
-          </div>
-          <div className="flex items-center">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className="rounded-lg p-2 text-[#527067] hover:bg-[#E1F5EE]"
-                  data-testid={MESSAGE_TEST_IDS.BUTTON_CONVERSATION_MORE}
-                  aria-label={t('messages.moreOptions')}
+                </>
+              )}
+              {conversation.requestStatus === 'in_attesa' && conversation.role === 'student' && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCancelDialog(true)}
+                  disabled={actionPending}
+                  data-testid={MESSAGE_TEST_IDS.BUTTON_CANCEL_CONVERSATION}
+                  className="h-10 rounded-xl px-4"
                 >
-                  <MoreHorizontal size={19} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={copyListing} data-testid={MESSAGE_TEST_IDS.MENU_COPY_LISTING}>
-                  <Copy size={15} className="mr-2" /> {t('messages.copyListingName')}
-                </DropdownMenuItem>
-                {requestStatus === 'annullata' && (
-                  <DropdownMenuItem
-                    onSelect={() => setShowDeleteDialog(true)}
-                    className="text-[#a74b32]"
-                    data-testid={MESSAGE_TEST_IDS.MENU_DELETE_CONVERSATION}
-                  >
-                    <Trash2 size={15} className="mr-2" /> {t('messages.deleteChat')}
-                  </DropdownMenuItem>
-                )}
-                {canModerate && (
-                  <>
-                    <DropdownMenuItem onSelect={reportPerson} className="text-[#a74b32]" data-testid={MESSAGE_TEST_IDS.MENU_REPORT_USER}>
-                      <Flag size={15} className="mr-2" /> {t('safety.reportUser').replace('{name}', otherName)}
-                    </DropdownMenuItem>
-                    {conversation?.blockedByMe ? (
-                      <DropdownMenuItem onSelect={() => void changeBlock(false)} data-testid={MESSAGE_TEST_IDS.MENU_BLOCK_USER}>
-                        <Ban size={15} className="mr-2" /> {t('safety.unblock')}
-                      </DropdownMenuItem>
-                    ) : (
-                      <DropdownMenuItem
-                        onSelect={() => setShowBlockDialog(true)}
-                        className="text-[#a74b32]"
-                        data-testid={MESSAGE_TEST_IDS.MENU_BLOCK_USER}
-                      >
-                        <Ban size={15} className="mr-2" /> {t('safety.block').replace('{name}', otherName)}
-                      </DropdownMenuItem>
-                    )}
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <X size={16} aria-hidden /> {t('messages.cancelRequest')}
+                </Button>
+              )}
+              {conversation.requestStatus === 'accettata' && conversation.role === 'owner' && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowReleaseDialog(true)}
+                  disabled={actionPending}
+                  data-testid={MESSAGE_TEST_IDS.BUTTON_RELEASE_LISTING}
+                  className="h-10 rounded-xl px-4"
+                >
+                  {t('messages.releaseRoom')}
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {copied && (
           <p
-            className="border-b border-[#e1ebe4] bg-[#E1F5EE] px-5 py-2 text-xs font-extrabold text-[#0F6E56]"
+            className="border-b border-line bg-cream px-4 py-2 text-xs font-extrabold text-ink"
             data-testid={MESSAGE_TEST_IDS.STATUS_LISTING_COPIED}
           >
             {t('messages.listingNameCopied')}
           </p>
         )}
 
-        {/* RMY-12: safety tip at the top of every chat, until hidden for this chat. */}
-        {!tipHidden && (
-          <div
-            className="flex items-start gap-3 border-b border-[#e1ebe4] bg-sun/15 px-5 py-3"
-            role="note"
-            data-testid={MESSAGE_TEST_IDS.SAFETY_TIP}
-          >
-            <ShieldAlert size={18} className="mt-0.5 shrink-0 text-amber-ink" aria-hidden />
-            <p className="min-w-0 flex-1 text-xs leading-5 text-ink">
-              <span className="font-black text-amber-ink">{t('safety.tipTitle')}. </span>
-              {t('safety.tipText')}
-            </p>
-            <button
-              type="button"
-              onClick={dismissTip}
-              aria-label={t('safety.tipDismiss')}
-              title={t('safety.tipDismiss')}
-              className="-my-1 -mr-2 grid h-8 w-8 shrink-0 place-items-center rounded-full text-sage transition-colors hover:bg-paper hover:text-pine"
-              data-testid={MESSAGE_TEST_IDS.BUTTON_HIDE_SAFETY_TIP}
-            >
-              <X size={15} aria-hidden />
-            </button>
-          </div>
-        )}
-
-        <div ref={scrollRef} onScroll={handleScroll} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5">
-          {loadingOlder && <div className="skeleton mx-auto h-4 w-24 rounded-full" />}
-          {isLoading ? (
-            <>
-              {[1, 2, 3].map((item) => (
-                <div key={item} className={`skeleton h-12 w-2/3 rounded-2xl ${item % 2 ? '' : 'ml-auto'}`} />
-              ))}
-            </>
-          ) : isError ? (
-            <QueryError onRetry={() => refetch()} />
-          ) : messages.length ? (
-            messages.map((message) => (
-              <MessageBubble
-                key={message.id}
-                message={message}
-                viewerRole={viewerRole}
-                onReport={canModerate ? reportMessage : undefined}
-              />
-            ))
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center text-center">
-              <div className="rounded-xl bg-[#E1F5EE] p-3 text-[#0F6E56]">
-                <Mail size={22} />
+        <div ref={scrollRef} onScroll={handleScroll} className="min-h-0 flex-1 overflow-y-auto px-4 py-5 lg:px-16 lg:py-10">
+          <div className="flex min-h-full flex-col justify-end gap-3 lg:gap-4">
+            {/* RMY-12: safety tip at the top of every chat, until hidden for this chat. */}
+            {!tipHidden && (
+              <div
+                className="mb-1 flex items-start gap-2 self-center rounded-xl bg-cream px-3 py-2 text-xs leading-5 text-ink sm:max-w-[90%]"
+                role="note"
+                data-testid={MESSAGE_TEST_IDS.SAFETY_TIP}
+              >
+                <ShieldAlert size={15} className="mt-0.5 shrink-0 text-amber-ink" aria-hidden />
+                <p className="min-w-0 flex-1">
+                  <span className="font-black">{t('safety.tipTitle')}. </span>
+                  {t('safety.tipText')}
+                </p>
+                <button
+                  type="button"
+                  onClick={dismissTip}
+                  aria-label={t('safety.tipDismiss')}
+                  title={t('safety.tipDismiss')}
+                  className="relative -my-1.5 -mr-2 grid h-8 w-8 shrink-0 place-items-center rounded-full text-sage transition-colors after:absolute after:-inset-1.5 after:content-[''] hover:bg-cream-deep hover:text-ink"
+                  data-testid={MESSAGE_TEST_IDS.BUTTON_HIDE_SAFETY_TIP}
+                >
+                  <X size={15} aria-hidden />
+                </button>
               </div>
-              <p className="mt-3 font-black text-[#085041]">{t('messages.startConversation')}</p>
-              <p className="mt-1 text-sm text-[#527067]">{t('messages.startConversationText')}</p>
-            </div>
-          )}
+            )}
+            {loadingOlder && <div className="skeleton mx-auto h-4 w-24 rounded-full" />}
+            {isLoading ? (
+              <>
+                {[1, 2, 3].map((item) => (
+                  <div key={item} className={`skeleton h-12 w-2/3 rounded-[18px] ${item % 2 ? '' : 'ml-auto'}`} />
+                ))}
+              </>
+            ) : isError ? (
+              <QueryError onRetry={() => refetch()} />
+            ) : messages.length ? (
+              messages.map((message, index) => {
+                // Day separator before the first message of each calendar day.
+                const day = formatDayLabel(message.sentAt, language, t);
+                const previousDay = index > 0 ? formatDayLabel(messages[index - 1].sentAt, language, t) : '';
+                return (
+                  <Fragment key={message.id}>
+                    {day && day !== previousDay && (
+                      <p className="self-center pt-2 text-[11px] font-bold uppercase tracking-[0.04em] text-pine-text">{day}</p>
+                    )}
+                    <MessageBubble
+                      message={message}
+                      viewerRole={viewerRole}
+                      onReport={canModerate ? reportMessage : undefined}
+                    />
+                  </Fragment>
+                );
+              })
+            ) : (
+              <div className="flex flex-1 flex-col items-center justify-center text-center">
+                <div className="rounded-xl bg-cream p-3 text-sage">
+                  <Mail size={22} aria-hidden />
+                </div>
+                <p className="mt-3 font-black text-ink">{t('messages.startConversation')}</p>
+                <p className="mt-1 text-sm text-sage">{t('messages.startConversationText')}</p>
+              </div>
+            )}
+          </div>
         </div>
 
-        <form onSubmit={submit} className="border-t border-[#e1ebe4] p-4">
+        <form onSubmit={submit} className="border-t border-line bg-cream px-3 pb-3 pt-2.5 lg:px-8 lg:py-6">
           {conversation?.blockedByMe && (
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-terracotta-mist px-4 py-3">
               <p className="min-w-0 flex-1 text-xs font-bold leading-5 text-terracotta">{t('safety.blockedByMeNotice')}</p>
@@ -886,15 +944,17 @@ function ConversationPanel({
                 variant="outline"
                 onClick={() => void changeBlock(false)}
                 disabled={setBlocked.isPending}
-                className="h-9 px-3"
+                className="h-11 px-4"
                 data-testid={MESSAGE_TEST_IDS.BUTTON_UNBLOCK}
               >
                 {t('safety.unblock')}
               </Button>
             </div>
           )}
-          <div className="flex items-end gap-2 rounded-xl border border-[#c8ddd2] bg-[#F1EFE8] p-2 focus-within:border-[#0F6E56]">
+          <div className="flex items-end gap-2">
+            <label htmlFor={`message-body-${conversationId}`} className="sr-only">{t('messages.writeMessage')}</label>
             <textarea
+              id={`message-body-${conversationId}`}
               value={body}
               onChange={(event) => setBody(event.target.value)}
               onKeyDown={(event) => {
@@ -908,20 +968,24 @@ function ConversationPanel({
               rows={1}
               placeholder={isClosed ? closedLabel : t('messages.writeMessage')}
               disabled={isClosed || sendMessage.isPending}
-              className="max-h-28 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none placeholder:text-[#82978e]"
+              className="max-h-28 min-h-11 min-w-0 flex-1 resize-none rounded-[22px] border border-field bg-cream px-4 py-[11px] text-[15px] leading-5 text-ink outline-none transition-colors placeholder:text-sage focus:border-shutter focus:ring-[3px] focus:ring-mint-wash/40 disabled:cursor-not-allowed"
               data-testid={MESSAGE_TEST_IDS.INPUT_MESSAGE_BODY}
             />
-            <Button
+            <button
               type="submit"
-              className="h-10 w-10 shrink-0 rounded-lg p-0"
+              aria-label={t('chat.send')}
+              title={t('chat.send')}
+              className={`grid h-11 w-11 shrink-0 place-items-center rounded-full transition-colors disabled:cursor-not-allowed ${
+                body.trim() && !isClosed ? 'bg-sun text-ink hover:bg-sun-hover' : 'bg-cream-deep text-sage'
+              }`}
               disabled={!body.trim() || isClosed || sendMessage.isPending}
               data-testid={MESSAGE_TEST_IDS.BUTTON_SEND_MESSAGE}
             >
-              <Send size={16} />
-            </Button>
+              <ArrowRight size={22} aria-hidden />
+            </button>
           </div>
           {sendMessage.isError && (
-            <p className="mt-2 text-xs font-bold text-[#a74b32]">
+            <p className="mt-2 text-xs font-bold text-terracotta">
               {isClosed ? closedLabel : t('messages.sendError')}
             </p>
           )}
@@ -1047,6 +1111,81 @@ function ConversationPanel({
   );
 }
 
+/** The room a chat is about, beside the chat on wide screens. */
+function ListingPanel({ conversation }: { conversation: Conversation }) {
+  const { t } = useLanguage();
+  const format = useFormat();
+  const roomId = conversation.roomId;
+  const { data: listing, isLoading } = useGetListing(roomId, {
+    query: { queryKey: getGetListingQueryKey(roomId), enabled: roomId > 0, retry: false, staleTime: LISTING_STALE_MS },
+  });
+  const isOwnerView = conversation.role === 'owner';
+  const photo = listing?.coverPhotoUrl ?? listing?.photoUrls?.[0];
+
+  return (
+    <aside
+      aria-label={t('chat.listingPanel')}
+      className="hidden min-h-0 flex-col gap-5 overflow-y-auto border-l border-line bg-cream p-8 xl:flex"
+      data-testid={MESSAGE_TEST_IDS.PANEL_LISTING}
+    >
+      <p className="text-xs font-extrabold uppercase tracking-[0.05em] text-sage">
+        {isOwnerView ? t('chat.yourListing') : t('chat.theRoom')}
+      </p>
+      {isLoading ? (
+        <>
+          <div className="skeleton h-[220px] rounded-xl" />
+          <div className="skeleton h-4 w-3/4 rounded" />
+          <div className="skeleton h-4 w-1/2 rounded" />
+        </>
+      ) : (
+        <>
+          {photo ? (
+            <img src={photo} alt="" className="h-[220px] w-full rounded-xl object-cover" />
+          ) : (
+            <div className="grid h-[220px] place-items-center rounded-xl bg-cream-deep text-sage" aria-hidden>
+              <Home size={28} />
+            </div>
+          )}
+          <div className="space-y-1">
+            <p className="text-xl font-black leading-snug text-ink">{listing?.title ?? conversation.listingTitle}</p>
+            {listing?.zone && (
+              <p className="flex items-center gap-1.5 text-sm text-sage">
+                <MapPin size={15} className="shrink-0 text-shutter" aria-hidden />
+                {listing.zone}
+              </p>
+            )}
+            {listing && (
+              <p className="pt-1 text-xl font-black text-shutter">
+                {format.price(listing.price)}
+                <span className="text-sm font-medium text-sage"> {t('chat.perMonth')}</span>
+              </p>
+            )}
+          </div>
+          {conversation.roomStatus === 'affittata' && !isOwnerView && (
+            <p className="flex items-center gap-2 text-sm font-bold text-sage">
+              <span className="h-2 w-2 rounded-full bg-sage/50" aria-hidden />
+              {t('chat.roomTaken')}
+            </p>
+          )}
+          {listing?.ownerVerified && (
+            <p className="flex items-start gap-2 text-sm leading-5 text-ink">
+              <BadgeCheck size={18} className="mt-px shrink-0 text-shutter" aria-hidden />
+              {t('chat.ownerVerified')}
+            </p>
+          )}
+          <Link
+            href={APP_ROUTES.LISTING_DETAIL.replace(':id', String(roomId))}
+            className="mt-auto inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-field px-4 text-sm font-extrabold text-shutter transition-colors hover:bg-cream-deep"
+            data-testid={MESSAGE_TEST_IDS.LINK_VIEW_LISTING}
+          >
+            {t('chat.viewListing')} <ArrowRight size={16} aria-hidden />
+          </Link>
+        </>
+      )}
+    </aside>
+  );
+}
+
 export function MessagesPage({ owner = false }: { owner?: boolean }) {
   const { t } = useLanguage();
   const { id } = useParams<{ id?: string }>();
@@ -1055,30 +1194,31 @@ export function MessagesPage({ owner = false }: { owner?: boolean }) {
   });
   // One synchronized inbox: /messages and /owner/messages show the same chats
   // (as student and as owner), so nothing is split between the two sections.
-  const conversations = data ?? [];
+  const conversations = useMemo(() => data ?? [], [data]);
   // RMY-12: chats with people the viewer blocked leave the main list (shown under "Blocked").
   const visibleConversations = conversations.filter((item) => !item.blockedByMe);
   const blockedConversations = conversations.filter((item) => item.blockedByMe);
   // No conversation is auto-opened: the right panel starts on the
   // "select a contact" placeholder until the person picks one from the inbox.
   const selectedId = id ? Number(id) : undefined;
+  const selectedConversation = selectedId ? conversations.find((item) => item.id === selectedId) : undefined;
 
   return (
-    <AppShell>
-      <div className="mx-auto max-w-[1320px] px-5 py-8 lg:px-8 lg:py-12">
-        <PageIntro
-          eyebrow={owner ? t('messages.ownerInboxEyebrow') : t('messages.yourMessagesEyebrow')}
-          title={owner ? t('messages.ownerTitle') : t('messages.studentTitle')}
-          description={owner ? t('messages.ownerDescription') : t('messages.studentDescription')}
-        />
-
-        <div className="grid min-h-[520px] overflow-hidden rounded-2xl border border-[#d6e7de] bg-[#F8F8F2] lg:grid-cols-[360px_1fr]">
+    <AppShell hideFooter fullWidth>
+      {/* Full-page chat under the navbar, like a messaging app: inbox, chat and room side by side. */}
+      <h1 className="sr-only">{t('messages.inbox')}</h1>
+      <div
+        className={`grid grid-cols-1 overflow-hidden bg-cream ${CHAT_PAGE_HEIGHT} lg:grid-cols-[360px_minmax(0,1fr)] ${
+          selectedConversation ? 'xl:grid-cols-[380px_minmax(0,1fr)_400px]' : 'xl:grid-cols-[380px_minmax(0,1fr)]'
+        }`}
+      >
           <section
-            className={`border-b border-[#d6e7de] lg:block lg:border-b-0 lg:border-r ${selectedId ? 'hidden' : ''}`}
+            aria-label={t('messages.inbox')}
+            className={`min-h-0 flex-col border-line pt-7 lg:flex lg:border-r ${selectedId ? 'hidden' : 'flex'}`}
           >
-            <div className="flex items-center justify-between border-b border-[#e1ebe4] p-4">
-              <h2 className="font-black text-[#085041]">{t('messages.inbox')}</h2>
-              <span className="rounded-full bg-[#E1F5EE] px-2.5 py-1 text-xs font-black text-[#0F6E56]">
+            <div className="flex items-center justify-between px-7 pb-4">
+              <h2 className="text-2xl font-black text-ink">{t('messages.inbox')}</h2>
+              <span className="rounded-full bg-cream-deep px-2.5 py-1 text-xs font-black tabular-nums text-ink">
                 {visibleConversations.length}
               </span>
             </div>
@@ -1109,22 +1249,23 @@ export function MessagesPage({ owner = false }: { owner?: boolean }) {
             )}
           </section>
 
-          <section className={selectedId ? 'block' : 'hidden lg:block'}>
+          <section className={`min-h-0 ${selectedId ? 'block' : 'hidden lg:block'}`}>
             {selectedId ? (
               <ConversationPanel
                 conversationId={selectedId}
-                conversation={conversations.find((item) => item.id === selectedId)}
+                conversation={selectedConversation}
                 owner={owner}
               />
             ) : (
-              <div className="flex h-full flex-col items-center justify-center p-8 text-center">
-                <MessageCircle size={30} className="mb-3 text-[#9FE1CB]" />
-                <p className="font-black text-[#085041]">{t('messages.pickConversation')}</p>
-                <p className="mt-1 text-sm text-[#527067]">{t('messages.pickConversationText')}</p>
+              <div className="flex h-full flex-col items-center justify-center bg-cream-deep/60 p-8 text-center">
+                <MessageCircle size={30} className="mb-3 text-mint-wash" aria-hidden />
+                <p className="font-black text-ink">{t('messages.pickConversation')}</p>
+                <p className="mt-1 text-sm text-sage">{t('messages.pickConversationText')}</p>
               </div>
             )}
           </section>
-        </div>
+
+          {selectedConversation && <ListingPanel conversation={selectedConversation} />}
       </div>
     </AppShell>
   );

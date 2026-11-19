@@ -29,12 +29,22 @@ export function PersonaLanguageProvider({
 // on its own (from the current route) which links and profile menu to show,
 // so no props need to be threaded through here anymore. The column layout
 // keeps the footer at the bottom of the viewport on short pages.
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  hideFooter = false,
+  fullWidth = false,
+}: {
+  children: React.ReactNode;
+  /** Full-screen pages (the chat) end at the viewport: no footer under them. */
+  hideFooter?: boolean;
+  /** Full-screen pages (the chat): full-width white navbar. */
+  fullWidth?: boolean;
+}) {
   return (
     <div className="flex min-h-[100dvh] flex-col bg-cream text-ink">
-      <Navbar />
+      <Navbar fullWidth={fullWidth} />
       <main className="flex-1">{children}</main>
-      <SiteFooter />
+      {!hideFooter && <SiteFooter />}
       <MobileTabBar />
     </div>
   );

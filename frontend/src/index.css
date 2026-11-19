@@ -46,10 +46,13 @@
   --color-mint-mist: #e1f5ee;
   --color-sun: #ef9f27;
   --color-sun-hover: #e6a53d;
+  --color-sun-soft: #fac775; /* your own chat bubbles */
+  --color-sun-ink: #412402; /* text on sun-soft */
   --color-amber-ink: #624c2e;
   --color-terracotta: #a74b32;
   --color-terracotta-mist: #f6e4dc;
   --color-cream: #f1efe8;
+  --color-cream-deep: #e8e5dc; /* a step darker than cream: chat canvas, fields, selected rows */
   --color-paper: #faf9f4;
   --color-ink: #2c2c2a;
   --color-sage: #527067;
